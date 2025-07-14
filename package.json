@@ -1,0 +1,48 @@
+{
+  "name": "spectrum-game",
+  "version": "1.0.0",
+  "description": "A multiplayer web guessing game where players guess positions on various spectrums",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "nodemon server/server.js",
+    "client:dev": "live-server client --port=3001",
+    "lint": "eslint . --ext .js",
+    "format": "prettier --write .",
+    "test": "echo \"Tests not implemented yet\""
+  },
+  "keywords": [
+    "game",
+    "multiplayer",
+    "websocket",
+    "spectrum",
+    "guessing-game",
+    "real-time"
+  ],
+  "author": "Spectrum Game Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "concurrently": "^8.2.2",
+    "live-server": "^1.2.2",
+    "eslint": "^8.55.0",
+    "prettier": "^3.1.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spectrum-game/spectrum.git"
+  },
+  "bugs": {
+    "url": "https://github.com/spectrum-game/spectrum/issues"
+  },
+  "homepage": "https://github.com/spectrum-game/spectrum#readme"
+}
