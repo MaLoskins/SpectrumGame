@@ -12,505 +12,250 @@
  * FIXED: Better timer handling and debugging
  * ================================= */
 
-/**
- * SocketHandler Class
- * Handles all Socket.io communication and event routing
- */
 class SocketHandler {
     constructor(io, roomManager, gameManager) {
-        this.io = io;
-        this.roomManager = roomManager;
-        this.gameManager = gameManager;
-        
-        // Connected players tracking
+        Object.assign(this, { io, roomManager, gameManager });
         this.connectedPlayers = new Map();
-        
-        // Socket to player mapping
         this.socketPlayers = new Map();
-        
-        // Debug mode
         this.debugMode = true;
-        
         console.log('🔌 SocketHandler initialized');
     }
 
-    /**
-     * Initialize socket event handlers
-     */
     init() {
-        this.io.on('connection', (socket) => {
+        this.io.on('connection', socket => {
             console.log(`🔌 New connection: ${socket.id}`);
-            
-            // Set up event handlers for this socket
             this.setupSocketEventHandlers(socket);
         });
     }
 
-    /**
-     * Set up event handlers for a socket
-     */
     setupSocketEventHandlers(socket) {
-        // Room management events
-        socket.on('room:create', (data) => this.handleCreateRoom(socket, data));
-        socket.on('room:join', (data) => this.handleJoinRoom(socket, data));
+        const handlers = {
+            'room:create': 'CreateRoom',
+            'room:join': 'JoinRoom',
+            'game:start': 'StartGame',
+            'game:submit-clue': 'SubmitClue',
+            'game:submit-guess': 'SubmitGuess',
+            'chat:send': 'ChatMessage',
+            'player:disconnect': 'PlayerLeave',
+            'ping': (s, ts) => s.emit('pong', ts),
+            'game:request-state': 'StateRequest'
+        };
         
-        // Game events
-        socket.on('game:start', (data) => this.handleStartGame(socket, data));
-        socket.on('game:submit-clue', (data) => this.handleSubmitClue(socket, data));
-        socket.on('game:submit-guess', (data) => this.handleSubmitGuess(socket, data));
+        Object.entries(handlers).forEach(([event, handler]) => {
+            socket.on(event, typeof handler === 'string' 
+                ? data => this[`handle${handler}`](socket, data) 
+                : data => handler(socket, data));
+        });
         
-        // Chat events
-        socket.on('chat:send', (data) => this.handleChatMessage(socket, data));
-        
-        // Connection events
-        socket.on('player:disconnect', (data) => this.handlePlayerLeave(socket, data));
-        socket.on('disconnect', (reason) => this.handleDisconnection(socket, reason));
-        
-        // Utility events
-        socket.on('ping', (timestamp) => socket.emit('pong', timestamp));
-        socket.on('game:request-state', (data) => this.handleStateRequest(socket, data));
-
-
+        socket.on('disconnect', reason => this.handleDisconnection(socket, reason));
     }
 
-    /**
-     * Handle room creation
-     */
-    async handleCreateRoom(socket, data) {
+    async handleCreateRoom(socket, { playerName, settings = {} }) {
         try {
-            console.log(`🏠 Creating room for ${data.playerName}`);
+            console.log(`🏠 Creating room for ${playerName}`);
+            this.validatePlayerName(playerName);
             
-            // Validate input
-            this.validatePlayerName(data.playerName);
-            
-            // Generate player ID
             const playerId = this.generatePlayerId();
-            
-            // Create room
-            const result = this.roomManager.createRoom(playerId, data.playerName, data.settings);
-            
-            // Get room reference
+            const result = this.roomManager.createRoom(playerId, playerName, settings);
             const room = this.roomManager.getRoomByCode(result.code);
-            room.io = this.io; // Set io reference for the room
+            room.io = this.io;
             
-            // Join socket to room
             socket.join(room.id);
+            this.trackPlayer(socket, playerId, playerName, result.code, room.id);
             
-            // Track player connection
-            this.connectedPlayers.set(playerId, {
-                socketId: socket.id,
-                playerId,
-                playerName: data.playerName,
-                roomCode: result.code,
-                roomId: room.id,
-                connectedAt: Date.now()
-            });
-            
-            this.socketPlayers.set(socket.id, playerId);
-            
-            // Send success response
             socket.emit('room:created', {
                 roomId: room.id,
                 roomCode: result.code,
-                playerId: playerId,
+                playerId,
                 players: this.roomManager.getRoomPlayers(result.code),
-                room: this.roomManager.getRoomInfo(result.code)  // This should include canStart
+                room: this.roomManager.getRoomInfo(result.code)
             });
-                        
-            console.log(`✅ Room ${result.code} created successfully`);
             
+            console.log(`✅ Room ${result.code} created successfully`);
         } catch (error) {
-            console.error('❌ Error creating room:', error);
-            socket.emit('error', {
-                code: 'ROOM_CREATE_FAILED',
-                message: error.message
-            });
+            this.handleError(socket, 'ROOM_CREATE_FAILED', error);
         }
     }
 
-    /**
-     * Handle room joining
-     */
-    async handleJoinRoom(socket, data) {
+    async handleJoinRoom(socket, { playerName, roomCode }) {
         try {
-            console.log(`🚪 ${data.playerName} joining room ${data.roomCode}`);
+            console.log(`🚪 ${playerName} joining room ${roomCode}`);
+            this.validatePlayerName(playerName);
+            this.validateRoomCode(roomCode);
             
-            // Validate input
-            this.validatePlayerName(data.playerName);
-            this.validateRoomCode(data.roomCode);
-            
-            // Generate player ID
             const playerId = this.generatePlayerId();
+            const roomInfo = this.roomManager.joinRoom(roomCode, playerId, playerName);
+            const room = this.roomManager.getRoomByCode(roomCode);
+            room.io = this.io;
             
-            // Join room
-            const roomInfo = this.roomManager.joinRoom(data.roomCode, playerId, data.playerName);
-            
-            // Get room reference
-            const room = this.roomManager.getRoomByCode(data.roomCode);
-            room.io = this.io; // Set io reference for the room
-            
-            // Join socket to room
             socket.join(room.id);
+            this.trackPlayer(socket, playerId, playerName, roomCode, room.id);
             
-            // Track player connection
-            this.connectedPlayers.set(playerId, {
-                socketId: socket.id,
-                playerId,
-                playerName: data.playerName,
-                roomCode: data.roomCode,
-                roomId: room.id,
-                connectedAt: Date.now()
-            });
-            
-            this.socketPlayers.set(socket.id, playerId);
-            
-            // Send success response to joining player
             socket.emit('room:joined', {
                 roomId: room.id,
-                roomCode: data.roomCode,
-                playerId: playerId,
+                roomCode,
+                playerId,
                 players: roomInfo.players,
-                room: roomInfo,  // This already uses getRoomInfo
+                room: roomInfo,
                 gameState: roomInfo.gameState
             });
             
-            // Notify other players in room
             socket.to(room.id).emit('room:player-joined', {
                 player: roomInfo.players.find(p => p.id === playerId)
             });
             
-            console.log(`✅ ${data.playerName} joined room ${data.roomCode} successfully`);
-            
+            console.log(`✅ ${playerName} joined room ${roomCode} successfully`);
         } catch (error) {
-            console.error('❌ Error joining room:', error);
-            socket.emit('error', {
-                code: 'ROOM_JOIN_FAILED',
-                message: error.message
-            });
+            this.handleError(socket, 'ROOM_JOIN_FAILED', error);
         }
     }
 
-    /**
-     * Handle start game
-     */
-    async handleStartGame(socket, data) {
+    async handleStartGame(socket) {
         try {
-            const playerId = this.socketPlayers.get(socket.id);
-            
-            if (!playerId) {
-                throw new Error('Player not found');
-            }
-            
-            const roomCode = this.connectedPlayers.get(playerId)?.roomCode;
-            const room = this.roomManager.getRoomByCode(roomCode);
-            
-            if (!room) {
-                throw new Error('Room not found');
-            }
-            
-            // Store socket handler reference in room for round transitions
+            const { room, playerId } = this.getPlayerRoom(socket);
             room.socketHandler = this;
             
-            // Validate player is host
             const player = room.players.get(playerId);
-            if (!player || !player.isHost) {
-                throw new Error('Only the host can start the game');
-            }
-            
-            // Validate game can start
-            if (!this.gameManager.canStartGame(room)) {
-                throw new Error('Not enough players to start game');
-            }
+            if (!player?.isHost) throw new Error('Only the host can start the game');
+            if (!this.gameManager.canStartGame(room)) throw new Error('Not enough players to start game');
             
             console.log(`🎯 Starting game in room ${room.code}`);
-            
-            // Set room phase to active
             room.phase = 'active';
-            
-            // Start first round
             const roundData = this.gameManager.startRound(room);
             
-            console.log(`🎯 Starting round ${roundData.roundNumber} for room ${room.code}`);
-            console.log(`🎯 Clue giver: ${room.clueGiverId}, Target position: ${room.targetPosition}`);
-            
-            // Send role-specific round start events to each player
-            room.players.forEach((player, playerId) => {
-                const playerSocket = this.getPlayerSocket(playerId);
+            room.players.forEach((player, pid) => {
+                const playerSocket = this.getPlayerSocket(pid);
                 if (playerSocket) {
-                    const isClueGiver = playerId === room.clueGiverId;
-                    
-                    // Prepare event data based on player role
-                    const eventData = {
-                        roundNumber: roundData.roundNumber,
-                        totalRounds: room.totalRounds || 10,
-                        clueGiverId: roundData.clueGiverId,
-                        spectrum: roundData.spectrum,
-                        duration: roundData.duration,
+                    const isClueGiver = pid === room.clueGiverId;
+                    playerSocket.emit('game:round-start', {
+                        ...roundData,
                         targetPosition: isClueGiver ? room.targetPosition : null
-                    };
-                    
-                    console.log(`📤 Sending round-start to ${playerId} (${isClueGiver ? 'Clue Giver' : 'Guesser'})`);
-                    playerSocket.emit('game:round-start', eventData);
-                } else {
-                    console.warn(`⚠️ Could not find socket for player ${playerId}`);
+                    });
                 }
             });
             
             console.log(`✅ Game started in room ${room.code}`);
-            
         } catch (error) {
-            console.error('❌ Error starting game:', error);
-            socket.emit('error', {
-                code: 'GAME_START_FAILED',
-                message: error.message
-            });
+            this.handleError(socket, 'GAME_START_FAILED', error);
         }
     }
 
-    /**
-     * Handle state request
-     * This provides a comprehensive game state update
-     * including current phase, round, clue, and target position
-     */
-    handleStateRequest(socket, data) {
+    handleStateRequest(socket) {
         try {
-            const playerId = this.socketPlayers.get(socket.id);
-            if (!playerId) {
-                socket.emit('error', { code: 'NOT_AUTHENTICATED', message: 'Player not found' });
-                return;
-            }
-            
-            const playerData = this.connectedPlayers.get(playerId);
-            if (!playerData || !playerData.roomCode) {
-                socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in a room' });
-                return;
-            }
-            
-            const room = this.roomManager.getRoomByCode(playerData.roomCode);
-            if (!room) {
-                socket.emit('error', { code: 'ROOM_NOT_FOUND', message: 'Room not found' });
-                return;
-            }
-            
-            // Prepare comprehensive state
-            const gameState = {
-                phase: room.phase,
-                currentRound: room.currentRound,
-                totalRounds: room.totalRounds || 10,
-                clueGiverId: room.clueGiverId,
-                spectrum: room.currentSpectrum,
-                clue: room.clue,
-                timeRemaining: this.calculateTimeRemaining(room),
-                // Only include target for clue giver
-                targetPosition: playerId === room.clueGiverId ? room.targetPosition : null
-            };
-            
-            const roomInfo = this.roomManager.getRoomInfo(playerData.roomCode);
+            const { room, playerId } = this.getPlayerRoom(socket);
+            const roomInfo = this.roomManager.getRoomInfo(room.code);
             
             socket.emit('game:state-update', {
-                gameState,
+                gameState: {
+                    phase: room.phase,
+                    currentRound: room.currentRound,
+                    totalRounds: room.totalRounds || 10,
+                    clueGiverId: room.clueGiverId,
+                    spectrum: room.currentSpectrum,
+                    clue: room.clue,
+                    timeRemaining: this.calculateTimeRemaining(room),
+                    targetPosition: playerId === room.clueGiverId ? room.targetPosition : null
+                },
                 roomInfo,
                 players: roomInfo.players,
-                playerId: playerId
+                playerId
             });
             
             console.log(`📤 Sent state update to player ${playerId}`);
-            
         } catch (error) {
-            console.error('❌ Error handling state request:', error);
-            socket.emit('error', {
-                code: 'STATE_REQUEST_FAILED',
-                message: 'Failed to retrieve game state'
-            });
+            this.handleError(socket, 'STATE_REQUEST_FAILED', error);
         }
     }
 
-    /**
-     * Handle clue submission
-     */
-    async handleSubmitClue(socket, data) {
+    async handleSubmitClue(socket, { clue }) {
         try {
-            const playerId = this.socketPlayers.get(socket.id);
+            const { room, playerId } = this.getPlayerRoom(socket);
+            console.log(`💡 Clue submitted in room ${room.code}: "${clue}"`);
             
-            if (!playerId) {
-                throw new Error('Player not found');
-            }
-            
-            const roomCode = this.connectedPlayers.get(playerId)?.roomCode;
-            const room = this.roomManager.getRoomByCode(roomCode);
-            
-            if (!room) {
-                throw new Error('Room not found');
-            }
-            
-            console.log(`💡 Clue submitted in room ${room.code}: "${data.clue}"`);
-            
-            // Submit clue through game manager
-            const result = this.gameManager.submitClue(room, playerId, data.clue);
-            
-            // Broadcast clue to all players
+            const result = this.gameManager.submitClue(room, playerId, clue);
             this.io.to(room.id).emit('game:clue-submitted', result);
             
             console.log(`✅ Clue submitted successfully in room ${room.code}`);
-            
         } catch (error) {
-            console.error('❌ Error submitting clue:', error);
-            socket.emit('error', {
-                code: 'CLUE_SUBMIT_FAILED',
-                message: error.message
-            });
+            this.handleError(socket, 'CLUE_SUBMIT_FAILED', error);
         }
     }
 
-    /**
-     * Handle guess submission
-     */
-    async handleSubmitGuess(socket, data) {
+    async handleSubmitGuess(socket, { position }) {
         try {
-            const playerId = this.socketPlayers.get(socket.id);
+            const { room, playerId } = this.getPlayerRoom(socket);
+            console.log(`🎯 Guess submitted in room ${room.code}: ${position}`);
             
-            if (!playerId) {
-                throw new Error('Player not found');
-            }
-            
-            const roomCode = this.connectedPlayers.get(playerId)?.roomCode;
-            const room = this.roomManager.getRoomByCode(roomCode);
-            
-            if (!room) {
-                throw new Error('Room not found');
-            }
-            
-            console.log(`🎯 Guess submitted in room ${room.code}: ${data.position}`);
-            
-            // Submit guess through game manager
-            const result = this.gameManager.submitGuess(room, playerId, data.position);
-            
-            // Broadcast guess submission (without revealing position)
+            const result = this.gameManager.submitGuess(room, playerId, position);
             this.io.to(room.id).emit('game:guess-submitted', result);
             
             console.log(`✅ Guess submitted successfully in room ${room.code}`);
-            
         } catch (error) {
-            console.error('❌ Error submitting guess:', error);
-            socket.emit('error', {
-                code: 'GUESS_SUBMIT_FAILED',
-                message: error.message
-            });
+            this.handleError(socket, 'GUESS_SUBMIT_FAILED', error);
         }
     }
 
-    /**
-     * Handle chat message
-     */
-    async handleChatMessage(socket, data) {
+    async handleChatMessage(socket, { message }) {
         try {
-            const playerId = this.socketPlayers.get(socket.id);
-            
-            if (!playerId) {
-                throw new Error('Player not found');
-            }
-            
-            const roomCode = this.connectedPlayers.get(playerId)?.roomCode;
-            const room = this.roomManager.getRoomByCode(roomCode);
-            
-            if (!room) {
-                throw new Error('Room not found');
-            }
-            
+            const { room, playerId } = this.getPlayerRoom(socket);
             const player = room.players.get(playerId);
+            if (!player) throw new Error('Player not in room');
             
-            if (!player) {
-                throw new Error('Player not in room');
-            }
+            this.validateChatMessage(message);
+            console.log(`💬 Chat message in room ${room.code}: ${player.name}: ${message}`);
             
-            // Validate message
-            this.validateChatMessage(data.message);
-            
-            console.log(`💬 Chat message in room ${room.code}: ${player.name}: ${data.message}`);
-            
-            // Broadcast message to all players in room
             this.io.to(room.id).emit('chat:message', {
                 playerId,
                 playerName: player.name,
-                message: data.message,
+                message: message.trim(),
                 timestamp: Date.now()
             });
-            
         } catch (error) {
-            console.error('❌ Error sending chat message:', error);
-            socket.emit('error', {
-                code: 'CHAT_SEND_FAILED',
-                message: error.message
-            });
-        }
-    }
-    /**
-    /**
-     * Handle player leave
-     */
-    async handlePlayerLeave(socket, data) {
-        const playerId = this.socketPlayers.get(socket.id);
-        
-        if (playerId) {
-            this.removePlayer(playerId, socket);
+            this.handleError(socket, 'CHAT_SEND_FAILED', error);
         }
     }
 
-    /**
-     * Handle socket disconnection
-     */
+    async handlePlayerLeave(socket) {
+        const playerId = this.socketPlayers.get(socket.id);
+        if (playerId) this.removePlayer(playerId, socket);
+    }
+
     handleDisconnection(socket, reason) {
         console.log(`🔌 Socket disconnected: ${socket.id} (${reason})`);
-        
         const playerId = this.socketPlayers.get(socket.id);
         
         if (playerId) {
             const playerData = this.connectedPlayers.get(playerId);
-            
             if (playerData) {
-                // Update player connection status
                 this.roomManager.updatePlayerConnection(playerId, false);
-                
-                // Notify other players
                 const room = this.roomManager.getRoomByCode(playerData.roomCode);
                 if (room) {
                     this.io.to(room.id).emit('room:player-left', {
-                        playerId: playerId,
+                        playerId,
                         playerName: playerData.playerName,
                         isDisconnected: true
                     });
                 }
             }
-            
-            // Clean up tracking
             this.connectedPlayers.delete(playerId);
             this.socketPlayers.delete(socket.id);
         }
     }
 
-    /**
-     * Remove player from room
-     */
     removePlayer(playerId, socket) {
         const playerData = this.connectedPlayers.get(playerId);
-        
         if (playerData) {
             try {
                 const result = this.roomManager.leaveRoom(playerId);
-                
                 console.log(`🚪 Player ${playerData.playerName} left room ${playerData.roomCode}`);
-                
-                // Leave socket room
                 socket.leave(playerData.roomId);
                 
-                // Notify other players if room still exists
                 if (!result.roomDeleted) {
                     this.io.to(playerData.roomId).emit('room:player-left', {
-                        playerId: playerId,
+                        playerId,
                         playerName: playerData.playerName
                     });
                     
-                    // If host changed, notify about new host
                     if (result.newHost) {
                         this.io.to(playerData.roomId).emit('room:host-changed', {
                             newHostId: result.newHost.id,
@@ -522,152 +267,88 @@ class SocketHandler {
                 console.error('❌ Error removing player:', error);
             }
         }
-        
-        // Clean up tracking
         this.connectedPlayers.delete(playerId);
         this.socketPlayers.delete(socket.id);
     }
 
-    /**     * Calculate time remaining in current round
-     * Returns seconds remaining
-     * FIXED: Improved calculation and handling
-     */
     calculateTimeRemaining(room) {
         if (!room.roundStartTime) return 0;
-        
-        const elapsed = Date.now() - room.roundStartTime;
-        const duration = this.gameManager.ROUND_DURATION * 1000; // Convert to ms
-        const remaining = Math.max(0, duration - elapsed);
-        
-        return Math.ceil(remaining / 1000); // Return seconds
+        const remaining = Math.max(0, this.gameManager.ROUND_DURATION * 1000 - (Date.now() - room.roundStartTime));
+        return Math.ceil(remaining / 1000);
     }
 
-    /**
-     * Get socket for a player
-     */
     getPlayerSocket(playerId) {
         const playerData = this.connectedPlayers.get(playerId);
-        
-        if (playerData) {
-            return this.io.sockets.sockets.get(playerData.socketId);
-        }
-        
-        return null;
+        return playerData ? this.io.sockets.sockets.get(playerData.socketId) : null;
     }
 
-    /**
-     * Generate unique player ID
-     */
+    getPlayerRoom(socket) {
+        const playerId = this.socketPlayers.get(socket.id);
+        if (!playerId) throw new Error('Player not found');
+        
+        const playerData = this.connectedPlayers.get(playerId);
+        if (!playerData?.roomCode) throw new Error('Room not found');
+        
+        const room = this.roomManager.getRoomByCode(playerData.roomCode);
+        if (!room) throw new Error('Room not found');
+        
+        return { room, playerId, playerData };
+    }
+
+    trackPlayer(socket, playerId, playerName, roomCode, roomId) {
+        const playerData = { socketId: socket.id, playerId, playerName, roomCode, roomId, connectedAt: Date.now() };
+        this.connectedPlayers.set(playerId, playerData);
+        this.socketPlayers.set(socket.id, playerId);
+    }
+
     generatePlayerId() {
         return `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
 
-    /**
-     * Validate player name
-     */
     validatePlayerName(name) {
-        if (!name || typeof name !== 'string') {
-            throw new Error('Player name is required');
-        }
-        
+        if (!name?.trim()) throw new Error('Player name is required');
         const trimmed = name.trim();
-        
-        if (trimmed.length === 0) {
-            throw new Error('Player name cannot be empty');
-        }
-        
-        if (trimmed.length > 20) {
-            throw new Error('Player name must be 20 characters or less');
-        }
-        
-        // Check for forbidden characters
-        if (!/^[a-zA-Z0-9\s\-_]+$/.test(trimmed)) {
-            throw new Error('Player name contains invalid characters');
-        }
+        if (trimmed.length > 20) throw new Error('Player name must be 20 characters or less');
+        if (!/^[a-zA-Z0-9\s\-_]+$/.test(trimmed)) throw new Error('Player name contains invalid characters');
     }
 
-    /**
-     * Validate room code
-     */
     validateRoomCode(code) {
-        if (!code || typeof code !== 'string') {
-            throw new Error('Room code is required');
-        }
-        
-        const trimmed = code.trim().toUpperCase();
-        
-        if (!/^[A-Z0-9]{4,6}$/.test(trimmed)) {
-            throw new Error('Invalid room code format');
-        }
+        if (!code?.trim()) throw new Error('Room code is required');
+        if (!/^[A-Z0-9]{4,6}$/.test(code.trim().toUpperCase())) throw new Error('Invalid room code format');
     }
 
-    /**
-     * Validate chat message
-     */
     validateChatMessage(message) {
-        if (!message || typeof message !== 'string') {
-            throw new Error('Message is required');
-        }
-        
+        if (!message?.trim()) throw new Error('Message cannot be empty');
         const trimmed = message.trim();
-        
-        if (trimmed.length === 0) {
-            throw new Error('Message cannot be empty');
-        }
-        
-        if (trimmed.length > 200) {
-            throw new Error('Message must be 200 characters or less');
-        }
+        if (trimmed.length > 200) throw new Error('Message must be 200 characters or less');
     }
 
-    /**
-     * Broadcast round end results
-     */
+    handleError(socket, code, error) {
+        console.error(`❌ ${code}:`, error);
+        socket.emit('error', { code, message: error.message });
+    }
+
     broadcastRoundEnd(room, results) {
         console.log(`📊 Broadcasting round end for room ${room.code}`);
         this.io.to(room.id).emit('game:round-end', results);
     }
 
-    /**
-     * Broadcast game end results
-     */
     broadcastGameEnd(room, results) {
         console.log(`🎉 Broadcasting game end for room ${room.code}`);
         this.io.to(room.id).emit('game:finished', results);
     }
 
-    /**
-     * Broadcast timer updates - FIXED: Reduced frequency
-     */
     broadcastTimerUpdate(room, timeRemaining) {
-        // Only broadcast at specific intervals to reduce noise
-        const shouldBroadcast = 
-            timeRemaining % 5 === 0 || // Every 5 seconds
-            timeRemaining <= 10 || // Last 10 seconds
-            timeRemaining === 30; // 30 second warning
-        
-        if (shouldBroadcast) {
+        if (timeRemaining % 5 === 0 || timeRemaining <= 10 || timeRemaining === 30) {
             if (this.debugMode && timeRemaining <= 10) {
                 console.log(`⏰ Timer update for room ${room.code}: ${timeRemaining}s`);
             }
-            
-            this.io.to(room.id).emit('timer:update', {
-                timeRemaining,
-                phase: room.phase
-            });
+            this.io.to(room.id).emit('timer:update', { timeRemaining, phase: room.phase });
         }
     }
 
-    /**
-     * Get connected player count
-     */
-    getConnectedPlayerCount() {
-        return this.connectedPlayers.size;
-    }
-
-    /**
-     * Get connection statistics
-     */
+    getConnectedPlayerCount() { return this.connectedPlayers.size; }
+    
     getConnectionStats() {
         return {
             connectedPlayers: this.connectedPlayers.size,
@@ -676,71 +357,22 @@ class SocketHandler {
         };
     }
 
-    wrapHandler(handlerFn) {
-    return async (socket, data) => {
-        try {
-            await handlerFn.call(this, socket, data);
-        } catch (error) {
-            console.error(`❌ Handler error in ${handlerFn.name}:`, error);
-            
-            // Send error to client
-            socket.emit('error', {
-                code: error.code || 'HANDLER_ERROR',
-                message: error.message || 'An error occurred',
-                details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-            });
-            
-            // Log error details
-            this.logError(error, handlerFn.name, { socketId: socket.id, data });
-        }
-    };
-}
-    /**
-    * Log error details
-     * FIXED: Improved error logging with context and metadata
-     */
     logError(error, context, metadata = {}) {
         const errorLog = {
             timestamp: new Date().toISOString(),
             context,
-        error: {
-            message: error.message,
-            code: error.code,
-            stack: error.stack
-        },
-        metadata
-    };
-    
-    console.error('🚨 Error Log:', JSON.stringify(errorLog, null, 2));
-    
-    // In production, you would send this to an error tracking service
-    if (process.env.NODE_ENV === 'production') {
-        // sendToErrorTracking(errorLog);
-    }
-}
-
-    /**
-     * Broadcast to all connected clients
-     */
-    broadcast(event, data) {
-        this.io.emit(event, data);
+            error: { message: error.message, code: error.code, stack: error.stack },
+            metadata
+        };
+        console.error('🚨 Error Log:', JSON.stringify(errorLog, null, 2));
     }
 
-    /**
-     * Broadcast to specific room
-     */
-    broadcastToRoom(roomId, event, data) {
-        this.io.to(roomId).emit(event, data);
-    }
+    broadcast(event, data) { this.io.emit(event, data); }
+    broadcastToRoom(roomId, event, data) { this.io.to(roomId).emit(event, data); }
 
-    /**
-     * Cleanup resources
-     */
     cleanup() {
-        // Clear all tracking
         this.connectedPlayers.clear();
         this.socketPlayers.clear();
-        
         console.log('🧹 SocketHandler cleaned up');
     }
 }
