@@ -212,10 +212,10 @@
                 
                 <!-- Clue Input (for Clue Giver) -->
                 <div id="clue-input-section" class="control-section hidden" role="group" aria-label="Clue giving">
-                    <label for="clue-input">Give a clue for the target position:</label>
+                    <label for="clue-input-field">Give a clue for the target position:</label>
                     <div class="input-group">
-                        <input type="text" id="clue-input" placeholder="Enter your clue..." maxlength="100"
-                               aria-required="true" aria-describedby="clue-input-help">
+                        <input type="text" id="clue-input-field" placeholder="Enter your clue..." maxlength="100"
+                            aria-required="true" aria-describedby="clue-input-help">
                         <button id="submit-clue" class="btn btn-primary" aria-describedby="submit-clue-help">Submit Clue</button>
                         <div id="clue-input-help" class="sr-only">Enter a helpful clue to guide other players to the target position (max 100 characters)</div>
                         <div id="submit-clue-help" class="sr-only">Submit your clue to other players</div>
@@ -227,7 +227,7 @@
                     <label for="guess-slider">Make your guess on the spectrum:</label>
                     <div class="guess-controls">
                         <input type="range" id="guess-slider" min="0" max="100" value="50" class="guess-slider"
-                               aria-describedby="guess-slider-help" aria-valuetext="50 percent">
+                            aria-describedby="guess-slider-help" aria-valuetext="50 percent">
                         <span id="guess-value" class="guess-value" aria-live="polite" aria-label="Current guess value">50</span>
                         <button id="submit-guess" class="btn btn-primary" aria-describedby="submit-guess-help">Submit Guess</button>
                         <div id="guess-slider-help" class="sr-only">Use the slider to select your guess position from 0 to 100</div>

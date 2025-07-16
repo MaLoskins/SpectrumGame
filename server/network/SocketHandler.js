@@ -68,6 +68,9 @@ class SocketHandler {
         
         // Utility events
         socket.on('ping', (timestamp) => socket.emit('pong', timestamp));
+        socket.on('game:request-state', (data) => this.handleStateRequest(socket, data));
+
+
     }
 
     /**
@@ -188,7 +191,7 @@ class SocketHandler {
     }
 
     /**
-     * Handle game start
+     * Handle start game
      */
     async handleStartGame(socket, data) {
         try {
@@ -204,6 +207,9 @@ class SocketHandler {
             if (!room) {
                 throw new Error('Room not found');
             }
+            
+            // Store socket handler reference in room for round transitions
+            room.socketHandler = this;
             
             // Validate player is host
             const player = room.players.get(playerId);
@@ -236,19 +242,14 @@ class SocketHandler {
                     // Prepare event data based on player role
                     const eventData = {
                         roundNumber: roundData.roundNumber,
+                        totalRounds: room.totalRounds || 10,
                         clueGiverId: roundData.clueGiverId,
                         spectrum: roundData.spectrum,
-                        duration: roundData.duration
+                        duration: roundData.duration,
+                        targetPosition: isClueGiver ? room.targetPosition : null
                     };
                     
-                    // Only include target position for the clue giver
-                    if (isClueGiver) {
-                        eventData.targetPosition = room.targetPosition;
-                        console.log(`🎯 Sending round-start with target ${room.targetPosition} to clue giver ${playerId}`);
-                    } else {
-                        console.log(`🎲 Sending round-start without target to guesser ${playerId}`);
-                    }
-                    
+                    console.log(`📤 Sending round-start to ${playerId} (${isClueGiver ? 'Clue Giver' : 'Guesser'})`);
                     playerSocket.emit('game:round-start', eventData);
                 } else {
                     console.warn(`⚠️ Could not find socket for player ${playerId}`);
@@ -262,6 +263,64 @@ class SocketHandler {
             socket.emit('error', {
                 code: 'GAME_START_FAILED',
                 message: error.message
+            });
+        }
+    }
+
+    /**
+     * Handle state request
+     * This provides a comprehensive game state update
+     * including current phase, round, clue, and target position
+     */
+    handleStateRequest(socket, data) {
+        try {
+            const playerId = this.socketPlayers.get(socket.id);
+            if (!playerId) {
+                socket.emit('error', { code: 'NOT_AUTHENTICATED', message: 'Player not found' });
+                return;
+            }
+            
+            const playerData = this.connectedPlayers.get(playerId);
+            if (!playerData || !playerData.roomCode) {
+                socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Not in a room' });
+                return;
+            }
+            
+            const room = this.roomManager.getRoomByCode(playerData.roomCode);
+            if (!room) {
+                socket.emit('error', { code: 'ROOM_NOT_FOUND', message: 'Room not found' });
+                return;
+            }
+            
+            // Prepare comprehensive state
+            const gameState = {
+                phase: room.phase,
+                currentRound: room.currentRound,
+                totalRounds: room.totalRounds || 10,
+                clueGiverId: room.clueGiverId,
+                spectrum: room.currentSpectrum,
+                clue: room.clue,
+                timeRemaining: this.calculateTimeRemaining(room),
+                // Only include target for clue giver
+                targetPosition: playerId === room.clueGiverId ? room.targetPosition : null
+            };
+            
+            const roomInfo = this.roomManager.getRoomInfo(playerData.roomCode);
+            
+            socket.emit('game:state-update', {
+                gameState,
+                roomInfo,
+                players: roomInfo.players,
+                playerId: playerId
+            });
+            
+            console.log(`📤 Sent state update to player ${playerId}`);
+            
+        } catch (error) {
+            console.error('❌ Error handling state request:', error);
+            socket.emit('error', {
+                code: 'STATE_REQUEST_FAILED',
+                message: 'Failed to retrieve game state'
             });
         }
     }
@@ -385,7 +444,7 @@ class SocketHandler {
             });
         }
     }
-
+    /**
     /**
      * Handle player leave
      */
@@ -467,6 +526,20 @@ class SocketHandler {
         // Clean up tracking
         this.connectedPlayers.delete(playerId);
         this.socketPlayers.delete(socket.id);
+    }
+
+    /**     * Calculate time remaining in current round
+     * Returns seconds remaining
+     * FIXED: Improved calculation and handling
+     */
+    calculateTimeRemaining(room) {
+        if (!room.roundStartTime) return 0;
+        
+        const elapsed = Date.now() - room.roundStartTime;
+        const duration = this.gameManager.ROUND_DURATION * 1000; // Convert to ms
+        const remaining = Math.max(0, duration - elapsed);
+        
+        return Math.ceil(remaining / 1000); // Return seconds
     }
 
     /**
@@ -602,6 +675,49 @@ class SocketHandler {
             rooms: this.roomManager.getActiveRoomCount()
         };
     }
+
+    wrapHandler(handlerFn) {
+    return async (socket, data) => {
+        try {
+            await handlerFn.call(this, socket, data);
+        } catch (error) {
+            console.error(`❌ Handler error in ${handlerFn.name}:`, error);
+            
+            // Send error to client
+            socket.emit('error', {
+                code: error.code || 'HANDLER_ERROR',
+                message: error.message || 'An error occurred',
+                details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            });
+            
+            // Log error details
+            this.logError(error, handlerFn.name, { socketId: socket.id, data });
+        }
+    };
+}
+    /**
+    * Log error details
+     * FIXED: Improved error logging with context and metadata
+     */
+    logError(error, context, metadata = {}) {
+        const errorLog = {
+            timestamp: new Date().toISOString(),
+            context,
+        error: {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        },
+        metadata
+    };
+    
+    console.error('🚨 Error Log:', JSON.stringify(errorLog, null, 2));
+    
+    // In production, you would send this to an error tracking service
+    if (process.env.NODE_ENV === 'production') {
+        // sendToErrorTracking(errorLog);
+    }
+}
 
     /**
      * Broadcast to all connected clients

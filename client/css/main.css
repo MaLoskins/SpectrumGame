@@ -834,3 +834,295 @@ select:focus-visible {
     --text-muted: var(--text-primary);
   }
 }
+
+/* Add these CSS fixes to your main.css or create a new fixes.css file */
+
+/* ===== CRITICAL UI FIXES ===== */
+
+/* Fix control sections layout */
+.game-controls {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.control-section {
+  width: 100%;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.control-section.hidden {
+  display: none !important;
+}
+
+/* Improve input group styling */
+.input-group {
+  display: flex;
+  gap: var(--space-md);
+  align-items: stretch;
+  margin-top: var(--space-md);
+}
+
+.input-group input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Fix clue input visibility */
+#clue-input-section label {
+  font-size: var(--font-size-lg);
+  color: var(--accent-purple);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+  display: block;
+  margin-bottom: var(--space-md);
+}
+
+#clue-input-field {
+  font-size: var(--font-size-lg);
+  padding: var(--space-md) var(--space-lg);
+  text-align: center;
+}
+
+/* Enhanced guess controls */
+.guess-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.guess-slider {
+  flex: 1;
+}
+
+.guess-value {
+  font-size: var(--font-size-2xl);
+  min-width: 60px;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--accent-bg);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+/* Better waiting message styling */
+.waiting-message {
+  font-size: var(--font-size-xl);
+  color: var(--text-muted);
+  text-align: center;
+  margin: var(--space-lg) 0;
+}
+
+/* Improved button states */
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.btn-primary:disabled {
+  background: linear-gradient(135deg, #d8b4fe, #fbbf24);
+}
+
+/* Fix spectrum line interaction feedback */
+.spectrum-line {
+  cursor: default;
+  user-select: none;
+}
+
+.spectrum-line.interactive {
+  cursor: crosshair;
+}
+
+.spectrum-line.interactive:hover {
+  border-color: var(--accent-purple);
+  box-shadow: 
+    inset 0 0 20px rgba(139, 92, 246, 0.1),
+    0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+/* Enhanced player item styling */
+.player-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.player-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: background var(--transition-fast);
+}
+
+.player-item.current-player::before {
+  background: var(--accent-purple);
+}
+
+.player-item.clue-giver::before {
+  background: var(--accent-orange);
+}
+
+/* Better notification positioning */
+.notifications-container {
+  position: fixed;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  z-index: var(--z-toast);
+  pointer-events: none;
+}
+
+.notification {
+  pointer-events: auto;
+  min-width: 300px;
+  max-width: 450px;
+}
+
+/* Improved modal backdrop */
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal {
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+/* Enhanced loading indicator */
+.loading-indicator {
+  background: radial-gradient(circle at center, var(--overlay-bg), rgba(0, 0, 0, 0.8));
+}
+
+.spinner {
+  width: 60px;
+  height: 60px;
+  border-width: 4px;
+}
+
+/* ===== MOBILE RESPONSIVENESS FIXES ===== */
+
+@media (max-width: 768px) {
+  .game-controls {
+    padding: var(--space-md);
+    min-height: auto;
+  }
+  
+  .control-section {
+    padding: var(--space-md);
+  }
+  
+  .input-group {
+    flex-direction: column;
+  }
+  
+  .guess-controls {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+  
+  .guess-value {
+    font-size: var(--font-size-3xl);
+    padding: var(--space-md);
+    width: 100%;
+  }
+  
+  .spectrum-line {
+    height: 80px;
+    margin: var(--space-md) 0;
+  }
+  
+  .notifications-container {
+    left: var(--space-sm);
+    right: var(--space-sm);
+    top: var(--space-sm);
+  }
+  
+  .notification {
+    min-width: auto;
+    max-width: none;
+  }
+}
+
+/* ===== ANIMATION IMPROVEMENTS ===== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ===== ACCESSIBILITY IMPROVEMENTS ===== */
+
+/* Better focus indicators */
+*:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.btn:focus-visible {
+  outline-offset: 4px;
+}
+
+/* High contrast mode improvements */
+@media (prefers-contrast: high) {
+  .btn-primary {
+    background: var(--accent-purple);
+    border: 2px solid white;
+  }
+  
+  .spectrum-line {
+    border-width: 3px;
+  }
+  
+  .player-item {
+    border-width: 2px;
+  }
+}
+
+/* ===== PERFORMANCE OPTIMIZATIONS ===== */
+
+/* Use GPU acceleration for animations */
+.animate-fade-in,
+.animate-slide-in-top,
+.animate-scale-in,
+.modal,
+.notification,
+.spectrum-line,
+.btn {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Reduce animation complexity on low-end devices */
+@media (max-device-width: 768px) and (max-device-height: 1024px) {
+  * {
+    animation-duration: 0.2s !important;
+  }
+  
+  .btn {
+    transition-duration: 0.1s !important;
+  }
+}

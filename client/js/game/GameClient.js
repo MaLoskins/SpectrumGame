@@ -9,7 +9,7 @@
  * - Handles user input validation
  * - Triggers UI updates through StateManager
  * 
- * FIXED: Better round handling and debugging
+ * FIXED: Reduced notifications, better error handling, prevented double submissions
  * ================================= */
 
 /**
@@ -27,7 +27,10 @@ export class GameClient {
         this.playerId = null;
         
         // Debug mode
-        this.debugMode = true;
+        this.debugMode = false; // Changed to false by default
+        
+        // Submission tracking to prevent double submissions
+        this.isSubmitting = false;
         
         // Bind methods
         this.init = this.init.bind(this);
@@ -48,7 +51,26 @@ export class GameClient {
         this.isInitialized = true;
         console.log('✅ GameClient initialized');
     }
-
+    /**
+     * Handle phase change event
+     */
+    handlePhaseChange(data) {
+        if (this.debugMode) {
+            console.log('🎮 Phase change received:', data);
+        }
+        
+        // Update the game phase
+        this.stateManager.setGamePhase(data.phase);
+        
+        // Only add system message for important phase changes
+        if (data.message && data.phase === 'finished') {
+            this.stateManager.addChatMessage({
+                type: 'system',
+                content: data.message,
+                timestamp: Date.now()
+            });
+        }
+    }
     /**
      * Set up socket event handlers
      */
@@ -78,8 +100,9 @@ export class GameClient {
         
         // Error events
         this.socketClient.on('error', this.handleSocketError.bind(this));
+        this.socketClient.on('game:phase-change', this.handlePhaseChange.bind(this));
     }
-
+    
     /**
      * Set up state event handlers
      */
@@ -101,7 +124,9 @@ export class GameClient {
      */
     async createRoom(data) {
         try {
-            console.log('🏠 Creating room...', data);
+            if (this.debugMode) {
+                console.log('🏠 Creating room...', data);
+            }
             
             // Validate input
             if (!this.validatePlayerName(data.playerName)) {
@@ -132,7 +157,9 @@ export class GameClient {
      */
     async joinRoom(data) {
         try {
-            console.log('🚪 Joining room...', data);
+            if (this.debugMode) {
+                console.log('🚪 Joining room...', data);
+            }
             
             // Validate input
             if (!this.validateRoomCode(data.roomCode)) {
@@ -163,7 +190,9 @@ export class GameClient {
      */
     async startGame() {
         try {
-            console.log('🎯 Starting game...');
+            if (this.debugMode) {
+                console.log('🎯 Starting game...');
+            }
             
             if (!this.currentRoomId) {
                 throw new Error('Not in a room');
@@ -185,7 +214,9 @@ export class GameClient {
      */
     async submitClue(data) {
         try {
-            console.log('💡 Submitting clue...', data);
+            if (this.debugMode) {
+                console.log('💡 Submitting clue...', data);
+            }
             
             // Validate clue
             if (!this.validateClue(data.clue)) {
@@ -209,18 +240,32 @@ export class GameClient {
     }
 
     /**
-     * Submit a guess (Guessers only)
+     * Submit a guess (Guessers only) - FIXED: Prevent double submission
      */
     async submitGuess(data) {
         try {
-            console.log('🎯 Submitting guess...', data);
+            // Prevent double submission
+            if (this.isSubmitting) {
+                if (this.debugMode) {
+                    console.log('⚠️ Guess submission already in progress');
+                }
+                return;
+            }
+            
+            this.isSubmitting = true;
+            
+            if (this.debugMode) {
+                console.log('🎯 Submitting guess...', data);
+            }
             
             // Validate guess
             if (!this.validateGuess(data.position)) {
+                this.isSubmitting = false;
                 throw new Error('Invalid guess position');
             }
             
             if (!this.currentRoomId) {
+                this.isSubmitting = false;
                 throw new Error('Not in a room');
             }
             
@@ -231,6 +276,7 @@ export class GameClient {
             });
             
         } catch (error) {
+            this.isSubmitting = false;
             console.error('❌ Failed to submit guess:', error);
             this.handleError(error);
         }
@@ -241,7 +287,9 @@ export class GameClient {
      */
     async sendChatMessage(data) {
         try {
-            console.log('💬 Sending chat message...', data);
+            if (this.debugMode) {
+                console.log('💬 Sending chat message...', data);
+            }
             
             if (!data.message || !data.message.trim()) {
                 return; // Don't send empty messages
@@ -268,7 +316,9 @@ export class GameClient {
      */
     async leaveRoom() {
         try {
-            console.log('🚪 Leaving room...');
+            if (this.debugMode) {
+                console.log('🚪 Leaving room...');
+            }
             
             if (!this.currentRoomId) {
                 return; // Already not in a room
@@ -298,7 +348,9 @@ export class GameClient {
      * Handle room created event
      */
     handleRoomCreated(data) {
-        console.log('🏠 Room created:', data);
+        if (this.debugMode) {
+            console.log('🏠 Room created:', data);
+        }
         
         this.currentRoomId = data.roomId;
         this.playerId = data.playerId;
@@ -326,19 +378,23 @@ export class GameClient {
         this.stateManager.setCurrentView('game');
         this.stateManager.setGamePhase('lobby');
         
-        // Show success notification
-        this.stateManager.addNotification({
-            type: 'success',
-            message: `Room ${data.roomCode} created successfully!`,
-            duration: 3000
-        });
+        // Only show notification in debug mode
+        if (this.debugMode) {
+            this.stateManager.addNotification({
+                type: 'success',
+                message: `Room ${data.roomCode} created successfully!`,
+                duration: 3000
+            });
+        }
     }
 
     /**
      * Handle room joined event
      */
     handleRoomJoined(data) {
-        console.log('🚪 Room joined:', data);
+        if (this.debugMode) {
+            console.log('🚪 Room joined:', data);
+        }
         
         this.currentRoomId = data.roomId;
         this.playerId = data.playerId;
@@ -351,19 +407,23 @@ export class GameClient {
         this.stateManager.updateGameState(data.gameState);
         this.stateManager.setCurrentView('game');
         
-        // Show success notification
-        this.stateManager.addNotification({
-            type: 'success',
-            message: `Joined room ${data.roomCode} successfully!`,
-            duration: 3000
-        });
+        // Only show notification in debug mode
+        if (this.debugMode) {
+            this.stateManager.addNotification({
+                type: 'success',
+                message: `Joined room ${data.roomCode} successfully!`,
+                duration: 3000
+            });
+        }
     }
 
     /**
      * Handle player joined event
      */
     handlePlayerJoined(data) {
-        console.log('👋 Player joined:', data.player);
+        if (this.debugMode) {
+            console.log('👋 Player joined:', data.player);
+        }
         this.stateManager.addPlayer(data.player);
         
         // Update room player count
@@ -382,110 +442,247 @@ export class GameClient {
             });
         }
         
-        // Show notification
-        this.stateManager.addNotification({
-            type: 'info',
-            message: `${data.player.name} joined the room`,
-            duration: 3000
-        });
+        // Only show notification for other players
+        if (data.player.id !== this.playerId && this.debugMode) {
+            this.stateManager.addNotification({
+                type: 'info',
+                message: `${data.player.name} joined the room`,
+                duration: 2000
+            });
+        }
     }
 
     /**
      * Handle player left event
      */
     handlePlayerLeft(data) {
-        console.log('👋 Player left:', data);
+        if (this.debugMode) {
+            console.log('👋 Player left:', data);
+        }
         this.stateManager.removePlayer(data.playerId);
         
-        // Show notification
-        this.stateManager.addNotification({
-            type: 'info',
-            message: `${data.playerName} ${data.isDisconnected ? 'disconnected' : 'left the room'}`,
-            duration: 3000
-        });
+        // Only show notification in debug mode
+        if (this.debugMode) {
+            this.stateManager.addNotification({
+                type: 'info',
+                message: `${data.playerName} ${data.isDisconnected ? 'disconnected' : 'left the room'}`,
+                duration: 2000
+            });
+        }
     }
 
     /**
      * Handle host changed event
      */
     handleHostChanged(data) {
-        console.log('👑 Host changed:', data);
+        if (this.debugMode) {
+            console.log('👑 Host changed:', data);
+        }
         
         // Update room state
         this.stateManager.updateRoomState({
             hostId: data.newHostId
         });
         
-        // Show notification
-        this.stateManager.addNotification({
-            type: 'info',
-            message: `${data.newHostName} is now the host`,
-            duration: 3000
-        });
+        // Only show notification if you became the host
+        if (data.newHostId === this.playerId && this.debugMode) {
+            this.stateManager.addNotification({
+                type: 'info',
+                message: 'You are now the host',
+                duration: 3000
+            });
+        }
     }
 
     /**
      * Handle game state update
      */
     handleGameStateUpdate(data) {
-        console.log('🎮 Game state update:', data);
+        if (this.debugMode) {
+            console.log('🎮 Game state update:', data);
+        }
         this.stateManager.handleGameStateUpdate(data);
     }
 
     /**
-     * Handle round start - FIXED: Properly handle target position
+     * Handle round start - FIXED: Reduced logging and notifications
      */
     handleRoundStart(data) {
-        console.log('🎯 Round started:', data);
+        if (this.debugMode) {
+            console.log('🎯 Round started:', data);
+        }
         
-        // This is the player's true role, determined by the server's payload.
-        // If targetPosition is present, this player is the clue giver.
+        // Validate data
+        if (!data || !data.spectrum) {
+            console.error('❌ Invalid round start data received:', data);
+            if (this.debugMode) {
+                this.stateManager.addNotification({
+                    type: 'error',
+                    message: 'Failed to start round - invalid data received',
+                    duration: 5000
+                });
+            }
+            return;
+        }
+        
+        // The server sends targetPosition ONLY to the clue giver
+        // If we receive a targetPosition, we ARE the clue giver
         const isClueGiver = data.targetPosition !== undefined && data.targetPosition !== null;
-        console.log(`[CORRECTED] My player ID is ${this.playerId}. Clue Giver ID is ${data.clueGiverId}.`);
-        console.log(`[CORRECTED] Server sent target: ${data.targetPosition}. My role is: ${isClueGiver ? 'Clue Giver' : 'Guesser'}`);
-
-        // Prepare a single, consistent state update object.
+        
+        if (this.debugMode) {
+            console.log('📍 Round start data received:', {
+                roundNumber: data.roundNumber,
+                clueGiverId: data.clueGiverId,
+                myPlayerId: this.playerId,
+                targetPositionReceived: data.targetPosition,
+                isClueGiver: isClueGiver
+            });
+        }
+        
+        // Prepare game state update
         const gameStateUpdate = {
             phase: 'giving-clue',
-            currentRound: data.roundNumber,
+            currentRound: data.roundNumber || 1,
+            totalRounds: data.totalRounds || 10,
             clueGiverId: data.clueGiverId,
             spectrum: data.spectrum,
-            // Trust the server's payload directly. If targetPosition wasn't sent, it will be undefined, which we treat as null.
-            targetPosition: data.targetPosition || null,
-            timeRemaining: data.duration,
+            targetPosition: data.targetPosition || null,  // Will be null for guessers
+            timeRemaining: data.duration || 60,
             clue: null,
             guesses: {},
             roundScores: {}
         };
-
-        // Update the state atomically. This will trigger the UIManager with the correct, consistent state.
+        
+        // Update game state atomically
         this.stateManager.updateGameState(gameStateUpdate);
-
-        // Reset all players' "hasGuessed" status for the new round.
+        
+        // Reset all players' "hasGuessed" status and submission state
         const players = this.stateManager.getPlayers();
         Object.keys(players).forEach(playerId => {
             this.stateManager.updatePlayer(playerId, { hasGuessed: false });
         });
-
-        // The UIManager will now correctly handle showing/hiding the clue input based on the consistent state.
-        // We can still add a notification here.
-        const clueGiverName = this.getPlayerName(data.clueGiverId) || 'The Clue Giver';
-        const message = isClueGiver 
-            ? `You are the Clue Giver! Give a clue!`
-            : `Round ${data.roundNumber} started! Waiting for a clue from ${clueGiverName}...`;
+        
+        // Reset submission tracking
+        this.isSubmitting = false;
+        
+        // Update UI state based on role
+        if (isClueGiver) {
+            // Clue giver: show target, disable spectrum interaction
+            this.stateManager.showTargetPosition(true);
+            this.stateManager.enableSpectrumInteraction(false);
+            if (this.debugMode) {
+                console.log('🎯 Clue giver mode activated: Target visible at position', data.targetPosition);
+            }
+        } else {
+            // Guesser: hide target, disable interaction until clue is given
+            this.stateManager.showTargetPosition(false);
+            this.stateManager.enableSpectrumInteraction(false);
+            if (this.debugMode) {
+                console.log('🎲 Guesser mode activated: Waiting for clue');
+            }
+        }
+        
+        // Force UI update to ensure correct controls are shown
+        // Using setTimeout to ensure state has propagated
+        setTimeout(() => {
+            // Trigger phase update to refresh UI
+            this.stateManager.emit('state:game.phase', {
+                newValue: 'giving-clue',
+                oldValue: 'lobby'
+            });
             
-        this.stateManager.addNotification({
-            type: 'info',
-            message: message,
-            duration: 5000
-        });
+            // Additional check for clue giver UI
+            if (isClueGiver) {
+                const clueSection = document.getElementById('clue-input-section');
+                const clueInput = document.getElementById('clue-input-field');
+                
+                if (clueSection && clueSection.classList.contains('hidden')) {
+                    if (this.debugMode) {
+                        console.log('🔧 Fixing hidden clue input section');
+                    }
+                    clueSection.classList.remove('hidden');
+                }
+                
+                if (clueInput) {
+                    clueInput.value = '';
+                    clueInput.disabled = false;
+                    clueInput.focus();
+                }
+            }
+        }, 100);
+        
+        // Only show important notifications
+        if (isClueGiver && this.debugMode) {
+            this.stateManager.addNotification({
+                type: 'warning',
+                message: `You are the Clue Giver! Target is at ${data.targetPosition}%`,
+                duration: 5000
+            });
+        }
+    }
+    
+    recoverFromError(error, context) {
+        console.error(`❌ Error in ${context}:`, error);
+        
+        // Log detailed error info
+        const errorInfo = {
+            message: error.message,
+            stack: error.stack,
+            context: context,
+            state: {
+                connected: this.socketClient?.isConnected(),
+                roomId: this.currentRoomId,
+                playerId: this.playerId,
+                gamePhase: this.stateManager.getGameState().phase
+            }
+        };
+        
+        if (this.debugMode) {
+            console.table(errorInfo);
+        }
+        
+        // Attempt recovery based on context
+        switch (context) {
+            case 'round-start':
+                // Request game state refresh
+                if (this.socketClient?.isConnected() && this.currentRoomId) {
+                    this.socketClient.emit('game:request-state', { roomId: this.currentRoomId });
+                }
+                break;
+                
+            case 'clue-submission':
+                // Re-enable UI elements
+                const clueInput = document.getElementById('clue-input-field');
+                const submitBtn = document.getElementById('submit-clue');
+                if (clueInput) clueInput.disabled = false;
+                if (submitBtn) submitBtn.disabled = false;
+                break;
+                
+            case 'guess-submission':
+                // Re-enable guess controls
+                const guessBtn = document.getElementById('submit-guess');
+                if (guessBtn) guessBtn.disabled = false;
+                this.isSubmitting = false;
+                break;
+        }
+        
+        // Show user-friendly error message only in debug mode
+        if (this.debugMode) {
+            this.stateManager.addNotification({
+                type: 'error',
+                message: `Something went wrong. Please try again.`,
+                duration: 5000
+            });
+        }
     }
 
     /**
      * Handle clue submitted
      */
     handleClueSubmitted(data) {
-        console.log('💡 Clue submitted:', data);
+        if (this.debugMode) {
+            console.log('💡 Clue submitted:', data);
+        }
         
         this.stateManager.updateGameState({
             phase: 'guessing',
@@ -498,44 +695,46 @@ export class GameClient {
             // Clue giver continues to see target but can't interact
             this.stateManager.showTargetPosition(true);
             this.stateManager.enableSpectrumInteraction(false);
-            console.log('🎯 Clue giver in guessing phase: Target still visible, interaction disabled');
+            if (this.debugMode) {
+                console.log('🎯 Clue giver in guessing phase: Target still visible, interaction disabled');
+            }
         } else {
             // Guessers can now interact
             this.stateManager.showTargetPosition(false);
             this.stateManager.enableSpectrumInteraction(true);
-            console.log('🎲 Guesser in guessing phase: Target hidden, interaction enabled');
+            if (this.debugMode) {
+                console.log('🎲 Guesser in guessing phase: Target hidden, interaction enabled');
+            }
         }
         
-        // Show notification
-        const message = isClueGiver 
-            ? 'Clue submitted! Players are now guessing.'
-            : `Clue: "${data.clue}" - Make your guess!`;
-            
-        this.stateManager.addNotification({
-            type: 'info',
-            message,
-            duration: 4000
-        });
+        // No notifications needed - the clue text appears on screen
     }
 
     /**
-     * Handle guess submitted
+     * Handle guess submitted - FIXED: Reset submission state
      */
     handleGuessSubmitted(data) {
-        console.log('🎯 Guess submitted:', data);
+        if (this.debugMode) {
+            console.log('🎯 Guess submitted:', data);
+        }
         
         // Update player state
         this.stateManager.updatePlayer(data.playerId, {
             hasGuessed: data.hasGuessed
         });
         
-        // Show notification if it's the current player's guess
+        // Reset submission state if it's our guess
         if (data.playerId === this.playerId) {
-            this.stateManager.addNotification({
-                type: 'success',
-                message: 'Guess submitted! Waiting for other players...',
-                duration: 3000
-            });
+            this.isSubmitting = false;
+            
+            // Only show notification in debug mode
+            if (this.debugMode) {
+                this.stateManager.addNotification({
+                    type: 'success',
+                    message: 'Guess submitted! Waiting for other players...',
+                    duration: 3000
+                });
+            }
         }
     }
 
@@ -543,7 +742,15 @@ export class GameClient {
      * Handle round end
      */
     handleRoundEnd(data) {
-        console.log('🏁 Round ended:', data);
+        if (this.debugMode) {
+            console.log('🏁 Round ended:', data);
+        }
+        
+        // Clear any UI verification intervals during results
+        if (this.stateVerificationInterval) {
+            clearInterval(this.stateVerificationInterval);
+            this.stateVerificationInterval = null;
+        }
         
         this.stateManager.updateGameState({
             phase: 'results',
@@ -557,30 +764,29 @@ export class GameClient {
         // Show target to everyone during results
         this.stateManager.showTargetPosition(true);
         this.stateManager.enableSpectrumInteraction(false);
-        console.log('📊 Results phase: Target visible to all, interaction disabled');
         
         // Update player scores
         Object.entries(data.totalScores).forEach(([playerId, score]) => {
             this.stateManager.updatePlayer(playerId, { score });
         });
         
-        // Show results notification
-        const playerScore = data.roundScores[this.playerId] || 0;
-        const isClueGiver = this.stateManager.getGameState().clueGiverId === this.playerId;
-        const bonusText = data.bonusAwarded && isClueGiver ? ' (Bonus awarded!)' : '';
-        
-        this.stateManager.addNotification({
-            type: 'info',
-            message: `Round ended! You scored ${playerScore} points${bonusText}.`,
-            duration: 5000
-        });
+        // Only show notification for bonus rounds in debug mode
+        if (data.bonusAwarded && this.debugMode) {
+            this.stateManager.addNotification({
+                type: 'success',
+                message: '🎉 Bonus round! All players guessed within 10%!',
+                duration: 5000
+            });
+        }
     }
 
     /**
      * Handle game finished
      */
     handleGameFinished(data) {
-        console.log('🎉 Game finished:', data);
+        if (this.debugMode) {
+            console.log('🎉 Game finished:', data);
+        }
         
         this.stateManager.updateGameState({
             phase: 'finished',
@@ -609,19 +815,21 @@ export class GameClient {
     handleTimerUpdate(data) {
         this.stateManager.updateTimer(data.timeRemaining);
         
-        // Show warning notifications for low time
-        if (data.timeRemaining === 10) {
-            this.stateManager.addNotification({
-                type: 'warning',
-                message: '⏰ 10 seconds remaining!',
-                duration: 2000
-            });
-        } else if (data.timeRemaining === 5) {
-            this.stateManager.addNotification({
-                type: 'warning',
-                message: '⏰ 5 seconds left!',
-                duration: 2000
-            });
+        // Only show warning notifications in debug mode
+        if (this.debugMode) {
+            if (data.timeRemaining === 10) {
+                this.stateManager.addNotification({
+                    type: 'warning',
+                    message: '⏰ 10 seconds remaining!',
+                    duration: 2000
+                });
+            } else if (data.timeRemaining === 5) {
+                this.stateManager.addNotification({
+                    type: 'warning',
+                    message: '⏰ 5 seconds left!',
+                    duration: 2000
+                });
+            }
         }
     }
 
@@ -629,7 +837,9 @@ export class GameClient {
      * Handle chat message
      */
     handleChatMessage(data) {
-        console.log('💬 Chat message received:', data);
+        if (this.debugMode) {
+            console.log('💬 Chat message received:', data);
+        }
         
         // Handle potential null/undefined content
         if (!data.message && data.content) {
@@ -647,21 +857,42 @@ export class GameClient {
     }
 
     /**
-     * Handle socket errors
+     * Handle socket errors - FIXED: Don't set connection status to error for game logic errors
      */
     handleSocketError(error) {
         console.error('🔌 Socket error:', error);
         
         this.stateManager.setLoading(false);
         
-        // Show error notification
-        this.stateManager.addNotification({
-            type: 'error',
-            message: error.message || 'Connection error occurred',
-            duration: 5000
-        });
+        // Only set connection status to error for actual connection errors
+        const isConnectionError = error.code && (
+            error.code.includes('CONNECT') || 
+            error.code.includes('NETWORK') ||
+            error.code.includes('TIMEOUT')
+        );
         
-        this.handleError(new Error(error.message || 'Connection error'));
+        if (isConnectionError) {
+            this.stateManager.updateConnectionState({
+                status: 'error',
+                error: error.message || 'Connection error occurred'
+            });
+        }
+        
+        // For game logic errors (like double submission), just reset state
+        if (error.code === 'GUESS_SUBMIT_FAILED' && error.message === 'Player has already guessed') {
+            this.isSubmitting = false;
+            // Don't show error - the guess was already submitted
+            return;
+        }
+        
+        // Show error notification only in debug mode
+        if (this.debugMode) {
+            this.stateManager.addNotification({
+                type: 'error',
+                message: error.message || 'An error occurred',
+                duration: 5000
+            });
+        }
     }
 
     /**
@@ -722,19 +953,17 @@ export class GameClient {
     handleError(error) {
         console.error('GameClient error:', error);
         
-        // Update connection state
+        // Update connection state only for connection errors
         this.stateManager.setLoading(false);
-        this.stateManager.updateConnectionState({
-            status: 'error',
-            error: error.message
-        });
         
-        // Show error notification
-        this.stateManager.addNotification({
-            type: 'error',
-            message: error.message,
-            duration: 5000
-        });
+        // Show error notification only in debug mode
+        if (this.debugMode) {
+            this.stateManager.addNotification({
+                type: 'error',
+                message: error.message,
+                duration: 5000
+            });
+        }
     }
 
     /**
@@ -780,6 +1009,7 @@ export class GameClient {
         this.currentRoomId = null;
         this.playerId = null;
         this.isInitialized = false;
+        this.isSubmitting = false;
         
         console.log('🧹 GameClient destroyed');
     }

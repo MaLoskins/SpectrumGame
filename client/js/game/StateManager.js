@@ -466,8 +466,18 @@ class StateManager {
 
     isCurrentPlayerClueGiver() {
         const playerId = this.state.connection.playerId;
-        const isClueGiver = playerId === this.state.game.clueGiverId;
-        console.log(`🤔 Is current player clue giver? ${isClueGiver} (Player: ${playerId}, Clue Giver: ${this.state.game.clueGiverId})`);
+        const clueGiverId = this.state.game.clueGiverId;
+        const isClueGiver = playerId === clueGiverId;
+        
+        // Only log occasionally to avoid spam (every 300 frames = ~5 seconds at 60fps)
+        if (this.debugMode && !this._clueGiverLogCount) {
+            this._clueGiverLogCount = 0;
+        }
+        
+        if (this.debugMode && this._clueGiverLogCount++ % 300 === 0) {
+            console.log(`🤔 Is current player clue giver? ${isClueGiver} (Player: ${playerId}, Clue Giver: ${clueGiverId})`);
+        }
+        
         return isClueGiver;
     }
 
@@ -543,7 +553,47 @@ class StateManager {
         console.log(`👁️ Show target position: ${show}`);
         this.updateState('ui.showTargetPosition', show);
     }
-
+    debugState(component = null) {
+        const state = this.getFullState();
+        
+        console.group(`🔍 State Debug ${component ? `- ${component}` : ''}`);
+        console.log('Timestamp:', new Date().toISOString());
+        
+        // Connection info
+        console.group('📡 Connection');
+        console.table(state.connection);
+        console.groupEnd();
+        
+        // Game state
+        console.group('🎮 Game State');
+        console.table({
+            phase: state.game.phase,
+            round: `${state.game.currentRound}/${state.game.totalRounds}`,
+            clueGiverId: state.game.clueGiverId,
+            targetPosition: state.game.targetPosition,
+            clue: state.game.clue,
+            timeRemaining: state.game.timeRemaining
+        });
+        console.groupEnd();
+        
+        // Players
+        console.group('👥 Players');
+        console.table(state.players);
+        console.groupEnd();
+        
+        // UI State
+        console.group('🖼️ UI State');
+        console.table({
+            currentView: state.ui.currentView,
+            loading: state.ui.loading,
+            spectrumInteractionEnabled: state.ui.spectrumInteractionEnabled,
+            showTargetPosition: state.ui.showTargetPosition,
+            activeModal: state.ui.activeModal
+        });
+        console.groupEnd();
+        
+        console.groupEnd();
+    }
     /**
      * Chat state methods
      */
@@ -748,7 +798,12 @@ class StateManager {
                     console.log('🎲 Guesser mode: Target hidden, interaction disabled (waiting for clue)');
                 }
                 break;
-                
+            case 'waiting':
+                // Clear all round-specific UI state during waiting
+                this.showTargetPosition(false);
+                this.enableSpectrumInteraction(false);
+                console.log('⏳ Waiting mode: Preparing for next round');
+                break;
             case 'guessing':
                 if (isClueGiver) {
                     // Clue giver continues to see target but can't interact

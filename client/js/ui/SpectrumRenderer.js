@@ -245,7 +245,12 @@ export class SpectrumRenderer {
         // Render spectrum gradient
         this.renderSpectrumGradient();
         
-        // Render debug info if enabled (reduced frequency)
+        // Only check clue giver status once per second instead of every frame
+        if (this.frameCount % 60 === 0) {
+            this._isClueGiver = this.stateManager.isCurrentPlayerClueGiver();
+        }
+        
+        // Render debug info if enabled
         if (this.debugMode && this.frameCount % this.logFrequency === 0) {
             this.renderDebugInfo();
         }
@@ -253,7 +258,7 @@ export class SpectrumRenderer {
         // Render particles
         this.renderParticles();
         
-        // Render target (if visible) - FIXED: Stricter checks
+        // Render target (if visible) - use cached value
         if (this.shouldRenderTarget()) {
             this.renderTarget();
         }
@@ -272,19 +277,11 @@ export class SpectrumRenderer {
         }
     }
 
-    /**
-     * Check if target should be rendered - NEW METHOD
-     */
     shouldRenderTarget() {
-        // Check all conditions
+        // Use cached clue giver check
         const hasValidPosition = this.targetPosition !== null && this.targetPosition !== undefined;
         const shouldShow = this.showTarget === true;
-        const isClueGiver = this.stateManager.isCurrentPlayerClueGiver();
-        
-        // Only log periodically to avoid spam
-        if (this.debugMode && this.frameCount % (this.logFrequency * 10) === 0 && hasValidPosition) {
-            console.log(`🎯 Target render check - Position: ${this.targetPosition}, Show: ${shouldShow}, IsClueGiver: ${isClueGiver}`);
-        }
+        const isClueGiver = this._isClueGiver !== undefined ? this._isClueGiver : this.stateManager.isCurrentPlayerClueGiver();
         
         return hasValidPosition && shouldShow && isClueGiver;
     }
@@ -452,7 +449,6 @@ export class SpectrumRenderer {
         
         // Icon
         this.ctx.fillStyle = '#ef4444';
-        this.ctx.fillText('🎯', x, y);
         
         this.ctx.restore();
     }

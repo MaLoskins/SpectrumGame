@@ -23,6 +23,9 @@ export class UIManager {
         this.activeModal = null;
         this.notifications = [];
         
+        // Debug mode
+        this.debugMode = false; // Changed to false by default
+        
         // Bind methods
         this.init = this.init.bind(this);
         this.setupEventListeners = this.setupEventListeners.bind(this);
@@ -50,8 +53,6 @@ export class UIManager {
         this.isInitialized = true;
         console.log('✅ UIManager initialized');
     }
-
-    // In UIManager.js, add this enhanced cacheElements method:
 
     /**
      * Cache frequently used DOM elements
@@ -103,12 +104,12 @@ export class UIManager {
             sendChatBtn: document.getElementById('send-chat'),
             toggleChatBtn: document.getElementById('toggle-chat'),
             
-            // Control elements - CRITICAL FOR CLUE SUBMISSION
+            // Control elements - FIXED IDs
             clueInputSection: document.getElementById('clue-input-section'),
             guessInputSection: document.getElementById('guess-input-section'),
             waitingSection: document.getElementById('waiting-section'),
             resultsSection: document.getElementById('results-section'),
-            clueInput: document.getElementById('clue-input'),
+            clueInput: document.getElementById('clue-input-field'), // FIXED: Changed from 'clue-input' to 'clue-input-field'
             submitClueBtn: document.getElementById('submit-clue'),
             guessSlider: document.getElementById('guess-slider'),
             guessValue: document.getElementById('guess-value'),
@@ -146,7 +147,7 @@ export class UIManager {
             if (!this.elements[elementKey]) {
                 console.error(`❌ Critical element missing: ${elementKey}`);
                 missingElements.push(elementKey);
-            } else {
+            } else if (this.debugMode) {
                 console.log(`✅ Found element: ${elementKey}`);
             }
         });
@@ -154,7 +155,7 @@ export class UIManager {
         if (missingElements.length > 0) {
             console.error('❌ Missing critical UI elements:', missingElements);
             console.error('This will prevent proper game functionality!');
-        } else {
+        } else if (this.debugMode) {
             console.log('✅ All critical elements cached successfully');
         }
     }
@@ -183,7 +184,9 @@ export class UIManager {
         
         if (this.elements.submitClueBtn) {
             this.elements.submitClueBtn.addEventListener('click', () => this.handleSubmitClue());
-            console.log('✅ Submit clue button listener attached');
+            if (this.debugMode) {
+                console.log('✅ Submit clue button listener attached');
+            }
         } else {
             console.error('❌ Submit clue button not found during event setup');
         }
@@ -385,11 +388,12 @@ export class UIManager {
     }
 
     /**
-     * Handle submit clue
-     * @description Enhanced with validation feedback and success animations
+     * Handle submit clue - FIXED: Reduced notifications
      */
     handleSubmitClue() {
-        console.log('🎯 Submit clue button clicked');
+        if (this.debugMode) {
+            console.log('🎯 Submit clue button clicked');
+        }
         
         // Check if clue input element exists
         if (!this.elements.clueInput) {
@@ -399,7 +403,9 @@ export class UIManager {
         }
         
         const clue = this.elements.clueInput.value.trim();
-        console.log(`💡 Clue value: "${clue}"`);
+        if (this.debugMode) {
+            console.log(`💡 Clue value: "${clue}"`);
+        }
         
         if (!this.validateClue()) {
             this.showValidationError(this.elements.clueInput, 'Please enter a valid clue (no numbers, 1-100 characters)');
@@ -411,7 +417,9 @@ export class UIManager {
         this.elements.clueInput.classList.add('animate-guess-submitted');
         
         // Emit event and update UI
-        console.log('📤 Emitting clue submission event');
+        if (this.debugMode) {
+            console.log('📤 Emitting clue submission event');
+        }
         this.stateManager.emit('ui:submit-clue', { clue });
         
         // Clear input and disable button to prevent double submission
@@ -420,8 +428,10 @@ export class UIManager {
             this.elements.submitClueBtn.disabled = true;
         }
         
-        // Show success feedback
-        this.showNotification('Clue submitted successfully! 🎯', 'success', 3000);
+        // Show success feedback only in debug mode
+        if (this.debugMode) {
+            this.showNotification('Clue submitted successfully! 🎯', 'success', 3000);
+        }
         
         // Clean up animation
         setTimeout(() => {
@@ -432,11 +442,15 @@ export class UIManager {
     }
 
     /**
-     * Handle submit guess
-     * @description Enhanced with celebration effects and user feedback
+     * Handle submit guess - FIXED: Reduced notifications, prevent double submission
      */
     handleSubmitGuess() {
         const position = parseInt(this.elements.guessSlider.value);
+        
+        // Immediately disable button to prevent double submission
+        if (this.elements.submitGuessBtn) {
+            this.elements.submitGuessBtn.disabled = true;
+        }
         
         // Add celebration animation
         this.addButtonPressEffect(this.elements.submitGuessBtn);
@@ -444,10 +458,11 @@ export class UIManager {
         
         // Emit event and update UI
         this.stateManager.emit('ui:submit-guess', { position });
-        this.elements.submitGuessBtn.disabled = true;
         
-        // Show success feedback with position
-        this.showNotification(`Guess submitted: ${position}% 🎲`, 'success', 3000);
+        // Show success feedback only in debug mode
+        if (this.debugMode) {
+            this.showNotification(`Guess submitted: ${position}% 🎲`, 'success', 3000);
+        }
         
         // Add visual feedback to the spectrum
         this.addGuessSubmissionEffect(position);
@@ -540,23 +555,29 @@ export class UIManager {
                 break;
             case 'disconnected':
                 indicator.classList.add('hidden');
-                this.showNotification('Disconnected from server', 'error');
+                if (this.debugMode) {
+                    this.showNotification('Disconnected from server', 'error');
+                }
                 break;
             case 'error':
                 indicator.classList.add('hidden');
-                this.showNotification('Connection error', 'error');
+                if (this.debugMode) {
+                    this.showNotification('Connection error', 'error');
+                }
                 break;
         }
     }
 
     /**
-     * Update game phase
+     * Update game phase - FIXED: Reduced chat messages
      */
     updateGamePhase(phase) {
         const gameState = this.stateManager.getGameState();
         const isClueGiver = this.stateManager.isCurrentPlayerClueGiver();
         
-        console.log(`🎮 Updating game phase to: ${phase}, isClueGiver: ${isClueGiver}`);
+        if (this.debugMode) {
+            console.log(`🎮 Updating game phase to: ${phase}, isClueGiver: ${isClueGiver}`);
+        }
         
         // Update phase text
         this.elements.gamePhaseText.textContent = gameLogic.getPhaseDisplayText(
@@ -568,86 +589,341 @@ export class UIManager {
         // Show/hide appropriate control sections
         this.hideAllControlSections();
         
-        switch (phase) {
-            case 'lobby':
-                this.elements.waitingSection.classList.remove('hidden');
-                this.elements.waitingMessage.textContent = 'Waiting for players...';
-                
-                // Check if current player is host
-                const roomState = this.stateManager.getRoomState();
-                const connectionState = this.stateManager.getConnectionState();
-                
-                console.log('🎮 Lobby phase - checking host status');
-                console.log('Room hostId:', roomState.hostId);
-                console.log('My playerId:', connectionState.playerId);
-                
-                if (roomState.hostId === connectionState.playerId) {
-                    console.log('✅ I am the host!');
-                    if (roomState.playerCount >= 2) {
-                        this.elements.startGameBtn.classList.remove('hidden');
-                        console.log('✅ Showing start game button');
-                    } else {
-                        this.elements.startGameBtn.classList.add('hidden');
-                        this.elements.waitingMessage.textContent = `Waiting for players... (${roomState.playerCount}/2 minimum)`;
+        // Use requestAnimationFrame to ensure DOM updates happen smoothly
+        requestAnimationFrame(() => {
+            switch (phase) {
+                case 'lobby':
+                    this.elements.waitingSection.classList.remove('hidden');
+                    this.elements.waitingMessage.textContent = 'Waiting for players...';
+                    
+                    // Check if current player is host
+                    const roomState = this.stateManager.getRoomState();
+                    const connectionState = this.stateManager.getConnectionState();
+                    
+                    if (this.debugMode) {
+                        console.log('🎮 Lobby phase - checking host status');
+                        console.log('Room hostId:', roomState.hostId);
+                        console.log('My playerId:', connectionState.playerId);
                     }
-                } else {
-                    console.log('❌ I am not the host');
-                    this.elements.startGameBtn.classList.add('hidden');
-                }
-                break;
-                
-            case 'giving-clue':
-                console.log(`🎯 Giving clue phase - isClueGiver: ${isClueGiver}`);
-                
-                if (isClueGiver) {
-                    // IMPORTANT: Make sure the clue input section exists and is shown
-                    if (this.elements.clueInputSection) {
-                        this.elements.clueInputSection.classList.remove('hidden');
-                        console.log('✅ Showing clue input section');
-                        
-                        // Focus the clue input for better UX
-                        setTimeout(() => {
+                    
+                    if (roomState.hostId === connectionState.playerId) {
+                        if (this.debugMode) {
+                            console.log('✅ I am the host!');
+                        }
+                        if (roomState.playerCount >= 2) {
+                            this.elements.startGameBtn.classList.remove('hidden');
+                            if (this.debugMode) {
+                                console.log('✅ Showing start game button');
+                            }
+                        } else {
+                            this.elements.startGameBtn.classList.add('hidden');
+                            this.elements.waitingMessage.textContent = `Waiting for players... (${roomState.playerCount}/2 minimum)`;
+                        }
+                    } else {
+                        if (this.debugMode) {
+                            console.log('❌ I am not the host');
+                        }
+                        this.elements.startGameBtn.classList.add('hidden');
+                    }
+                    break;
+                    
+                case 'giving-clue':
+                    if (this.debugMode) {
+                        console.log(`🎯 Giving clue phase - isClueGiver: ${isClueGiver}`);
+                    }
+                    
+                    if (isClueGiver) {
+                        // IMPORTANT: Make sure the clue input section exists and is shown
+                        if (this.elements.clueInputSection) {
+                            this.elements.clueInputSection.classList.remove('hidden');
+                            if (this.debugMode) {
+                                console.log('✅ Showing clue input section');
+                            }
+                            
+                            // Reset and enable the input
                             if (this.elements.clueInput) {
-                                this.elements.clueInput.focus();
+                                this.elements.clueInput.value = '';
+                                this.elements.clueInput.disabled = false;
+                                this.elements.clueInput.classList.remove('error');
+                            }
+                            
+                            if (this.elements.submitClueBtn) {
+                                this.elements.submitClueBtn.disabled = false;
+                                this.elements.submitClueBtn.classList.remove('disabled');
+                            }
+                            
+                            // Focus the clue input for better UX
+                            setTimeout(() => {
+                                if (this.elements.clueInput) {
+                                    this.elements.clueInput.focus();
+                                }
+                            }, 100);
+                        } else {
+                            console.error('❌ Clue input section element not found!');
+                        }
+                    } else {
+                        this.elements.waitingSection.classList.remove('hidden');
+                        this.elements.waitingMessage.textContent = 'Waiting for clue...';
+                        this.elements.waitingMessage.classList.remove('animate-pulse');
+                    }
+                    break;
+                    
+                case 'guessing':
+                    if (this.debugMode) {
+                        console.log(`🎲 Guessing phase - isClueGiver: ${isClueGiver}`);
+                    }
+                    
+                    if (!isClueGiver) {
+                        this.elements.guessInputSection.classList.remove('hidden');
+                        
+                        // Enable and reset guess controls
+                        if (this.elements.submitGuessBtn) {
+                            this.elements.submitGuessBtn.disabled = false;
+                            this.elements.submitGuessBtn.classList.remove('disabled');
+                        }
+                        
+                        // Reset slider to center
+                        if (this.elements.guessSlider) {
+                            this.elements.guessSlider.value = 50;
+                            this.elements.guessValue.textContent = '50';
+                            this.elements.guessSlider.disabled = false;
+                        }
+                        
+                        // Focus slider for keyboard users
+                        setTimeout(() => {
+                            if (this.elements.guessSlider) {
+                                this.elements.guessSlider.focus();
                             }
                         }, 100);
                     } else {
-                        console.error('❌ Clue input section element not found!');
+                        this.elements.waitingSection.classList.remove('hidden');
+                        this.elements.waitingMessage.textContent = 'Players are guessing...';
+                        this.elements.waitingMessage.classList.add('animate-pulse');
                     }
-                } else {
+                    break;
+                    
+                case 'scoring':
+                case 'waiting':
+                    if (this.debugMode) {
+                        console.log('⏳ Waiting phase - preparing next round');
+                    }
                     this.elements.waitingSection.classList.remove('hidden');
-                    this.elements.waitingMessage.textContent = 'Waiting for clue...';
-                }
+                    this.elements.waitingMessage.textContent = 'Preparing next round...';
+                    this.elements.waitingMessage.classList.add('animate-pulse');
+                    
+                    // Hide all other control sections
+                    this.elements.clueInputSection.classList.add('hidden');
+                    this.elements.guessInputSection.classList.add('hidden');
+                    this.elements.resultsSection.classList.add('hidden');
+                    this.elements.startGameBtn.classList.add('hidden');
+                    
+                    // Clear spectrum interaction
+                    this.updateSpectrumInteraction(phase, false);
+                    this.updateTimerVisibility(phase);
+                    break;
+                case 'results':
+                    if (this.debugMode) {
+                        console.log('📊 Results phase');
+                    }
+                    this.elements.resultsSection.classList.remove('hidden');
+                    
+                    // Update results display
+                    this.updateResultsDisplay(gameState);
+                    
+                    // Show next round button after a delay (if not last round)
+                    if (gameState.currentRound < gameState.totalRounds) {
+                        setTimeout(() => {
+                            if (this.elements.nextRoundBtn) {
+                                this.elements.nextRoundBtn.classList.remove('hidden');
+                                this.elements.nextRoundBtn.focus();
+                            }
+                        }, 3000);
+                    } else {
+                        // Last round - show final scores button
+                        setTimeout(() => {
+                            if (this.elements.viewFinalScoresBtn) {
+                                this.elements.viewFinalScoresBtn.classList.remove('hidden');
+                                this.elements.viewFinalScoresBtn.focus();
+                            }
+                        }, 3000);
+                    }
+                    break;
+                    
+                case 'finished':
+                    if (this.debugMode) {
+                        console.log('🎉 Game finished phase');
+                    }
+                    this.elements.resultsSection.classList.remove('hidden');
+                    this.elements.viewFinalScoresBtn.classList.remove('hidden');
+                    this.elements.nextRoundBtn.classList.add('hidden');
+                    
+                    // Update with final results
+                    this.updateFinalResultsDisplay(gameState);
+                    
+                    // Focus the view scores button
+                    if (this.elements.viewFinalScoresBtn) {
+                        this.elements.viewFinalScoresBtn.focus();
+                    }
+                    break;
+                    
+                default:
+                    console.warn(`⚠️ Unknown game phase: ${phase}`);
+                    this.elements.waitingSection.classList.remove('hidden');
+                    this.elements.waitingMessage.textContent = 'Loading...';
+                    this.elements.waitingMessage.classList.add('animate-pulse');
+                    break;
+            }
+            
+            // Update spectrum interaction based on phase
+            this.updateSpectrumInteraction(phase, isClueGiver);
+            
+            // Update timer visibility
+            this.updateTimerVisibility(phase);
+            
+            // NO chat messages for phase changes - removed addPhaseChangeMessage call
+        });
+    }
+
+    /**
+     * Helper method to update spectrum interaction based on phase
+     */
+    updateSpectrumInteraction(phase, isClueGiver) {
+        const spectrumLine = this.elements.spectrumLine;
+        if (!spectrumLine) return;
+        
+        switch (phase) {
+            case 'giving-clue':
+                // No interaction during clue giving
+                spectrumLine.classList.remove('interactive');
+                spectrumLine.classList.add('disabled');
                 break;
                 
             case 'guessing':
+                // Only non-clue-givers can interact
                 if (!isClueGiver) {
-                    this.elements.guessInputSection.classList.remove('hidden');
-                    // Enable submit button in case it was disabled
-                    if (this.elements.submitGuessBtn) {
-                        this.elements.submitGuessBtn.disabled = false;
-                    }
+                    spectrumLine.classList.add('interactive');
+                    spectrumLine.classList.remove('disabled');
                 } else {
-                    this.elements.waitingSection.classList.remove('hidden');
-                    this.elements.waitingMessage.textContent = 'Players are guessing...';
+                    spectrumLine.classList.remove('interactive');
+                    spectrumLine.classList.add('disabled');
                 }
                 break;
                 
-            case 'scoring':
-                this.elements.resultsSection.classList.remove('hidden');
-                break;
-                
-            case 'finished':
-                this.elements.resultsSection.classList.remove('hidden');
-                this.elements.viewFinalScoresBtn.classList.remove('hidden');
-                break;
-                
             default:
-                console.warn(`⚠️ Unknown game phase: ${phase}`);
-                this.elements.waitingSection.classList.remove('hidden');
-                this.elements.waitingMessage.textContent = 'Loading...';
+                // No interaction in other phases
+                spectrumLine.classList.remove('interactive');
+                spectrumLine.classList.add('disabled');
                 break;
         }
+    }
+
+    /**
+     * Helper method to update timer visibility
+     */
+    updateTimerVisibility(phase) {
+        const timer = this.elements.roundTimer;
+        if (!timer) return;
+        
+        const showTimer = ['giving-clue', 'guessing'].includes(phase);
+        timer.style.visibility = showTimer ? 'visible' : 'hidden';
+        
+        if (!showTimer) {
+            timer.textContent = '--';
+            timer.className = 'timer';
+        }
+    }
+
+    /**
+     * Helper method to update results display
+     */
+    updateResultsDisplay(gameState) {
+        const container = this.elements.resultsContainer;
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        // Add round summary
+        const summary = document.createElement('div');
+        summary.className = 'round-summary';
+        summary.innerHTML = `
+            <h4>Round ${gameState.currentRound} Results</h4>
+            <p>Target was at: <strong>${gameState.targetPosition}%</strong></p>
+        `;
+        container.appendChild(summary);
+        
+        // Add player results
+        if (gameState.guesses && gameState.roundScores) {
+            Object.entries(gameState.guesses).forEach(([playerId, guess]) => {
+                const player = this.stateManager.getPlayer(playerId);
+                const score = gameState.roundScores[playerId] || 0;
+                const distance = Math.abs(guess - gameState.targetPosition);
+                
+                const resultElement = this.createPlayerResultElement(player, guess, score, distance);
+                container.appendChild(resultElement);
+            });
+        }
+        
+        // Add bonus indicator if applicable
+        if (gameState.bonusAwarded) {
+            const bonus = document.createElement('div');
+            bonus.className = 'bonus-indicator animate-success-celebration';
+            bonus.innerHTML = '🎉 <strong>Bonus Round!</strong> All players guessed within 10%!';
+            container.appendChild(bonus);
+        }
+    }
+
+    /**
+     * Helper method to update final results display
+     */
+    updateFinalResultsDisplay(gameState) {
+        const container = this.elements.resultsContainer;
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        // Add game summary
+        const summary = document.createElement('div');
+        summary.className = 'game-summary';
+        summary.innerHTML = `
+            <h3>🎉 Game Complete!</h3>
+            <p>Total Rounds Played: ${gameState.currentRound}</p>
+        `;
+        container.appendChild(summary);
+        
+        // Add final scores preview
+        if (gameState.totalScores) {
+            const preview = document.createElement('div');
+            preview.className = 'scores-preview';
+            preview.innerHTML = '<p>Click "View Final Scores" to see the winner!</p>';
+            container.appendChild(preview);
+        }
+    }
+
+    /**
+     * Helper method to create player result element
+     */
+    createPlayerResultElement(player, guess, score, distance) {
+        const div = document.createElement('div');
+        div.className = 'player-result';
+        
+        if (distance <= 5) {
+            div.classList.add('excellent-guess');
+        } else if (distance <= 10) {
+            div.classList.add('good-guess');
+        }
+        
+        div.innerHTML = `
+            <div class="player-result-header">
+                <span class="player-name">${player?.name || 'Unknown'}</span>
+                <span class="player-score">+${score} points</span>
+            </div>
+            <div class="player-result-details">
+                <span class="guess-position">Guessed: ${guess}%</span>
+                <span class="guess-distance">Distance: ${distance}</span>
+            </div>
+        `;
+        
+        return div;
     }
 
     /**
@@ -832,6 +1108,30 @@ export class UIManager {
         container.scrollTop = container.scrollHeight;
     }
 
+    /**
+     * Validate player name
+     *  
+     * @returns {boolean} True if valid, false otherwise
+     * @description Enhanced with accessibility features and error handling
+     * */
+    safeElementUpdate(elementId, updateFn, fallbackMessage = null) {
+        try {
+            const element = this.elements[elementId] || document.getElementById(elementId);
+            if (element) {
+                updateFn(element);
+                return true;
+            } else {
+                console.warn(`⚠️ Element not found: ${elementId}`);
+                if (fallbackMessage) {
+                    this.showNotification(fallbackMessage, 'warning');
+                }
+                return false;
+            }
+        } catch (error) {
+            console.error(`❌ Error updating element ${elementId}:`, error);
+            return false;
+        }
+    }
     /**
      * Create chat message element
      */
@@ -1024,9 +1324,14 @@ export class UIManager {
     }
 
     /**
-     * Show notification
+     * Show notification - FIXED: Only show if debug mode or critical
      */
     showNotification(message, type = 'info', duration = 5000) {
+        // Only show notifications in debug mode or for critical errors
+        if (!this.debugMode && type !== 'error') {
+            return;
+        }
+        
         this.stateManager.addNotification({
             message,
             type,
@@ -1196,11 +1501,13 @@ export class UIManager {
         const isHost = roomState.hostId === connectionState.playerId;
         
         // Debug logging
-        console.log('🔍 Host check:', {
-            hostId: roomState.hostId,
-            playerId: connectionState.playerId,
-            isHost: isHost
-        });
+        if (this.debugMode) {
+            console.log('🔍 Host check:', {
+                hostId: roomState.hostId,
+                playerId: connectionState.playerId,
+                isHost: isHost
+            });
+        }
         
         return isHost;
     }

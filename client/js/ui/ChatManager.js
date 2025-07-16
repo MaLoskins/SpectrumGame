@@ -1,6 +1,7 @@
 /**
  * Chat Manager - Real-time chat interface management
  * Handles message display, formatting, timestamps, scroll management, and input validation
+ * FIXED: Fixed TypeError by using correct StateManager methods
  */
 
 export class ChatManager {
@@ -33,6 +34,9 @@ export class ChatManager {
         // Typing indicators
         this.typingUsers = new Set();
         this.typingTimeout = null;
+        
+        // Debug mode
+        this.debugMode = false; // Changed to false by default
         
         // Bind methods
         this.init = this.init.bind(this);
@@ -133,10 +137,10 @@ export class ChatManager {
             this.updatePlayerList(data.newValue);
         });
         
-        // Game phase changes (for system messages)
-        this.stateManager.on('state:game.phase', (data) => {
-            this.handlePhaseChange(data.newValue);
-        });
+        // Game phase changes (for system messages) - REMOVED to reduce chat clutter
+        // this.stateManager.on('state:game.phase', (data) => {
+        //     this.handlePhaseChange(data.newValue);
+        // });
     }
 
     /**
@@ -286,9 +290,14 @@ export class ChatManager {
     }
 
     /**
-     * Add system message
+     * Add system message - REDUCED: Only for critical messages
      */
     addSystemMessage(content, type = 'system') {
+        // Only add system messages in debug mode
+        if (!this.debugMode) {
+            return;
+        }
+        
         const message = {
             id: Date.now() + Math.random(),
             content,
@@ -300,7 +309,7 @@ export class ChatManager {
     }
 
     /**
-     * Update messages display
+     * Update messages display - FIXED: Use correct method name
      */
     updateMessages(messages) {
         if (!this.messagesContainer) return;
@@ -325,9 +334,10 @@ export class ChatManager {
             this.scrollToBottom(true);
         }
         
-        // Update unread count
+        // Update unread count - FIXED: Use getUIState instead of getState
+        const uiState = this.stateManager.getUIState();
         if (!this.isVisible || !this.isScrolledToBottom) {
-            this.updateUnreadCount(this.stateManager.getState().chat.unreadCount);
+            this.updateUnreadCount(this.stateManager.getChatMessages().length);
         }
     }
 
@@ -471,7 +481,9 @@ export class ChatManager {
     formatMessageContent(content) {
         // Handle null/undefined content
         if (!content || typeof content !== 'string') {
-            console.warn('💬 Invalid message content:', content);
+            if (this.debugMode) {
+                console.warn('💬 Invalid message content:', content);
+            }
             return '';
         }
         
@@ -716,32 +728,6 @@ export class ChatManager {
         }
         
         this.stateManager.emit('ui:typing-stop');
-    }
-
-    /**
-     * Handle game phase changes
-     */
-    handlePhaseChange(phase) {
-        let message = null;
-        
-        switch (phase) {
-            case 'giving-clue':
-                message = 'Round started! Clue Giver is thinking of a clue...';
-                break;
-            case 'guessing':
-                message = 'Clue given! Players are making their guesses...';
-                break;
-            case 'scoring':
-                message = 'Round complete! Calculating scores...';
-                break;
-            case 'finished':
-                message = 'Game finished! Thanks for playing!';
-                break;
-        }
-        
-        if (message) {
-            this.addSystemMessage(message);
-        }
     }
 
     /**

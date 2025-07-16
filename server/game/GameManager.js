@@ -9,6 +9,7 @@
  * - Manages round timing
  * - Validates player actions
  * 
+ * FIXED: Proper round transitions and timer cleanup
  * ================================= */
 
 /**
@@ -26,6 +27,8 @@ class GameManager {
         this.MAX_PLAYERS = 6;
         this.BONUS_THRESHOLD = 10; // percentage
         this.BONUS_POINTS = 50;
+        this.RESULTS_VIEWING_TIME = 7000; // 7 seconds
+        this.BETWEEN_ROUNDS_DELAY = 3000; // 3 seconds
         
         // Active game timers
         this.gameTimers = new Map();
@@ -39,6 +42,9 @@ class GameManager {
     startRound(room) {
         try {
             console.log(`🎯 Starting round ${room.currentRound + 1} for room ${room.code}`);
+            
+            // Clear any existing timers first
+            this.clearAllRoomTimers(room.id);
             
             // Increment round counter
             room.currentRound++;
@@ -62,16 +68,19 @@ class GameManager {
             // Clear previous round scores
             room.roundScores = new Map();
             
-            // Start round timer
-            this.startRoundTimer(room);
-            
-            return {
+            // Broadcast round start to all players BEFORE starting timer
+            const roundData = {
                 roundNumber: room.currentRound,
                 clueGiverId: room.clueGiverId,
                 spectrum: spectrum,
-                targetPosition: room.targetPosition, // Only sent to clue giver
+                targetPosition: room.targetPosition, // Server will filter this per player
                 duration: this.ROUND_DURATION
             };
+            
+            // Start round timer AFTER broadcasting
+            this.startRoundTimer(room);
+            
+            return roundData;
             
         } catch (error) {
             console.error('❌ Error starting round:', error);
@@ -140,8 +149,15 @@ class GameManager {
         this.clearRoundTimer(room.id);
         
         let timeRemaining = this.ROUND_DURATION;
+        room.timerActive = true;
         
         const timer = setInterval(() => {
+            // Check if timer should still be active
+            if (!room.timerActive) {
+                clearInterval(timer);
+                return;
+            }
+            
             timeRemaining--;
             
             // Emit timer update
@@ -177,6 +193,30 @@ class GameManager {
         if (timer) {
             clearInterval(timer);
             this.gameTimers.delete(roomId);
+        }
+    }
+
+    /**
+     * Clear all timers for a room
+     */
+    clearAllRoomTimers(roomId) {
+        // Clear the main round timer
+        this.clearRoundTimer(roomId);
+        
+        // Clear any transition timers
+        const transitionTimerKey = `${roomId}_transition`;
+        const transitionTimer = this.gameTimers.get(transitionTimerKey);
+        if (transitionTimer) {
+            clearTimeout(transitionTimer);
+            this.gameTimers.delete(transitionTimerKey);
+        }
+        
+        // Clear any next round timers
+        const nextRoundTimerKey = `${roomId}_nextRound`;
+        const nextRoundTimer = this.gameTimers.get(nextRoundTimerKey);
+        if (nextRoundTimer) {
+            clearTimeout(nextRoundTimer);
+            this.gameTimers.delete(nextRoundTimerKey);
         }
     }
 
@@ -270,14 +310,24 @@ class GameManager {
     }
 
     /**
-     * End the current round
+     * End the current round - FIXED VERSION
      */
     endRound(room) {
         try {
             console.log(`🏁 Ending round ${room.currentRound} for room ${room.code}`);
             
-            // Clear timer
-            this.clearRoundTimer(room.id);
+            // Immediately stop the timer
+            room.timerActive = false;
+            this.clearAllRoomTimers(room.id);
+            
+            // Prevent multiple calls
+            if (room.phase === 'results' || room.phase === 'waiting') {
+                console.log('⚠️ Round already ended, skipping...');
+                return;
+            }
+            
+            // Set phase to results
+            room.phase = 'results';
             
             // Calculate scores
             const results = this.calculateRoundScores(room);
@@ -290,9 +340,6 @@ class GameManager {
                 }
             });
             
-            // Set phase to results
-            room.phase = 'results';
-            
             // Prepare results data
             const roundResults = {
                 targetPosition: room.targetPosition,
@@ -303,23 +350,64 @@ class GameManager {
                 bestGuess: results.bestGuess
             };
             
-            // Broadcast round end results
+            // Broadcast round end results immediately
             if (room.io) {
                 room.io.to(room.id).emit('game:round-end', roundResults);
             }
             
             // Check if game is finished
             if (room.currentRound >= this.MAX_ROUNDS) {
-                setTimeout(() => this.endGame(room), 5000);
+                // Schedule game end after viewing results
+                const gameEndTimer = setTimeout(() => {
+                    this.endGame(room);
+                }, this.RESULTS_VIEWING_TIME);
+                this.gameTimers.set(`${room.id}_gameEnd`, gameEndTimer);
             } else {
-                // Schedule next round
-                setTimeout(() => this.startRound(room), 10000);
+                // Schedule transition to waiting phase
+                const transitionTimer = setTimeout(() => {
+                    room.phase = 'waiting';
+                    if (room.io) {
+                        room.io.to(room.id).emit('game:phase-change', { 
+                            phase: 'waiting',
+                            message: 'Preparing next round...'
+                        });
+                    }
+                    
+                    // Schedule next round start
+                    const nextRoundTimer = setTimeout(() => {
+                        // Start the next round
+                        const nextRoundData = this.startRound(room);
+                        
+                        // Emit round start event with proper data for each player
+                        if (room.io && room.socketHandler) {
+                            room.players.forEach((player, playerId) => {
+                                const playerSocket = room.socketHandler.getPlayerSocket(playerId);
+                                if (playerSocket) {
+                                    const isClueGiver = playerId === room.clueGiverId;
+                                    const eventData = {
+                                        ...nextRoundData,
+                                        targetPosition: isClueGiver ? room.targetPosition : null
+                                    };
+                                    playerSocket.emit('game:round-start', eventData);
+                                }
+                            });
+                        }
+                    }, this.BETWEEN_ROUNDS_DELAY);
+                    
+                    this.gameTimers.set(`${room.id}_nextRound`, nextRoundTimer);
+                    
+                }, this.RESULTS_VIEWING_TIME);
+                
+                this.gameTimers.set(`${room.id}_transition`, transitionTimer);
             }
             
             return roundResults;
             
         } catch (error) {
             console.error('❌ Error ending round:', error);
+            // Attempt recovery
+            this.clearAllRoomTimers(room.id);
+            room.phase = 'waiting';
             throw error;
         }
     }
@@ -405,8 +493,9 @@ class GameManager {
         try {
             console.log(`🎉 Ending game for room ${room.code}`);
             
-            // Clear any remaining timers
-            this.clearRoundTimer(room.id);
+            // Clear all timers
+            this.clearAllRoomTimers(room.id);
+            room.timerActive = false;
             
             // Calculate final results
             const finalScores = this.getTotalScores(room);
@@ -525,7 +614,9 @@ class GameManager {
             MIN_PLAYERS: this.MIN_PLAYERS,
             MAX_PLAYERS: this.MAX_PLAYERS,
             BONUS_THRESHOLD: this.BONUS_THRESHOLD,
-            BONUS_POINTS: this.BONUS_POINTS
+            BONUS_POINTS: this.BONUS_POINTS,
+            RESULTS_VIEWING_TIME: this.RESULTS_VIEWING_TIME,
+            BETWEEN_ROUNDS_DELAY: this.BETWEEN_ROUNDS_DELAY
         };
     }
 
@@ -534,8 +625,12 @@ class GameManager {
      */
     cleanup() {
         // Clear all timers
-        this.gameTimers.forEach((timer, roomId) => {
-            clearInterval(timer);
+        this.gameTimers.forEach((timer, key) => {
+            if (typeof timer === 'number') {
+                clearTimeout(timer);
+            } else {
+                clearInterval(timer);
+            }
         });
         this.gameTimers.clear();
         
