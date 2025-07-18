@@ -397,7 +397,8 @@ input.error {
   grid-template-columns: var(--sidebar-width) 1fr var(--sidebar-width);
   overflow: hidden;
   min-height: 0;
-  contain: size layout style;
+  contain: layout style;
+  padding-bottom: var(--space-3xl);
 }
 
 .game-sidebar {

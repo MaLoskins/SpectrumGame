@@ -9,13 +9,16 @@
   padding: var(--space-lg);
   position: relative;
   contain: layout style;
+  padding-bottom: var(--space-lg);
 }
 
 /* Spectrum header optimized */
 .spectrum-header {
   display: grid;
-  place-items: center;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
   min-height: 48px;
+  gap: var(--space-md);
 }
 
 .clue-text {
@@ -24,6 +27,7 @@
   color: var(--accent-lilac);
   background: linear-gradient(135deg, rgba(183, 148, 244, 0.1), rgba(183, 148, 244, 0.05));
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   padding: var(--space-md) var(--space-xl);
   border-radius: var(--radius-xl);
   border: 1px solid rgba(183, 148, 244, 0.3);
@@ -35,6 +39,8 @@
   position: relative;
   animation: slideIn 0.3s ease-out;
   contain: layout style;
+  grid-column: 3;
+  justify-self: end;
 }
 
 .clue-text::before {
@@ -45,36 +51,83 @@
 
 /* Spectrum display with CSS Grid */
 .spectrum-display {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  grid-template-columns: auto 1fr auto;
-  gap: var(--space-sm);
-  position: relative;
-  max-width: 700px;
-  margin: 0 auto;
-  width: 100%;
-  contain: size layout style;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
 }
 
-/* Axis labels optimized */
+/* Main container that holds everything */
+.spectrum-grid-container {
+    position: relative;
+    width: min(100%, 700px);
+    aspect-ratio: 1;
+    container-type: size;
+    container-name: spectrum;
+}
+
+/* Axis labels - sizing controlled by JavaScript */
 .axis-label-container {
   display: grid;
   place-items: center;
-  padding: var(--space-xs);
+  /* Padding will be set by JavaScript */
+  min-width: 0;
+  min-height: 0;
 }
 
+/* Axis Labels - Positioned absolutely and sized with container queries */
 .axis-label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--text-secondary);
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  padding: var(--space-xs) var(--space-md);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--glass-border);
-  white-space: nowrap;
-  transition: all 250ms;
-  contain: layout style;
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+}
+
+.axis-label span {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    white-space: nowrap;
+    transition: all 250ms;
+    font-size: clamp(0.625rem, 2.5cqi, 1rem);
+    padding: clamp(0.125rem, 1cqi, 0.5rem) clamp(0.25rem, 2cqi, 1rem);
+}
+
+.axis-label span:hover {
+    color: var(--text-primary);
+    border-color: rgba(0, 212, 255, 0.3);
+    transform: scale(1.05);
+}
+
+/* Position each axis label */
+.axis-label.top {
+    top: -2%;
+    left: 50%;
+    transform: translate(-50%, -100%);
+}
+
+.axis-label.bottom {
+    bottom: -2%;
+    left: 50%;
+    transform: translate(-50%, 100%);
+    margin-bottom: var(--space-lg);
+}
+
+.axis-label.left {
+    left: -2%;
+    top: 50%;
+    transform: translate(-100%, -50%);
+}
+
+.axis-label.right {
+    right: -2%;
+    top: 50%;
+    transform: translate(100%, -50%);
 }
 
 .axis-label:hover {
@@ -85,37 +138,45 @@
 
 /* Main spectrum grid area */
 .spectrum-main-row {
+  aspect-ratio: 1;
+  position: relative;
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: auto 1fr auto;
   gap: var(--space-sm);
 }
 
-/* Canvas wrapper with optimized properties */
+/* Canvas wrapper - takes full space of container */
 .spectrum-canvas-wrapper {
-  aspect-ratio: 1/1;
-  position: relative;
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.03), rgba(183, 148, 244, 0.03));
-  border: 2px solid var(--glass-border);
-  border-radius: var(--radius-xl);
-  overflow: visible;
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.2), 0 8px 32px rgba(0, 212, 255, 0.1);
-  transition: all 250ms;
-  display: grid;
-  place-items: center;
-  cursor: crosshair;
-  contain: layout style;
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.03), rgba(183, 148, 244, 0.03));
+    border: 2px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: 
+        inset 0 2px 10px rgba(0, 0, 0, 0.2), 
+        0 8px 32px rgba(0, 212, 255, 0.1);
+    transition: all 250ms;
+    cursor: crosshair;
 }
 
-.spectrum-canvas { width:100%; height:100%; }
+
+.spectrum-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
 
 .spectrum-canvas-wrapper:hover {
-  border-color: rgba(0, 212, 255, 0.4);
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.2), 0 8px 40px rgba(0, 212, 255, 0.2);
+    border-color: rgba(0, 212, 255, 0.4);
+    box-shadow: 
+        inset 0 2px 10px rgba(0, 0, 0, 0.2), 
+        0 8px 40px rgba(0, 212, 255, 0.2);
 }
 
 .spectrum-canvas-wrapper.interactive {
-  cursor: crosshair;
+    cursor: crosshair;
 }
 
 .spectrum-canvas-wrapper.interactive:hover {
@@ -123,36 +184,113 @@
   background: linear-gradient(135deg, rgba(0, 212, 255, 0.05), rgba(183, 148, 244, 0.05));
 }
 
-/* Axis names with logical properties */
+/* Axis Names - Centered on each axis */
 .axis-name {
-  position: absolute;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--accent-teal);
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  background: rgba(10, 15, 28, 0.9);
-  padding: var(--space-xs) var(--space-md);
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(0, 212, 255, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(10px);
-  z-index: 10;
-  transition: all 150ms;
-  contain: layout style;
+    position: absolute;
+    font-weight: var(--font-weight-semibold);
+    color: var(--accent-teal);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: rgba(10, 15, 28, 0.9);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    z-index: 10;
+    font-size: clamp(0.5rem, 2cqi, 0.875rem);
+    padding: clamp(0.125rem, 0.8cqi, 0.375rem) clamp(0.25rem, 1.5cqi, 0.75rem);
 }
 
 .axis-name-x {
-  inset-block-end: -10px;
-  inset-inline: 50%;
+  inset-block-end: clamp(-15px, -2vw, -10px);
+  inset-inline-start: 50%;
   transform: translateX(-50%);
+  transform-origin: center bottom;
+}
+
+.axis-name.x-axis {
+    bottom: 0;
+    left: 50%;
+    transform: translate(-50%, 50%);
+}
+
+.axis-name.y-axis {
+    left: 0;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    transform-origin: center;
+}
+
+/* Container query breakpoints for fine-tuned control */
+@container spectrum (max-width: 500px) {
+    .axis-label span {
+        font-size: clamp(0.5rem, 3cqi, 0.75rem);
+        padding: clamp(0.0625rem, 1cqi, 0.25rem) clamp(0.125rem, 2cqi, 0.5rem);
+    }
+    
+    .axis-name {
+        font-size: clamp(0.4375rem, 2.5cqi, 0.625rem);
+        padding: clamp(0.0625rem, 1cqi, 0.25rem) clamp(0.125rem, 1.5cqi, 0.5rem);
+    }
+}
+
+@container spectrum (max-width: 350px) {
+    .axis-label span {
+        font-size: 0.5rem;
+        padding: 0.0625rem 0.125rem;
+    }
+    
+    .axis-name {
+        font-size: 0.4375rem;
+        padding: 0.0625rem 0.125rem;
+        letter-spacing: 0.05em;
+    }
+}
+
+/* Media queries for browsers without container query support */
+@supports not (container-type: size) {
+    .axis-label span {
+        font-size: clamp(0.625rem, 2vw, 1rem);
+        padding: clamp(0.125rem, 0.5vw, 0.5rem) clamp(0.25rem, 1vw, 1rem);
+    }
+    
+    .axis-name {
+        font-size: clamp(0.5rem, 1.5vw, 0.875rem);
+        padding: clamp(0.125rem, 0.4vw, 0.375rem) clamp(0.25rem, 0.8vw, 0.75rem);
+    }
+    
+    @media (max-width: 768px) {
+        .axis-label span {
+            font-size: 0.625rem;
+            padding: 0.125rem 0.25rem;
+        }
+        
+        .axis-name {
+            font-size: 0.5rem;
+            padding: 0.125rem 0.25rem;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .axis-label span {
+            font-size: 0.5rem;
+            padding: 0.0625rem 0.125rem;
+        }
+        
+        .axis-name {
+            font-size: 0.4375rem;
+            padding: 0.0625rem 0.125rem;
+        }
+    }
 }
 
 .axis-name-y {
-  inset-block: 50%;
-  inset-inline-start: -10px;
+  inset-block-start: 50%;
+  inset-inline-start: clamp(-15px, -2vw, -10px);
   transform: translateY(-50%) rotate(-90deg);
-  transform-origin: center;
+  transform-origin: center center;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
 }
 
 /* Player list with modern layout */
@@ -160,9 +298,9 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  max-height: 500px;
   padding: var(--space-lg);
   contain: layout style;
+  padding-bottom: var(--space-xl);
 }
 
 .player-list h3 {
@@ -257,8 +395,8 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   height: 100%;
-  max-height: 600px;
   contain: size layout style;
+  padding-bottom: var(--space-xl);
 }
 
 .chat-header {
@@ -383,13 +521,14 @@
 
 .footer-toggle-btn {
   position: absolute;
-  inset-block-end: 0;
-  inset-inline: 50%;
+  bottom: 0;
+  left: 50%;
   transform: translateX(-50%);
   background: var(--glass-bg);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
-  border-block-end: none;
+  border-bottom: none;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding: var(--space-sm) var(--space-lg);
   cursor: pointer;
@@ -403,7 +542,6 @@
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
   pointer-events: auto;
   z-index: 101;
-  contain: layout style;
 }
 
 .footer-toggle-btn:hover {
@@ -441,25 +579,65 @@
   transition: transform 250ms, visibility 0s;
 }
 
-/* Responsive optimization */
+/* Responsive optimization with container queries */
 
-@media (min-width: 1600px) {
-  .spectrum-display { max-width: 900px; }
-}
 
+/* Medium screens */
 @media (max-width: 1200px) {
-  .spectrum-display { max-width: 500px; }
-  .axis-label { font-size: var(--font-size-xs); padding: 2px var(--space-sm); }
-  .axis-name { font-size: 0.625rem; padding: 2px var(--space-sm); }
+  .spectrum-display {
+    max-width: min(500px, 90vw);
+  }
 }
 
+/* Small screens */
 @media (max-width: 768px) {
-  .spectrum-area { padding: var(--space-md); }
-  .spectrum-display { max-width: 100%; }
-  .axis-name { font-size: 0.55rem; padding: 1px 6px; }
-  .player-list, .chat-panel { max-height: 300px; padding: var(--space-md); }
-  .chat-message { max-width: 95%; padding: var(--space-sm); }
-  .results-container { grid-template-columns: 1fr; }
+  .spectrum-area {
+    padding: clamp(var(--space-sm), 3vw, var(--space-md));
+    gap: clamp(var(--space-sm), 2vw, var(--space-md));
+  }
+  .spectrum-display {
+    max-width: 100%;
+    gap: clamp(2px, 1vw, var(--space-sm));
+  }
+  .spectrum-canvas-wrapper {
+    border-width: 1px;
+    border-radius: var(--radius-lg);
+  }
+  .player-list, .chat-panel {
+    max-height: clamp(250px, 40vh, 300px);
+    padding: clamp(var(--space-sm), 3vw, var(--space-md));
+  }
+  .chat-message {
+    max-width: 95%;
+    padding: clamp(var(--space-xs), 2vw, var(--space-sm));
+  }
+  .results-container {
+    grid-template-columns: 1fr;
+    gap: clamp(var(--space-sm), 2vw, var(--space-md));
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .spectrum-area {
+    padding: var(--space-sm);
+    gap: var(--space-sm);
+  }
+  .spectrum-display {
+    gap: 4px;
+  }
+  .clue-text {
+    font-size: clamp(0.875rem, 4vw, var(--font-size-lg));
+    padding: var(--space-sm) var(--space-md);
+    max-width: 95%;
+  }
+}
+
+/* Container queries for modern browsers */
+@container (max-width: 400px) {
+  .spectrum-display {
+    gap: 2px;
+  }
 }
 
 /* Custom scrollbar optimization */

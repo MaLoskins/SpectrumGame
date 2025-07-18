@@ -166,28 +166,30 @@ export class SpectrumRenderer {
         
         this.containerRect = this.gridContainer.getBoundingClientRect();
         
+        // Use container's natural size
         const width = this.containerRect.width;
         const height = this.containerRect.height;
-        const size = Math.min(width, height);
         
-        this.canvasSize = { width: size, height: size };
+        this.canvasSize = { width, height };
         
         // Set canvas size accounting for device pixel ratio
-        this.canvas.width = size * this.devicePixelRatio;
-        this.canvas.height = size * this.devicePixelRatio;
+        const pixelWidth = width * this.devicePixelRatio;
+        const pixelHeight = height * this.devicePixelRatio;
+        
+        this.canvas.width = pixelWidth;
+        this.canvas.height = pixelHeight;
         
         // Update offscreen canvas size
         if (this.offscreenCanvas) {
-            this.offscreenCanvas.width = this.canvas.width;
-            this.offscreenCanvas.height = this.canvas.height;
+            this.offscreenCanvas.width = pixelWidth;
+            this.offscreenCanvas.height = pixelHeight;
         }
         
-        // Center canvas in container
-        this.canvas.style.width = `${size}px`;
-        this.canvas.style.height = `${size}px`;
+        // Set canvas to fill container
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
         this.canvas.style.position = 'absolute';
-        this.canvas.style.left = `${(width - size) / 2}px`;
-        this.canvas.style.top = `${(height - size) / 2}px`;
+        this.canvas.style.inset = '0';
         
         // Scale context for device pixel ratio
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -201,8 +203,9 @@ export class SpectrumRenderer {
         // Clear gradient cache when resizing
         this.gradientCache.clear();
         
-        console.log(`📏 Canvas resized to ${size}x${size} (DPR: ${this.devicePixelRatio})`);
+        console.log(`📏 Canvas resized to ${width}x${height} (DPR: ${this.devicePixelRatio})`);
     }
+
 
     handleResize = () => {
         this.updateCanvasSize();
@@ -227,14 +230,14 @@ export class SpectrumRenderer {
     }
 
     render() {
-        if (!this.ctx || !this.canvasSize.width) return;
+        if (!this.ctx || !this.canvasSize.width || !this.canvasSize.height) return;
 
         const ctx = this.offscreenCtx || this.ctx;
-        const size = this.canvasSize.width;
+        const { width, height } = this.canvasSize;
         
         // Clear with solid color (faster than clearRect)
         ctx.fillStyle = this.colors.darkBg;
-        ctx.fillRect(0, 0, size, size);
+        ctx.fillRect(0, 0, width, height);
 
         // Update animations
         this.updateAnimations();
@@ -260,7 +263,7 @@ export class SpectrumRenderer {
 
         // Copy offscreen canvas to main canvas if using double buffering
         if (this.offscreenCanvas) {
-            this.ctx.drawImage(this.offscreenCanvas, 0, 0, size, size);
+            this.ctx.drawImage(this.offscreenCanvas, 0, 0, width, height);
         }
 
         if (this.debugMode && this.frameCount % this.logFrequency === 0) {
@@ -271,15 +274,15 @@ export class SpectrumRenderer {
     }
 
     render2DGradient(ctx) {
-        const size = this.canvasSize.width;
+        const { width, height } = this.canvasSize;
         ctx.save();
 
         if (!this.spectrumX || !this.spectrumY) {
             ctx.fillStyle = this.colors.glassBg;
-            ctx.fillRect(0, 0, size, size);
+            ctx.fillRect(0, 0, width, height);
         } else {
             // Use cached gradients for performance
-            const cacheKey = `${this.spectrumX.id}-${this.spectrumY.id}-${size}`;
+            const cacheKey = `${this.spectrumX.id}-${this.spectrumY.id}-${width}x${height}`;
             let gradientX, gradientY;
 
             if (this.gradientCache.has(cacheKey)) {
@@ -288,7 +291,7 @@ export class SpectrumRenderer {
                 gradientY = cached.y;
             } else {
                 // Create X gradient
-                gradientX = ctx.createLinearGradient(0, 0, size, 0);
+                gradientX = ctx.createLinearGradient(0, 0, width, 0);
                 if (this.spectrumX.gradient) {
                     gradientX.addColorStop(0, this.spectrumX.gradient.start + '60');
                     if (this.spectrumX.gradient.middle) {
@@ -298,7 +301,7 @@ export class SpectrumRenderer {
                 }
                 
                 // Create Y gradient (inverted for proper display)
-                gradientY = ctx.createLinearGradient(0, size, 0, 0);
+                gradientY = ctx.createLinearGradient(0, height, 0, 0);
                 if (this.spectrumY.gradient) {
                     gradientY.addColorStop(0, this.spectrumY.gradient.start + '60');
                     if (this.spectrumY.gradient.middle) {
@@ -312,11 +315,11 @@ export class SpectrumRenderer {
             
             // Apply gradients with blend mode for 2D effect
             ctx.fillStyle = gradientX;
-            ctx.fillRect(0, 0, size, size);
+            ctx.fillRect(0, 0, width, height);
             
             ctx.globalCompositeOperation = 'multiply';
             ctx.fillStyle = gradientY;
-            ctx.fillRect(0, 0, size, size);
+            ctx.fillRect(0, 0, width, height);
             
             ctx.globalCompositeOperation = 'source-over';
         }
@@ -325,7 +328,7 @@ export class SpectrumRenderer {
     }
 
     renderGridLines(ctx) {
-        const size = this.canvasSize.width;
+        const { width, height } = this.canvasSize;
         ctx.save();
         
         // Use a single path for all grid lines
@@ -335,14 +338,20 @@ export class SpectrumRenderer {
         ctx.strokeStyle = this.colors.gridLine;
         ctx.lineWidth = 1;
         
-        const step = size / 10;
+        const stepX = width / 10;
+        const stepY = height / 10;
+        
         for (let i = 1; i < 10; i++) {
-            const pos = step * i;
             if (i !== 5) { // Skip center lines
-                ctx.moveTo(pos, 0);
-                ctx.lineTo(pos, size);
-                ctx.moveTo(0, pos);
-                ctx.lineTo(size, pos);
+                // Vertical lines
+                const x = stepX * i;
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                
+                // Horizontal lines
+                const y = stepY * i;
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
             }
         }
         ctx.stroke();
@@ -352,32 +361,35 @@ export class SpectrumRenderer {
         ctx.strokeStyle = this.colors.gridLineMajor;
         ctx.lineWidth = 2;
         
-        const centerPos = size / 2;
-        ctx.moveTo(centerPos, 0);
-        ctx.lineTo(centerPos, size);
-        ctx.moveTo(0, centerPos);
-        ctx.lineTo(size, centerPos);
+        const centerX = width / 2;
+        const centerY = height / 2;
+        
+        ctx.moveTo(centerX, 0);
+        ctx.lineTo(centerX, height);
+        ctx.moveTo(0, centerY);
+        ctx.lineTo(width, centerY);
         ctx.stroke();
         
         // Border
-        ctx.strokeRect(0, 0, size, size);
+        ctx.strokeRect(0, 0, width, height);
         
         ctx.restore();
     }
 
     coordToCanvas(coord) {
-        const size = this.canvasSize.width;
+        const { width, height } = this.canvasSize;
         return {
-            x: (coord.x / 100) * size,
-            y: size - (coord.y / 100) * size // Y is inverted
+            x: (coord.x / 100) * width,
+            y: height - (coord.y / 100) * height // Y is inverted
         };
     }
 
+
     canvasToCoord(x, y) {
-        const size = this.canvasSize.width;
+        const { width, height } = this.canvasSize;
         return {
-            x: Math.max(0, Math.min(100, Math.round((x / size) * 100))),
-            y: Math.max(0, Math.min(100, Math.round((1 - y / size) * 100))) // Y is inverted
+            x: Math.max(0, Math.min(100, Math.round((x / width) * 100))),
+            y: Math.max(0, Math.min(100, Math.round((1 - y / height) * 100))) // Y is inverted
         };
     }
 
@@ -658,8 +670,11 @@ export class SpectrumRenderer {
         if (!this.interactionEnabled || !this.isHovering) return;
         
         const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        // Account for the responsive canvas sizing
+        const scaleX = this.canvasSize.width / rect.width;
+        const scaleY = this.canvasSize.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
         
         this.hoverCoordinate = this.canvasToCoord(x, y);
         this.requestRender();

@@ -157,40 +157,34 @@
                         
                         <!-- Simplified 2D Spectrum Display -->
                         <div class="spectrum-display">
-                            <!-- Y-Axis Label (Top) -->
-                            <div class="axis-label-container axis-y-top">
-                                <span id="spectrumY-top" class="axis-label"></span>
-                            </div>
-                            
-                            <!-- Main Content Row -->
-                            <div class="spectrum-main-row">
-                                <!-- X-Axis Label (Left) -->
-                                <div class="axis-label-container axis-x-left">
-                                    <span id="spectrumX-left" class="axis-label"></span>
+                            <!-- Canvas Container with integrated axis labels -->
+                            <div class="spectrum-grid-container">
+                                <!-- Axis Labels - positioned absolutely within container -->
+                                <div class="axis-label top" data-axis="y-top">
+                                    <span id="spectrumY-top"></span>
+                                </div>
+                                <div class="axis-label bottom" data-axis="y-bottom">
+                                    <span id="spectrumY-bottom"></span>
+                                </div>
+                                <div class="axis-label left" data-axis="x-left">
+                                    <span id="spectrumX-left"></span>
+                                </div>
+                                <div class="axis-label right" data-axis="x-right">
+                                    <span id="spectrumX-right"></span>
                                 </div>
                                 
-                                <!-- Canvas Container -->
+                                <!-- Axis Names (centered on each axis) -->
+                                <div class="axis-name x-axis" data-axis="x">
+                                    <span id="spectrumX-name"></span>
+                                </div>
+                                <div class="axis-name y-axis" data-axis="y">
+                                    <span id="spectrumY-name"></span>
+                                </div>
+                                
+                                <!-- Canvas -->
                                 <div id="spectrum-grid" class="spectrum-canvas-wrapper" role="application" aria-label="Game Grid for guessing">
                                     <!-- Canvas is injected here by SpectrumRenderer -->
                                 </div>
-                                
-                                <!-- X-Axis Label (Right) -->
-                                <div class="axis-label-container axis-x-right">
-                                    <span id="spectrumX-right" class="axis-label"></span>
-                                </div>
-                            </div>
-                            
-                            <!-- Y-Axis Label (Bottom) -->
-                            <div class="axis-label-container axis-y-bottom">
-                                <span id="spectrumY-bottom" class="axis-label"></span>
-                            </div>
-                            
-                            <!-- Axis Names (Floating) -->
-                            <div class="axis-name axis-name-x">
-                                <span id="spectrumX-name"></span>
-                            </div>
-                            <div class="axis-name axis-name-y">
-                                <span id="spectrumY-name"></span>
                             </div>
                         </div>
                     </div>
