@@ -1,6 +1,7 @@
 /**
  * Room and player management for Spectrum
  * Handles room creation, player joining/leaving, and room lifecycle
+ * UPDATED: Support for 2D coordinate system
  */
 
 const crypto = require('crypto');
@@ -63,11 +64,12 @@ class RoomManager {
                 roundDuration: 60000
             },
             
-            // Game state
+            // Game state - Updated for 2D
             currentRound: 0,
             clueGiverId: null,
-            currentSpectrum: null,
-            targetPosition: null,
+            spectrumX: null,      // X-axis spectrum
+            spectrumY: null,      // Y-axis spectrum
+            targetCoordinate: null, // {x, y} instead of single position
             clue: null,
             guesses: new Map(),
             roundScores: new Map(),
@@ -306,7 +308,8 @@ class RoomManager {
             gameState: {
                 currentRound: room.currentRound,
                 clueGiverId: room.clueGiverId,
-                spectrum: room.currentSpectrum,
+                spectrumX: room.spectrumX,      // Updated for 2D
+                spectrumY: room.spectrumY,      // Updated for 2D
                 clue: room.clue,
                 phase: room.phase
             }

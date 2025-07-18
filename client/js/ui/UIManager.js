@@ -1,6 +1,7 @@
 /**
  * UI Manager - Coordinates all UI interactions and state updates
  * Handles DOM manipulation, screen transitions, form validation, and reactive updates
+ * UPDATED: Dark mode styling integration
  */
 
 import { gameLogic } from '../game/GameLogic.js';
@@ -15,7 +16,25 @@ export class UIManager {
             isInitialized: false,
             activeModal: null,
             notifications: [],
-            debugMode: false
+            debugMode: false,
+            // Performance optimizations
+            animationFrame: null,
+            domUpdateQueue: [],
+            batchUpdateTimeout: null,
+            // Dark mode colors for dynamic elements
+            colors: {
+                teal: '#00d4ff',
+                lilac: '#b794f4',
+                electricBlue: '#0096ff',
+                pink: '#ff006e',
+                green: '#00f593',
+                orange: '#ff9500',
+                red: '#ff3864',
+                darkBg: '#0a0f1c',
+                glassBg: 'rgba(255, 255, 255, 0.05)',
+                textPrimary: '#e0e6f0',
+                textSecondary: '#a8b2c7'
+            }
         });
     }
 
@@ -32,34 +51,62 @@ export class UIManager {
     cacheElements() {
         console.log('🎨 Caching DOM elements...');
         
+        // Batch all DOM queries
         const elementMap = {
-            app: '#app', lobby: '#lobby', gameRoom: '#game-room',
-            createRoomBtn: '#create-room-btn', joinRoomBtn: '#join-room-btn',
-            playerNameSection: '#player-name-section', roomCodeSection: '#room-code-section',
-            playerNameInput: '#player-name', roomCodeInput: '#room-code',
-            confirmActionBtn: '#confirm-action-btn', cancelActionBtn: '#cancel-action-btn',
-            currentRoomCode: '#current-room-code', currentRound: '#current-round',
-            totalRounds: '#total-rounds', gamePhaseText: '#game-phase-text', roundTimer: '#round-timer',
-            spectrumName: '#spectrum-name', clueText: '#clue-text',
-            leftLabel: '#left-label', rightLabel: '#right-label',
-            leftValue: '#left-value', rightValue: '#right-value',
-            spectrumLine: '#spectrum-line', targetMarker: '#target-marker', guessMarkers: '#guess-markers',
-            playersContainer: '#players-container', scoreboardContainer: '#scoreboard-container',
-            chatMessages: '#chat-messages', chatInput: '#chat-input',
-            sendChatBtn: '#send-chat', toggleChatBtn: '#toggle-chat',
-            clueInputSection: '#clue-input-section', guessInputSection: '#guess-input-section',
-            waitingSection: '#waiting-section', resultsSection: '#results-section',
-            clueInput: '#clue-input-field', submitClueBtn: '#submit-clue',
-            guessSlider: '#guess-slider', guessValue: '#guess-value', submitGuessBtn: '#submit-guess',
-            startGameBtn: '#start-game', waitingMessage: '#waiting-message',
-            resultsContainer: '#results-container', nextRoundBtn: '#next-round',
+            app: '#app', 
+            lobby: '#lobby', 
+            gameRoom: '#game-room',
+            createRoomBtn: '#create-room-btn', 
+            joinRoomBtn: '#join-room-btn',
+            playerNameSection: '#player-name-section', 
+            roomCodeSection: '#room-code-section',
+            playerNameInput: '#player-name', 
+            roomCodeInput: '#room-code',
+            confirmActionBtn: '#confirm-action-btn', 
+            cancelActionBtn: '#cancel-action-btn',
+            currentRoomCode: '#current-room-code', 
+            currentRound: '#current-round',
+            totalRounds: '#total-rounds', 
+            gamePhaseText: '#game-phase-text', 
+            roundTimer: '#round-timer',
+            clueText: '#clue-text',
+            spectrumXLeft: '#spectrumX-left',
+            spectrumXRight: '#spectrumX-right',
+            spectrumYTop: '#spectrumY-top',
+            spectrumYBottom: '#spectrumY-bottom',
+            spectrumXName: '#spectrumX-name',
+            spectrumYName: '#spectrumY-name',
+            playersContainer: '#players-container', 
+            scoreboardContainer: '#scoreboard-container',
+            chatMessages: '#chat-messages', 
+            chatInput: '#chat-input',
+            sendChatBtn: '#send-chat', 
+            toggleChatBtn: '#toggle-chat',
+            clueInputSection: '#clue-input-section',
+            guessInputSection: '#guess-input-section',
+            waitingSection: '#waiting-section', 
+            resultsSection: '#results-section',
+            clueInput: '#clue-input-field', 
+            submitClueBtn: '#submit-clue',
+            startGameBtn: '#start-game', 
+            waitingMessage: '#waiting-message',
+            resultsContainer: '#results-container', 
+            nextRoundBtn: '#next-round',
             viewFinalScoresBtn: '#view-final-scores',
-            modalOverlay: '#modal-overlay', modalTitle: '#modal-title',
-            modalContent: '#modal-content', modalConfirm: '#modal-confirm',
-            modalCancel: '#modal-cancel', modalClose: '#modal-close',
-            loadingIndicator: '#loading-indicator', notificationsContainer: '#notifications-container'
+            modalOverlay: '#modal-overlay', 
+            modalTitle: '#modal-title',
+            modalContent: '#modal-content', 
+            modalConfirm: '#modal-confirm',
+            modalCancel: '#modal-cancel', 
+            modalClose: '#modal-close',
+            loadingIndicator: '#loading-indicator', 
+            notificationsContainer: '#notifications-container',
+            footerToggleBtn: '#toggle-footer',
+            footerContent: '#footer-content',
+            footerNotificationBadge: '#footer-notification-badge'
         };
         
+        // Single batch query
         Object.entries(elementMap).forEach(([key, selector]) => {
             this.elements[key] = document.querySelector(selector);
         });
@@ -69,65 +116,159 @@ export class UIManager {
         
         if (missingElements.length > 0) {
             console.error('❌ Missing critical UI elements:', missingElements);
-        } else if (this.debugMode) {
-            console.log('✅ All critical elements cached successfully');
         }
     }
 
     setupEventListeners() {
         console.log('🎧 Setting up event listeners...');
         
-        const listeners = [
-            [this.elements.createRoomBtn, 'click', () => this.handleCreateRoom()],
-            [this.elements.joinRoomBtn, 'click', () => this.handleJoinRoom()],
-            [this.elements.confirmActionBtn, 'click', () => this.handleConfirmAction()],
-            [this.elements.cancelActionBtn, 'click', () => this.handleCancelAction()],
-            [this.elements.startGameBtn, 'click', () => this.handleStartGame()],
-            [this.elements.submitClueBtn, 'click', () => this.handleSubmitClue()],
-            [this.elements.submitGuessBtn, 'click', () => this.handleSubmitGuess()],
-            [this.elements.nextRoundBtn, 'click', () => this.handleNextRound()],
-            [this.elements.viewFinalScoresBtn, 'click', () => this.handleViewFinalScores()],
-            [this.elements.sendChatBtn, 'click', () => this.handleSendChat()],
-            [this.elements.chatInput, 'keypress', e => { if (e.key === 'Enter') this.handleSendChat(); }],
-            [this.elements.toggleChatBtn, 'click', () => this.handleToggleChat()],
-            [this.elements.guessSlider, 'input', e => { this.elements.guessValue.textContent = e.target.value; }],
-            [this.elements.modalClose, 'click', () => this.hideModal()],
-            [this.elements.modalCancel, 'click', () => this.hideModal()],
-            [this.elements.modalOverlay, 'click', e => { if (e.target === this.elements.modalOverlay) this.hideModal(); }],
-            [document, 'keydown', e => this.handleKeyboardShortcuts(e)],
-            [this.elements.playerNameInput, 'input', () => this.validatePlayerName()],
-            [this.elements.roomCodeInput, 'input', () => this.validateRoomCode()],
-            [this.elements.clueInput, 'input', () => this.validateClue()]
-        ];
+        // Use event delegation for better performance
+        document.addEventListener('click', this.handleGlobalClick.bind(this));
+        document.addEventListener('keydown', this.handleGlobalKeydown.bind(this));
         
-        listeners.forEach(([el, event, handler]) => el?.addEventListener(event, handler));
+        // Specific input handlers
+        this.elements.playerNameInput?.addEventListener('input', () => this.validatePlayerName());
+        this.elements.roomCodeInput?.addEventListener('input', () => this.validateRoomCode());
+        this.elements.clueInput?.addEventListener('input', () => this.validateClue());
+        this.elements.chatInput?.addEventListener('keypress', e => { if (e.key === 'Enter') this.handleSendChat(); });
+        
+        this.setupFooterEventListeners();
+    }
+
+    handleGlobalClick(e) {
+        const target = e.target;
+        
+        // Button clicks via delegation
+        if (target.matches('#create-room-btn')) this.handleCreateRoom();
+        else if (target.matches('#join-room-btn')) this.handleJoinRoom();
+        else if (target.matches('#confirm-action-btn')) this.handleConfirmAction();
+        else if (target.matches('#cancel-action-btn')) this.handleCancelAction();
+        else if (target.matches('#start-game')) this.handleStartGame();
+        else if (target.matches('#submit-clue')) this.handleSubmitClue();
+        else if (target.matches('#next-round')) this.handleNextRound();
+        else if (target.matches('#view-final-scores')) this.handleViewFinalScores();
+        else if (target.matches('#send-chat')) this.handleSendChat();
+        else if (target.matches('#toggle-chat')) this.handleToggleChat();
+        else if (target.matches('#modal-close, #modal-cancel')) this.hideModal();
+        else if (target === this.elements.modalOverlay) this.hideModal();
+    }
+
+    handleGlobalKeydown(e) {
+        this.handleKeyboardShortcuts(e);
     }
 
     setupStateListeners() {
         const stateHandlers = {
             'connection.status': data => this.updateConnectionStatus(data.newValue),
             'game.phase': data => this.updateGamePhase(data.newValue),
-            'game.spectrum': data => this.updateSpectrum(data.newValue),
+            'game.spectrumX': () => this.queueDOMUpdate(() => this.updateSpectrumLabels()),
+            'game.spectrumY': () => this.queueDOMUpdate(() => this.updateSpectrumLabels()),
             'game.clue': data => this.updateClue(data.newValue),
             'game.timeRemaining': data => this.updateTimer(data.newValue),
             'game.currentRound': data => this.updateRoundInfo(data.newValue),
-            'players': data => { this.updatePlayerList(data.newValue); this.updateScoreboard(data.newValue); },
+            'players': data => this.queueDOMUpdate(() => {
+                this.updatePlayerList(data.newValue);
+                this.updateScoreboard(data.newValue);
+            }),
             'ui.currentView': data => this.switchView(data.newValue),
             'ui.activeModal': data => data.newValue ? this.showModal(data.newValue.id, data.newValue.data) : this.hideModal(),
-            'ui.notifications': data => this.updateNotifications(data.newValue),
+            'ui.notifications': data => this.queueDOMUpdate(() => this.updateNotifications(data.newValue)),
             'ui.loading': data => this.updateLoadingState(data.newValue),
-            'chat.messages': data => this.updateChatMessages(data.newValue)
+            'chat.messages': data => this.queueDOMUpdate(() => this.updateChatMessages(data.newValue))
         };
         
         Object.entries(stateHandlers).forEach(([state, handler]) => 
             this.stateManager.on(`state:${state}`, handler));
     }
 
+    // Batch DOM updates for performance
+    queueDOMUpdate(updateFn) {
+        this.domUpdateQueue.push(updateFn);
+        
+        if (!this.batchUpdateTimeout) {
+            this.batchUpdateTimeout = requestAnimationFrame(() => {
+                this.processDOMUpdates();
+            });
+        }
+    }
+
+    processDOMUpdates() {
+        const updates = [...this.domUpdateQueue];
+        this.domUpdateQueue = [];
+        this.batchUpdateTimeout = null;
+        
+        // Execute all queued updates
+        updates.forEach(fn => fn());
+    }
+
+    setupFooterEventListeners() {
+        // Toggle footer button
+        this.elements.footerToggleBtn?.addEventListener('click', () => this.toggleFooter());
+        
+        // Keyboard shortcut to toggle footer (F key)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'f' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+                e.preventDefault();
+                this.toggleFooter();
+            }
+            
+            // Close footer on Escape
+            if (e.key === 'Escape' && this.isFooterOpen()) {
+                this.closeFooter();
+            }
+        });
+    }
+
+    toggleFooter() {
+        const isOpen = !this.elements.footerContent.classList.contains('hidden');
+        
+        if (isOpen) {
+            this.closeFooter();
+        } else {
+            this.openFooter();
+        }
+    }
+
+    openFooter() {
+        this.elements.footerContent.classList.remove('hidden');
+        this.elements.footerToggleBtn.classList.add('active');
+        this.elements.footerToggleBtn.setAttribute('aria-expanded', 'true');
+        this.elements.footerBackdrop.classList.add('active');
+        
+        // Clear notification badge
+        this.clearFooterNotificationBadge();
+        
+        // Focus on first interactive element in footer
+        requestAnimationFrame(() => {
+            const firstButton = this.elements.footerContent.querySelector('button:not([disabled])');
+            const firstInput = this.elements.footerContent.querySelector('input:not([disabled])');
+            (firstInput || firstButton)?.focus();
+        });
+    }
+
+    closeFooter() {
+        this.elements.footerContent.classList.add('hidden');
+        this.elements.footerToggleBtn.classList.remove('active');
+        this.elements.footerToggleBtn.setAttribute('aria-expanded', 'false');
+        this.elements.footerBackdrop.classList.remove('active');
+    }
+
+    isFooterOpen() {
+        return !this.elements.footerContent.classList.contains('hidden');
+    }
+
+    showFooterNotificationBadge() {
+        this.elements.footerNotificationBadge?.classList.remove('hidden');
+    }
+
+    clearFooterNotificationBadge() {
+        this.elements.footerNotificationBadge?.classList.add('hidden');
+    }
+
     initializeUI() {
         this.switchView('lobby');
         this.hideAllControlSections();
         this.resetLobbyForm();
-        this.setupSpectrumInteraction();
     }
 
     handleCreateRoom() {
@@ -138,7 +279,7 @@ export class UIManager {
             this.elements.confirmActionBtn.dataset.action = 'create';
             this.showActionButtons();
         });
-        setTimeout(() => this.elements.playerNameInput.focus(), 300);
+        requestAnimationFrame(() => this.elements.playerNameInput.focus());
     }
 
     handleJoinRoom() {
@@ -150,7 +291,7 @@ export class UIManager {
             this.elements.confirmActionBtn.dataset.action = 'join';
             this.showActionButtons();
         });
-        setTimeout(() => this.elements.playerNameInput.focus(), 300);
+        requestAnimationFrame(() => this.elements.playerNameInput.focus());
     }
 
     handleConfirmAction() {
@@ -210,23 +351,6 @@ export class UIManager {
         setTimeout(() => this.elements.clueInput?.classList.remove('animate-guess-submitted'), 500);
     }
 
-    handleSubmitGuess() {
-        const position = parseInt(this.elements.guessSlider.value);
-        
-        if (this.elements.submitGuessBtn) this.elements.submitGuessBtn.disabled = true;
-        
-        this.addButtonPressEffect(this.elements.submitGuessBtn);
-        this.elements.guessSlider.classList.add('animate-slider-pulse');
-        
-        this.stateManager.emit('ui:submit-guess', { position });
-        
-        if (this.debugMode) this.showNotification(`Guess submitted: ${position}% 🎲`, 'success', 3000);
-        
-        this.addGuessSubmissionEffect(position);
-        
-        setTimeout(() => this.elements.guessSlider.classList.remove('animate-slider-pulse'), 1000);
-    }
-
     handleNextRound() {
         this.hideAllControlSections();
         this.elements.waitingSection.classList.remove('hidden');
@@ -257,7 +381,7 @@ export class UIManager {
             Enter: () => {
                 const activeElement = document.activeElement;
                 if ([this.elements.playerNameInput, this.elements.roomCodeInput].includes(activeElement)) {
-                    this.handleConfirmAction();
+this.handleConfirmAction();
                 } else if (activeElement === this.elements.clueInput) {
                     this.handleSubmitClue();
                 }
@@ -294,6 +418,17 @@ export class UIManager {
         
         this.hideAllControlSections();
         
+        // Auto-open footer for important phases
+        const autoOpenPhases = ['giving-clue', 'results'];
+        const shouldAutoOpen = autoOpenPhases.includes(phase) && 
+                            (phase === 'giving-clue' ? isClueGiver : true);
+        
+        if (shouldAutoOpen && !this.isFooterOpen()) {
+            this.openFooter();
+            this.showFooterNotificationBadge();
+        }
+        
+        // Use requestAnimationFrame for DOM updates
         requestAnimationFrame(() => {
             const phaseHandlers = {
                 lobby: () => this.handleLobbyPhase(),
@@ -313,6 +448,7 @@ export class UIManager {
     }
 
     handleLobbyPhase() {
+        this.updateSpectrumLabels();
         this.elements.waitingSection.classList.remove('hidden');
         this.elements.waitingMessage.textContent = 'Waiting for players...';
         
@@ -355,7 +491,7 @@ export class UIManager {
                     this.elements.submitClueBtn.classList.remove('disabled');
                 }
                 
-                setTimeout(() => this.elements.clueInput?.focus(), 100);
+                requestAnimationFrame(() => this.elements.clueInput?.focus());
             } else {
                 console.error('❌ Clue input section element not found!');
             }
@@ -383,7 +519,7 @@ export class UIManager {
                 this.elements.guessSlider.disabled = false;
             }
             
-            setTimeout(() => this.elements.guessSlider?.focus(), 100);
+            requestAnimationFrame(() => this.elements.guessSlider?.focus());
         } else {
             this.elements.waitingSection.classList.remove('hidden');
             this.elements.waitingMessage.textContent = 'Players are guessing...';
@@ -392,6 +528,7 @@ export class UIManager {
     }
 
     handleScoringPhase() {
+        this.updateSpectrumLabels();
         this.elements.waitingSection.classList.remove('hidden');
         this.elements.waitingMessage.textContent = 'Preparing next round...';
         this.elements.waitingMessage.classList.add('animate-pulse');
@@ -405,13 +542,21 @@ export class UIManager {
         this.updateTimerVisibility('scoring');
     }
 
-    handleWaitingPhase = () => this.handleScoringPhase();
+    handleWaitingPhase() {
+        this.updateSpectrumLabels();
+        this.handleScoringPhase();
+    }
 
     handleResultsPhase(gameState) {
         if (this.debugMode) console.log('📊 Results phase');
         
         this.elements.resultsSection.classList.remove('hidden');
         this.updateResultsDisplay(gameState);
+        
+        // Ensure footer is open to show results
+        if (!this.isFooterOpen()) {
+            this.openFooter();
+        }
         
         const showButton = gameState.currentRound < gameState.totalRounds 
             ? this.elements.nextRoundBtn 
@@ -466,12 +611,16 @@ export class UIManager {
         const container = this.elements.resultsContainer;
         if (!container) return;
         
-        container.innerHTML = `
-            <div class="round-summary">
-                <h4>Round ${gameState.currentRound} Results</h4>
-                <p>Target was at: <strong>${gameState.targetPosition}%</strong></p>
-            </div>
+        // Use DocumentFragment for better performance
+        const fragment = document.createDocumentFragment();
+        
+        const summary = document.createElement('div');
+        summary.className = 'round-summary';
+        summary.innerHTML = `
+            <h4>Round ${gameState.currentRound} Results</h4>
+            <p>Target was at: <strong>${gameState.targetPosition}%</strong></p>
         `;
+        fragment.appendChild(summary);
         
         if (gameState.guesses && gameState.roundScores) {
             Object.entries(gameState.guesses).forEach(([playerId, guess]) => {
@@ -479,7 +628,7 @@ export class UIManager {
                 const score = gameState.roundScores[playerId] || 0;
                 const distance = Math.abs(guess - gameState.targetPosition);
                 
-                container.appendChild(this.createPlayerResultElement(player, guess, score, distance));
+                fragment.appendChild(this.createPlayerResultElement(player, guess, score, distance));
             });
         }
         
@@ -487,8 +636,12 @@ export class UIManager {
             const bonus = document.createElement('div');
             bonus.className = 'bonus-indicator animate-success-celebration';
             bonus.innerHTML = '🎉 <strong>Bonus Round!</strong> All players guessed within 10%!';
-            container.appendChild(bonus);
+            fragment.appendChild(bonus);
         }
+        
+        // Single DOM update
+        container.innerHTML = '';
+        container.appendChild(fragment);
     }
 
     updateFinalResultsDisplay(gameState) {
@@ -527,20 +680,44 @@ export class UIManager {
         return div;
     }
 
-    updateSpectrum(spectrum) {
-        if (!spectrum) return;
+    updateSpectrumLabels() {
+        const { spectrumX, spectrumY } = this.stateManager.getGameState();
+
+        const setLabels = (nameEl, startEl, endEl, spectrum) => {
+            if (spectrum) {
+                if (nameEl) {
+                    nameEl.textContent = spectrum.name;
+                    nameEl.style.opacity = '1';
+                }
+                if (startEl) {
+                    startEl.textContent = spectrum.leftLabel;
+                    startEl.style.opacity = '1';
+                }
+                if (endEl) {
+                    endEl.textContent = spectrum.rightLabel;
+                    endEl.style.opacity = '1';
+                }
+            } else {
+                if (nameEl) {
+                    nameEl.textContent = '';
+                    nameEl.style.opacity = '0';
+                }
+                if (startEl) {
+                    startEl.textContent = '';
+                    startEl.style.opacity = '0';
+                }
+                if (endEl) {
+                    endEl.textContent = '';
+                    endEl.style.opacity = '0';
+                }
+            }
+        };
+
+        // Set X-Axis Labels
+        setLabels(this.elements.spectrumXName, this.elements.spectrumXLeft, this.elements.spectrumXRight, spectrumX);
         
-        Object.assign(this.elements, {
-            spectrumName: { textContent: spectrum.name },
-            leftLabel: { textContent: spectrum.leftLabel },
-            rightLabel: { textContent: spectrum.rightLabel },
-            leftValue: { textContent: spectrum.leftValue },
-            rightValue: { textContent: spectrum.rightValue }
-        });
-        
-        const gradient = gameLogic.getSpectrumGradient(spectrum);
-        const spectrumGradient = this.elements.spectrumLine.querySelector('.spectrum-gradient');
-        spectrumGradient.style.background = gradient;
+        // Set Y-Axis Labels (Note: Top is rightLabel, Bottom is leftLabel for proper orientation)
+        setLabels(this.elements.spectrumYName, this.elements.spectrumYBottom, this.elements.spectrumYTop, spectrumY);
     }
 
     updateClue(clue) {
@@ -570,14 +747,18 @@ export class UIManager {
 
     updatePlayerList(players) {
         const container = this.elements.playersContainer;
-        container.innerHTML = '';
+        const fragment = document.createDocumentFragment();
         
         const gameState = this.stateManager.getGameState();
         const currentPlayerId = this.stateManager.getConnectionState().playerId;
         
         Object.values(players).forEach((player, index) => {
-            container.appendChild(this.createPlayerElement(player, index, gameState, currentPlayerId));
+            fragment.appendChild(this.createPlayerElement(player, index, gameState, currentPlayerId));
         });
+        
+        // Single DOM update
+        container.innerHTML = '';
+        container.appendChild(fragment);
     }
 
     createPlayerElement(player, index, gameState, currentPlayerId) {
@@ -617,13 +798,17 @@ export class UIManager {
 
     updateScoreboard(players) {
         const container = this.elements.scoreboardContainer;
-        container.innerHTML = '';
+        const fragment = document.createDocumentFragment();
         
         const rankings = gameLogic.calculateRankings(players);
         
         rankings.forEach((player, index) => {
-            container.appendChild(this.createScoreElement(player, index === 0));
+            fragment.appendChild(this.createScoreElement(player, index === 0));
         });
+        
+        // Single DOM update
+        container.innerHTML = '';
+        container.appendChild(fragment);
     }
 
     createScoreElement(player, isLeader) {
@@ -645,12 +830,15 @@ export class UIManager {
 
     updateChatMessages(messages) {
         const container = this.elements.chatMessages;
-        container.innerHTML = '';
+        const fragment = document.createDocumentFragment();
         
         messages.forEach(message => {
-            container.appendChild(this.createChatMessage(message));
+            fragment.appendChild(this.createChatMessage(message));
         });
         
+        // Single DOM update
+        container.innerHTML = '';
+        container.appendChild(fragment);
         container.scrollTop = container.scrollHeight;
     }
 
@@ -752,6 +940,10 @@ export class UIManager {
                 this.elements.modalTitle.textContent = 'Final Scores';
                 this.elements.modalContent.innerHTML = this.generateFinalScoresHTML(data);
             },
+            'help': () => {
+                this.elements.modalTitle.textContent = 'How to Play';
+                this.elements.modalContent.innerHTML = data.content;
+            },
             error: () => {
                 this.elements.modalTitle.textContent = 'Error';
                 this.elements.modalContent.innerHTML = `<p>${data.message}</p>`;
@@ -788,15 +980,24 @@ export class UIManager {
         if (!this.debugMode && type !== 'error') return;
         
         this.stateManager.addNotification({ message, type, duration });
+        
+        // Show badge if footer is closed
+        if (!this.isFooterOpen()) {
+            this.showFooterNotificationBadge();
+        }
     }
 
     updateNotifications(notifications) {
         const container = this.elements.notificationsContainer;
-        container.innerHTML = '';
+        const fragment = document.createDocumentFragment();
         
         notifications.forEach(notification => {
-            container.appendChild(this.createNotificationElement(notification));
+            fragment.appendChild(this.createNotificationElement(notification));
         });
+        
+        // Single DOM update
+        container.innerHTML = '';
+        container.appendChild(fragment);
     }
 
     createNotificationElement(notification) {
@@ -834,25 +1035,6 @@ export class UIManager {
 
     updateLoadingState(loading) {
         this.elements.loadingIndicator.classList.toggle('hidden', !loading);
-    }
-
-    setupSpectrumInteraction() {
-        this.elements.spectrumLine.addEventListener('click', e => {
-            const gameState = this.stateManager.getGameState();
-            const uiState = this.stateManager.getUIState();
-            
-            if (!uiState.spectrumInteractionEnabled || gameState.phase !== 'guessing') return;
-            
-            const rect = this.elements.spectrumLine.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const position = Math.max(0, Math.min(100, Math.round((x / rect.width) * 100)));
-            
-            this.elements.guessSlider.value = position;
-            this.elements.guessValue.textContent = position;
-            
-            this.elements.spectrumLine.classList.add('animate-pulse');
-            setTimeout(() => this.elements.spectrumLine.classList.remove('animate-pulse'), 300);
-        });
     }
 
     validatePlayerName() {
@@ -929,13 +1111,9 @@ export class UIManager {
         
         button.classList.add('animate-button-press');
         
-        const ripple = document.createElement('span');
-        ripple.classList.add('ripple-effect');
-        button.appendChild(ripple);
-        
+        // Use CSS animation instead of creating DOM elements
         setTimeout(() => {
             button.classList.remove('animate-button-press');
-            if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
         }, 300);
     }
 
@@ -944,13 +1122,15 @@ export class UIManager {
         if (lobbyActions) {
             lobbyActions.classList.add('animate-fade-out');
             
-            setTimeout(() => {
-                callback();
-                lobbyActions.classList.remove('animate-fade-out');
-                lobbyActions.classList.add('animate-fade-in');
-                
-                setTimeout(() => lobbyActions.classList.remove('animate-fade-in'), 300);
-            }, 150);
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    callback();
+                    lobbyActions.classList.remove('animate-fade-out');
+                    lobbyActions.classList.add('animate-fade-in');
+                    
+                    setTimeout(() => lobbyActions.classList.remove('animate-fade-in'), 300);
+                }, 150);
+            });
         } else {
             callback();
         }
@@ -965,29 +1145,6 @@ export class UIManager {
         this.showNotification(message, 'error', 4000);
         
         setTimeout(() => element.classList.remove('animate-error-shake'), 500);
-    }
-
-    addGuessSubmissionEffect(position) {
-        const spectrumLine = this.elements.spectrumLine;
-        if (!spectrumLine) return;
-        
-        const effect = document.createElement('div');
-        Object.assign(effect.style, {
-            position: 'absolute',
-            left: `${position}%`,
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '20px',
-            height: '20px',
-            borderRadius: '50%',
-            background: 'var(--accent-green)',
-            zIndex: '20'
-        });
-        effect.classList.add('animate-guess-placement');
-        
-        spectrumLine.appendChild(effect);
-        
-        setTimeout(() => effect.parentNode?.removeChild(effect), 800);
     }
 
     setEnhancedLoading(loading, message = 'Loading...', progress = null) {
@@ -1017,8 +1174,19 @@ export class UIManager {
     }
 
     destroy() {
+        // Clean up event listeners
+        document.removeEventListener('click', this.handleGlobalClick);
+        document.removeEventListener('keydown', this.handleGlobalKeydown);
+        
+        // Cancel any pending DOM updates
+        if (this.batchUpdateTimeout) {
+            cancelAnimationFrame(this.batchUpdateTimeout);
+        }
+        
+        // Clear state
         this.stateManager.removeAllListeners();
         this.elements = {};
+        this.domUpdateQueue = [];
         Object.assign(this, {
             currentView: 'lobby',
             isInitialized: false,

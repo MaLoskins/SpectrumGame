@@ -23,17 +23,22 @@
     <meta property="twitter:image" content="https://spectrum-game.com/assets/twitter-image.png">
     
     <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#8b5cf6">
+    <meta name="theme-color" content="#0a0f1c">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Spectrum">
-    <meta name="msapplication-TileColor" content="#8b5cf6">
+    <meta name="msapplication-TileColor" content="#0a0f1c">
     
     <!-- Performance and Security -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     
     <title>Spectrum - Multiplayer Guessing Game</title>
+    
+    <!-- Font Imports -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     
     <!-- Preload Critical Resources -->
     <link rel="preload" href="css/main.css" as="style">
@@ -75,6 +80,7 @@
         
         <!-- Game Lobby -->
         <div id="lobby" class="lobby-container">
+            <div class="background-glow"></div>
             <header class="lobby-header">
                 <h1 class="game-title">Spectrum</h1>
                 <p class="game-subtitle">Multiplayer Guessing Game</p>
@@ -112,120 +118,158 @@
         <div id="game-room" class="game-room hidden" role="main" aria-label="Game Room">
             
             <header class="game-header" role="banner">
-                <div class="room-info" aria-label="Room information">
-                    <span class="room-code">Room: <span id="current-room-code" aria-label="Current room code"></span></span>
-                    <span class="round-info">Round <span id="current-round" aria-label="Current round">1</span> of <span id="total-rounds" aria-label="Total rounds">10</span></span>
-                </div>
-                <div class="game-phase" role="status" aria-live="polite">
-                    <span id="game-phase-text">Waiting for players...</span>
-                </div>
-                <div class="timer-container" role="timer" aria-label="Round timer">
-                    <div id="round-timer" class="timer" aria-live="polite" aria-label="Time remaining">--</div>
+                <div class="header-content">
+                    <div class="room-info" aria-label="Room information">
+                        <span class="room-code">Room: <span id="current-room-code" aria-label="Current room code"></span></span>
+                        <span class="round-info">Round <span id="current-round" aria-label="Current round">1</span> of <span id="total-rounds" aria-label="Total rounds">10</span></span>
+                    </div>
+                    <div class="game-phase" role="status" aria-live="polite">
+                        <span id="game-phase-text">Waiting for players...</span>
+                    </div>
+                    <div class="timer-container" role="timer" aria-label="Round timer">
+                        <div id="round-timer" class="timer" aria-live="polite" aria-label="Time remaining">--</div>
+                    </div>
                 </div>
             </header>
             
             <main class="game-main">
-                
-                <aside class="player-list" role="complementary" aria-label="Players and scores">
-                    <h3>Players</h3>
-                    <div id="players-container" class="players-container" role="list" aria-label="Connected players"></div>
-                    
-                    <div class="scoreboard">
-                        <h4>Scores</h4>
-                        <div id="scoreboard-container" class="scoreboard-container" role="list" aria-label="Player scores"></div>
+                <!-- Left Panel: Players & Scores -->
+                <aside class="game-sidebar game-sidebar-left">
+                    <div class="player-list glass-panel" role="complementary" aria-label="Players and scores">
+                        <h3>Players</h3>
+                        <div id="players-container" class="players-container" role="list" aria-label="Connected players"></div>
+                        
+                        <div class="scoreboard">
+                            <h4>Scores</h4>
+                            <div id="scoreboard-container" class="scoreboard-container" role="list" aria-label="Player scores"></div>
+                        </div>
                     </div>
                 </aside>
                 
-                <section class="spectrum-area" role="main" aria-label="Game spectrum">
-                    <div class="spectrum-header">
-                        <h2 id="spectrum-name" class="spectrum-name" aria-live="polite">Temperature</h2>
-                        <p id="clue-text" class="clue-text hidden" role="status" aria-live="polite" aria-label="Current clue">Clue will appear here</p>
-                    </div>
-                    
-                    <div class="spectrum-container">
-                        <div class="spectrum-labels" aria-label="Spectrum endpoints">
-                            <span id="left-label" class="left-label" aria-label="Left endpoint">Freezing Cold</span>
-                            <span id="right-label" class="right-label" aria-label="Right endpoint">Blazing Hot</span>
+                <!-- Center: Game Area -->
+                <div class="game-center">
+                    <!-- Revamped Spectrum Area -->
+                    <div class="spectrum-area glass-panel">
+                        <!-- Clue Display -->
+                        <div class="spectrum-header">
+                            <div id="clue-text" class="clue-text hidden" role="status" aria-live="polite" aria-label="Current clue">Clue will appear here</div>
                         </div>
                         
-                        <div id="spectrum-line" class="spectrum-line" role="slider" aria-label="Spectrum line for making guesses" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0">
-                            <div class="spectrum-gradient" aria-hidden="true"></div>
-                            <div id="target-marker" class="target-marker hidden" aria-label="Target position" role="img"></div>
-                            <div id="guess-markers" class="guess-markers" aria-label="Player guesses" role="group"></div>
-                        </div>
-                        
-                        <div class="spectrum-values" aria-label="Spectrum value examples">
-                            <span id="left-value" class="left-value" aria-label="Left value example">❄️ Arctic</span>
-                            <span id="right-value" class="right-value" aria-label="Right value example">🔥 Desert</span>
+                        <!-- Simplified 2D Spectrum Display -->
+                        <div class="spectrum-display">
+                            <!-- Y-Axis Label (Top) -->
+                            <div class="axis-label-container axis-y-top">
+                                <span id="spectrumY-top" class="axis-label"></span>
+                            </div>
+                            
+                            <!-- Main Content Row -->
+                            <div class="spectrum-main-row">
+                                <!-- X-Axis Label (Left) -->
+                                <div class="axis-label-container axis-x-left">
+                                    <span id="spectrumX-left" class="axis-label"></span>
+                                </div>
+                                
+                                <!-- Canvas Container -->
+                                <div id="spectrum-grid" class="spectrum-canvas-wrapper" role="application" aria-label="Game Grid for guessing">
+                                    <!-- Canvas is injected here by SpectrumRenderer -->
+                                </div>
+                                
+                                <!-- X-Axis Label (Right) -->
+                                <div class="axis-label-container axis-x-right">
+                                    <span id="spectrumX-right" class="axis-label"></span>
+                                </div>
+                            </div>
+                            
+                            <!-- Y-Axis Label (Bottom) -->
+                            <div class="axis-label-container axis-y-bottom">
+                                <span id="spectrumY-bottom" class="axis-label"></span>
+                            </div>
+                            
+                            <!-- Axis Names (Floating) -->
+                            <div class="axis-name axis-name-x">
+                                <span id="spectrumX-name"></span>
+                            </div>
+                            <div class="axis-name axis-name-y">
+                                <span id="spectrumY-name"></span>
+                            </div>
                         </div>
                     </div>
-                </section>
+                </div>
                 
-                <aside class="chat-panel" role="complementary" aria-label="Game chat">
-                    <div class="chat-header">
-                        <h3>Chat</h3>
-                        <button id="toggle-chat" class="toggle-chat" aria-label="Toggle chat visibility" aria-expanded="true">−</button>
-                    </div>
-                    
-                    <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-label="Chat messages"></div>
-                    
-                    <div class="chat-input-container" role="group" aria-label="Send message">
-                        <label for="chat-input" class="sr-only">Type your message</label>
-                        <input type="text" id="chat-input" placeholder="Type a message..." maxlength="200" aria-describedby="chat-input-help">
-                        <button id="send-chat" class="btn btn-small" aria-describedby="send-chat-help">Send</button>
-                        <div id="chat-input-help" class="sr-only">Type a message to send to other players (max 200 characters)</div>
-                        <div id="send-chat-help" class="sr-only">Send your message to the chat</div>
+                <!-- Right Panel: Chat -->
+                <aside class="game-sidebar game-sidebar-right">
+                    <div class="chat-panel glass-panel" role="complementary" aria-label="Game chat">
+                        <div class="chat-header">
+                            <h3>Chat</h3>
+                            <button id="toggle-chat" class="toggle-chat" aria-label="Toggle chat visibility" aria-expanded="true">−</button>
+                        </div>
+                        
+                        <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-label="Chat messages"></div>
+                        
+                        <div class="chat-input-container" role="group" aria-label="Send message">
+                            <label for="chat-input" class="sr-only">Type your message</label>
+                            <input type="text" id="chat-input" placeholder="Type a message..." maxlength="200" aria-describedby="chat-input-help">
+                            <button id="send-chat" class="btn btn-small" aria-describedby="send-chat-help">Send</button>
+                            <div id="chat-input-help" class="sr-only">Type a message to send to other players (max 200 characters)</div>
+                            <div id="send-chat-help" class="sr-only">Send your message to the chat</div>
+                        </div>
                     </div>
                 </aside>
-                
             </main>
             
-            <footer class="game-controls" role="contentinfo" aria-label="Game controls">
+            <!-- Game Controls Footer Overlay -->
+            <footer class="game-controls-overlay" role="contentinfo" aria-label="Game controls">
+                <!-- Toggle Button -->
+                <button id="toggle-footer" class="footer-toggle-btn" aria-label="Toggle game controls" aria-expanded="false">
+                    <span class="toggle-icon">▲</span>
+                    <span class="toggle-label">Game Controls</span>
+                    <span id="footer-notification-badge" class="notification-badge hidden">!</span>
+                </button>
                 
-                <div id="clue-input-section" class="control-section hidden" role="group" aria-label="Clue giving">
-                    <label for="clue-input-field">Give a clue for the target position:</label>
-                    <div class="input-group">
-                        <input type="text" id="clue-input-field" placeholder="Enter your clue..." maxlength="100" aria-required="true" aria-describedby="clue-input-help">
-                        <button id="submit-clue" class="btn btn-primary" aria-describedby="submit-clue-help">Submit Clue</button>
-                        <div id="clue-input-help" class="sr-only">Enter a helpful clue to guide other players to the target position (max 100 characters)</div>
-                        <div id="submit-clue-help" class="sr-only">Submit your clue to other players</div>
+                <!-- Overlay Content -->
+                <div id="footer-content" class="footer-content glass-panel hidden">
+                    <div class="controls-container">
+                        <!-- Notifications Container -->
+                        <div id="notifications-container" class="notifications-container"></div>
+                        
+                        <div id="clue-input-section" class="control-section hidden" role="group" aria-label="Clue giving">
+                            <label for="clue-input-field">Give a clue for the target position:</label>
+                            <div class="input-group">
+                                <input type="text" id="clue-input-field" placeholder="Enter your clue..." maxlength="100" aria-required="true" aria-describedby="clue-input-help">
+                                <button id="submit-clue" class="btn btn-primary" aria-describedby="submit-clue-help">Submit Clue</button>
+                                <div id="clue-input-help" class="sr-only">Enter a helpful clue to guide other players to the target position (max 100 characters)</div>
+                                <div id="submit-clue-help" class="sr-only">Submit your clue to other players</div>
+                            </div>
+                        </div>
+                        
+                        <div id="guess-input-section" class="control-section hidden" role="group" aria-label="Make your guess">
+                            <p class="control-hint">Click on the grid to place your guess!</p>
+                        </div>
+                        
+                        <div id="waiting-section" class="control-section" role="status" aria-live="polite">
+                            <p id="waiting-message" class="waiting-message">Waiting for game to start...</p>
+                            <button id="start-game" class="btn btn-success hidden" aria-describedby="start-game-help">Start Game</button>
+                            <div id="start-game-help" class="sr-only">Start the game when all players are ready</div>
+                        </div>
+                        
+                        <div id="results-section" class="control-section hidden" role="region" aria-label="Round results">
+                            <div class="results-content">
+                                <h3>Round Results</h3>
+                                <div id="results-container" class="results-container" role="list" aria-label="Player results"></div>
+                                <button id="next-round" class="btn btn-primary hidden" aria-describedby="next-round-help">Next Round</button>
+                                <button id="view-final-scores" class="btn btn-success hidden" aria-describedby="final-scores-help">View Final Scores</button>
+                                <div id="next-round-help" class="sr-only">Continue to the next round</div>
+                                <div id="final-scores-help" class="sr-only">View the final game results and winner</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <div id="guess-input-section" class="control-section hidden" role="group" aria-label="Make your guess">
-                    <label for="guess-slider">Make your guess on the spectrum:</label>
-                    <div class="guess-controls">
-                        <input type="range" id="guess-slider" min="0" max="100" value="50" class="guess-slider" aria-describedby="guess-slider-help" aria-valuetext="50 percent">
-                        <span id="guess-value" class="guess-value" aria-live="polite" aria-label="Current guess value">50</span>
-                        <button id="submit-guess" class="btn btn-primary" aria-describedby="submit-guess-help">Submit Guess</button>
-                        <div id="guess-slider-help" class="sr-only">Use the slider to select your guess position from 0 to 100</div>
-                        <div id="submit-guess-help" class="sr-only">Submit your guess for this round</div>
-                    </div>
-                </div>
-                
-                <div id="waiting-section" class="control-section" role="status" aria-live="polite">
-                    <p id="waiting-message" class="waiting-message">Waiting for game to start...</p>
-                    <button id="start-game" class="btn btn-success hidden" aria-describedby="start-game-help">Start Game</button>
-                    <div id="start-game-help" class="sr-only">Start the game when all players are ready</div>
-                </div>
-                
-                <div id="results-section" class="control-section hidden" role="region" aria-label="Round results">
-                    <div class="results-content">
-                        <h3>Round Results</h3>
-                        <div id="results-container" class="results-container" role="list" aria-label="Player results"></div>
-                        <button id="next-round" class="btn btn-primary hidden" aria-describedby="next-round-help">Next Round</button>
-                        <button id="view-final-scores" class="btn btn-success hidden" aria-describedby="final-scores-help">View Final Scores</button>
-                        <div id="next-round-help" class="sr-only">Continue to the next round</div>
-                        <div id="final-scores-help" class="sr-only">View the final game results and winner</div>
-                    </div>
-                </div>
-                
             </footer>
-            
         </div>
         
+        <!-- Modal Overlay -->
         <div id="modal-overlay" class="modal-overlay hidden">
-            <div class="modal">
+            <div class="modal glass-panel">
                 <div class="modal-header">
                     <h3 id="modal-title">Modal Title</h3>
                     <button id="modal-close" class="modal-close">&times;</button>
@@ -240,17 +284,14 @@
             </div>
         </div>
         
+        <!-- Loading Indicator -->
         <div id="loading-indicator" class="loading-indicator hidden">
             <div class="spinner"></div>
             <p>Connecting...</p>
         </div>
-        
-        <div id="notifications-container" class="notifications-container"></div>
-        
     </div>
     
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="js/main.js"></script>
-    
 </body>
 </html>

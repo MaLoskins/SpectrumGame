@@ -1,7 +1,7 @@
 /**
  * Centralized state management with event system for Spectrum
  * Maintains game state consistency and provides reactive state updates
- * FIXED: Better debugging, proper state updates for clue giver
+ * UPDATED: Support for 2D coordinate system
  */
 
 class StateManager {
@@ -27,11 +27,12 @@ class StateManager {
                 currentRound: 0,
                 totalRounds: 0,
                 timeRemaining: 0,
-                spectrum: null,
+                spectrumX: null,      // Updated for 2D - X-axis spectrum
+                spectrumY: null,      // Updated for 2D - Y-axis spectrum
                 clue: null,
-                targetPosition: null,
+                targetCoordinate: null, // Updated for 2D - {x, y} instead of single position
                 clueGiverId: null,
-                guesses: {},
+                guesses: {},          // Will store {playerId: {x, y}} format
                 roundScores: {},
                 totalScores: {},
                 finalScores: {},
@@ -57,7 +58,7 @@ class StateManager {
                 loading: false,
                 currentView: 'lobby',
                 spectrumInteractionEnabled: false,
-                showTargetPosition: false
+                showTargetCoordinate: false  // Updated for 2D
             },
             chat: {
                 messages: [],
@@ -170,8 +171,20 @@ class StateManager {
     getGameState = () => ({ ...this.state.game });
     resetGameState = () => { console.log('🔄 Resetting game state'); this.updateState('game', this.getInitialState().game); };
     setGamePhase = phase => { console.log(`🎮 Game phase changing to: ${phase}`); this.updateState('game.phase', phase); };
-    setSpectrum = spectrum => { console.log('🌈 Setting spectrum:', spectrum?.name); this.updateState('game.spectrum', spectrum); };
-    setTargetPosition = position => { console.log(`🎯 Target position set to: ${position}`); this.updateState('game.targetPosition', position); };
+    
+    // Updated for 2D
+    setSpectrums(spectrumX, spectrumY) {
+        console.log('🌈 Setting spectrums:', spectrumX?.name, 'x', spectrumY?.name);
+        this.updateState('game.spectrumX', spectrumX);
+        this.updateState('game.spectrumY', spectrumY);
+    }
+    
+    // Updated for 2D
+    setTargetCoordinate(coordinate) {
+        console.log(`🎯 Target coordinate set to: (${coordinate?.x}, ${coordinate?.y})`);
+        this.updateState('game.targetCoordinate', coordinate);
+    }
+    
     updateTimer = timeRemaining => this.updateState('game.timeRemaining', timeRemaining);
 
     setClue(clue, clueGiverId) {
@@ -269,7 +282,12 @@ class StateManager {
     setLoading = loading => { console.log(`⏳ Loading: ${loading}`); this.updateState('ui.loading', loading); };
     setCurrentView = view => { console.log(`👀 Switching view to: ${view}`); this.updateState('ui.currentView', view); };
     enableSpectrumInteraction = enabled => { console.log(`🖱️ Spectrum interaction: ${enabled ? 'enabled' : 'disabled'}`); this.updateState('ui.spectrumInteractionEnabled', enabled); };
-    showTargetPosition = show => { console.log(`👁️ Show target position: ${show}`); this.updateState('ui.showTargetPosition', show); };
+    
+    // Updated for 2D
+    showTargetCoordinate = show => { 
+        console.log(`👁️ Show target coordinate: ${show}`); 
+        this.updateState('ui.showTargetCoordinate', show); 
+    };
 
     addNotification(notification) {
         const id = Date.now() + Math.random();
@@ -356,48 +374,48 @@ class StateManager {
             'giving-clue': () => {
                 this.enableSpectrumInteraction(false);
                 if (isClueGiver) {
-                    this.showTargetPosition(true);
+                    this.showTargetCoordinate(true);
                     console.log('🎯 Clue giver mode: Target visible, interaction disabled');
                 } else {
-                    this.showTargetPosition(false);
-                    if (this.state.game.targetPosition !== null) {
-                        console.log('🔧 Clearing target position for guesser');
-                        this.updateState('game.targetPosition', null);
+                    this.showTargetCoordinate(false);
+                    if (this.state.game.targetCoordinate !== null) {
+                        console.log('🔧 Clearing target coordinate for guesser');
+                        this.updateState('game.targetCoordinate', null);
                     }
                     console.log('🎲 Guesser mode: Target hidden, interaction disabled (waiting for clue)');
                 }
             },
             waiting: () => {
-                this.showTargetPosition(false);
+                this.showTargetCoordinate(false);
                 this.enableSpectrumInteraction(false);
                 console.log('⏳ Waiting mode: Preparing for next round');
             },
             guessing: () => {
                 if (isClueGiver) {
-                    this.showTargetPosition(true);
+                    this.showTargetCoordinate(true);
                     this.enableSpectrumInteraction(false);
                     console.log('🎯 Clue giver in guessing phase: Target visible, interaction disabled');
                 } else {
-                    this.showTargetPosition(false);
+                    this.showTargetCoordinate(false);
                     this.enableSpectrumInteraction(true);
-                    if (this.state.game.targetPosition !== null) {
-                        console.log('🔧 Clearing target position for guesser');
-                        this.updateState('game.targetPosition', null);
+                    if (this.state.game.targetCoordinate !== null) {
+                        console.log('🔧 Clearing target coordinate for guesser');
+                        this.updateState('game.targetCoordinate', null);
                     }
                     console.log('🎲 Guesser in guessing phase: Target hidden, interaction enabled');
                 }
             },
             scoring: () => {
-                this.showTargetPosition(true);
+                this.showTargetCoordinate(true);
                 this.enableSpectrumInteraction(false);
                 console.log('📊 Scoring mode: Target visible to all, interaction disabled');
             },
             lobby: () => {
-                this.showTargetPosition(false);
+                this.showTargetCoordinate(false);
                 this.enableSpectrumInteraction(false);
                 if (!['lobby', 'waiting'].includes(previousPhase)) {
-                    console.log('🧹 Clearing target position when returning to lobby/waiting');
-                    this.updateState('game.targetPosition', null);
+                    console.log('🧹 Clearing target coordinate when returning to lobby/waiting');
+                    this.updateState('game.targetCoordinate', null);
                 }
                 console.log('🏠 Lobby/Waiting mode: Target hidden, interaction disabled');
             }
@@ -422,7 +440,7 @@ class StateManager {
         console.log('🏁 Handling round end:', results);
         this.setRoundResults(results);
         this.setGamePhase('scoring');
-        this.showTargetPosition(true);
+        this.showTargetCoordinate(true);
         this.enableSpectrumInteraction(false);
     }
 
@@ -430,7 +448,7 @@ class StateManager {
         console.log('🎉 Handling game end:', results);
         this.setFinalResults(results);
         this.setGamePhase('finished');
-        this.showTargetPosition(true);
+        this.showTargetCoordinate(true);
         this.enableSpectrumInteraction(false);
     }
 
@@ -443,12 +461,12 @@ class StateManager {
             console.group(title);
             console.table([state.connection, 
                 { phase: state.game.phase, round: `${state.game.currentRound}/${state.game.totalRounds}`, 
-                  clueGiverId: state.game.clueGiverId, targetPosition: state.game.targetPosition, 
+                  clueGiverId: state.game.clueGiverId, targetCoordinate: state.game.targetCoordinate, 
                   clue: state.game.clue, timeRemaining: state.game.timeRemaining },
                 state.players,
                 { currentView: state.ui.currentView, loading: state.ui.loading, 
                   spectrumInteractionEnabled: state.ui.spectrumInteractionEnabled, 
-                  showTargetPosition: state.ui.showTargetPosition, activeModal: state.ui.activeModal }
+                  showTargetCoordinate: state.ui.showTargetCoordinate, activeModal: state.ui.activeModal }
             ][i]);
             console.groupEnd();
         });

@@ -9,7 +9,7 @@
  * - Manages round timing
  * - Validates player actions
  * 
- * FIXED: Proper round transitions and timer cleanup
+ * UPDATED: 2D grid mechanics with X/Y coordinates
  * ================================= */
 
 class GameManager {
@@ -20,10 +20,11 @@ class GameManager {
             MAX_ROUNDS: 10,
             MIN_PLAYERS: 2,
             MAX_PLAYERS: 6,
-            BONUS_THRESHOLD: 10,
+            BONUS_THRESHOLD: 10, // Distance threshold for bonus
             BONUS_POINTS: 50,
             RESULTS_VIEWING_TIME: 7000,
             BETWEEN_ROUNDS_DELAY: 3000,
+            MAX_DISTANCE: Math.sqrt(100 * 100 + 100 * 100), // ~141.4
             gameTimers: new Map()
         });
         console.log('🎮 GameManager initialized');
@@ -36,8 +37,17 @@ class GameManager {
             
             room.currentRound++;
             this.selectClueGiver(room);
-            room.currentSpectrum = this.selectSpectrum(room);
-            room.targetPosition = Math.floor(Math.random() * 81) + 10; // 10-90
+            
+            // Select two different spectrums for X and Y axes
+            const { spectrumX, spectrumY } = this.selectSpectrums(room);
+            room.spectrumX = spectrumX;
+            room.spectrumY = spectrumY;
+            
+            // Generate 2D target coordinate
+            room.targetCoordinate = {
+                x: Math.floor(Math.random() * 81) + 10, // 10-90
+                y: Math.floor(Math.random() * 81) + 10  // 10-90
+            };
             
             Object.assign(room, {
                 clue: null,
@@ -50,8 +60,9 @@ class GameManager {
             const roundData = {
                 roundNumber: room.currentRound,
                 clueGiverId: room.clueGiverId,
-                spectrum: room.currentSpectrum,
-                targetPosition: room.targetPosition,
+                spectrumX: room.spectrumX,
+                spectrumY: room.spectrumY,
+                targetCoordinate: room.targetCoordinate,
                 duration: this.ROUND_DURATION
             };
             
@@ -71,20 +82,26 @@ class GameManager {
         console.log(`👑 Selected clue giver: ${room.clueGiverId}`);
     }
 
-    selectSpectrum(room) {
+    selectSpectrums(room) {
         const available = this.spectrums.spectrums.filter(s => 
-            !room.usedSpectrums.includes(s.id) || room.usedSpectrums.length >= this.spectrums.spectrums.length - 2
+            !room.usedSpectrums.includes(s.id) || room.usedSpectrums.length >= this.spectrums.spectrums.length - 4
         );
         
-        if (!available.length) {
-            room.usedSpectrums = room.usedSpectrums.slice(-2);
-            return this.selectSpectrum(room);
+        if (available.length < 2) {
+            room.usedSpectrums = room.usedSpectrums.slice(-4);
+            return this.selectSpectrums(room);
         }
         
-        const spectrum = available[Math.floor(Math.random() * available.length)];
-        room.usedSpectrums.push(spectrum.id);
-        console.log(`🌈 Selected spectrum: ${spectrum.name}`);
-        return spectrum;
+        // Select first spectrum
+        const spectrumX = available[Math.floor(Math.random() * available.length)];
+        // Select second spectrum, ensuring it's different
+        const remainingSpectrums = available.filter(s => s.id !== spectrumX.id);
+        const spectrumY = remainingSpectrums[Math.floor(Math.random() * remainingSpectrums.length)];
+        
+        room.usedSpectrums.push(spectrumX.id, spectrumY.id);
+        console.log(`🌈 Selected spectrums: X-axis: ${spectrumX.name}, Y-axis: ${spectrumY.name}`);
+        
+        return { spectrumX, spectrumY };
     }
 
     startRoundTimer(room) {
@@ -145,17 +162,17 @@ class GameManager {
         }
     }
 
-    submitGuess(room, playerId, position) {
+    submitGuess(room, playerId, coordinate) {
         try {
             if (playerId === room.clueGiverId) throw new Error('Clue giver cannot submit guesses');
             if (room.phase !== 'guessing') throw new Error('Not in guessing phase');
             
-            const validation = this.validateGuess(position);
+            const validation = this.validateGuess(coordinate);
             if (!validation.valid) throw new Error(validation.error);
             if (room.guesses.has(playerId)) throw new Error('Player has already guessed');
             
-            room.guesses.set(playerId, position);
-            console.log(`🎯 Guess submitted for room ${room.code}: Player ${playerId} guessed ${position}`);
+            room.guesses.set(playerId, coordinate);
+            console.log(`🎯 Guess submitted for room ${room.code}: Player ${playerId} guessed (${coordinate.x}, ${coordinate.y})`);
             
             const nonClueGivers = Array.from(room.players.keys()).filter(id => id !== room.clueGiverId);
             if (nonClueGivers.every(id => room.guesses.has(id))) {
@@ -186,7 +203,7 @@ class GameManager {
             });
             
             const roundResults = {
-                targetPosition: room.targetPosition,
+                targetCoordinate: room.targetCoordinate,
                 guesses: Object.fromEntries(room.guesses),
                 roundScores: Object.fromEntries(results.roundScores),
                 totalScores: this.getTotalScores(room),
@@ -214,7 +231,7 @@ class GameManager {
                                 const socket = room.socketHandler.getPlayerSocket(playerId);
                                 socket?.emit('game:round-start', {
                                     ...nextRoundData,
-                                    targetPosition: playerId === room.clueGiverId ? room.targetPosition : null
+                                    targetCoordinate: playerId === room.clueGiverId ? room.targetCoordinate : null
                                 });
                             });
                         }
@@ -231,14 +248,23 @@ class GameManager {
         }
     }
 
+    calculateDistance(guess, target) {
+        return Math.sqrt(
+            Math.pow(guess.x - target.x, 2) + 
+            Math.pow(guess.y - target.y, 2)
+        );
+    }
+
     calculateRoundScores(room) {
         const roundScores = new Map();
         const guesses = Array.from(room.guesses.entries());
         let bestDistance = Infinity, bestPlayerId = null;
         
         guesses.forEach(([playerId, guess]) => {
-            const distance = Math.abs(guess - room.targetPosition);
-            const score = Math.max(0, 100 - Math.round(distance));
+            const distance = this.calculateDistance(guess, room.targetCoordinate);
+            // Normalize score: closer = higher score
+            const normalizedDistance = distance / this.MAX_DISTANCE;
+            const score = Math.max(0, Math.round(100 * (1 - normalizedDistance)));
             roundScores.set(playerId, score);
             
             if (distance < bestDistance) {
@@ -250,7 +276,7 @@ class GameManager {
         if (guesses.length > 0) {
             const avgScore = Array.from(roundScores.values()).reduce((sum, s) => sum + s, 0) / roundScores.size;
             const allWithinBonus = guesses.every(([, guess]) => 
-                Math.abs(guess - room.targetPosition) <= this.BONUS_THRESHOLD
+                this.calculateDistance(guess, room.targetCoordinate) <= this.BONUS_THRESHOLD
             );
             const bonus = allWithinBonus ? this.BONUS_POINTS : 0;
             roundScores.set(room.clueGiverId, Math.round(avgScore) + bonus);
@@ -258,7 +284,10 @@ class GameManager {
             return {
                 roundScores,
                 bonusAwarded: allWithinBonus,
-                bestGuess: bestPlayerId ? { playerId: bestPlayerId, distance: bestDistance } : null
+                bestGuess: bestPlayerId ? { 
+                    playerId: bestPlayerId, 
+                    distance: Math.round(bestDistance * 10) / 10 
+                } : null
             };
         }
         
@@ -310,10 +339,13 @@ class GameManager {
         return { valid: true };
     }
 
-    validateGuess(position) {
-        const num = Number(position);
-        if (isNaN(num) || num < 0 || num > 100) 
-            return { valid: false, error: 'Guess must be between 0 and 100' };
+    validateGuess(coordinate) {
+        if (!coordinate || typeof coordinate.x !== 'number' || typeof coordinate.y !== 'number') {
+            return { valid: false, error: 'Invalid coordinate format' };
+        }
+        if (coordinate.x < 0 || coordinate.x > 100 || coordinate.y < 0 || coordinate.y > 100) {
+            return { valid: false, error: 'Coordinates must be between 0 and 100' };
+        }
         return { valid: true };
     }
 
@@ -331,7 +363,8 @@ class GameManager {
             BONUS_THRESHOLD: this.BONUS_THRESHOLD,
             BONUS_POINTS: this.BONUS_POINTS,
             RESULTS_VIEWING_TIME: this.RESULTS_VIEWING_TIME,
-            BETWEEN_ROUNDS_DELAY: this.BETWEEN_ROUNDS_DELAY
+            BETWEEN_ROUNDS_DELAY: this.BETWEEN_ROUNDS_DELAY,
+            MAX_DISTANCE: this.MAX_DISTANCE
         };
     }
 

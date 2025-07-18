@@ -9,7 +9,7 @@
  * - Handles player authentication and validation
  * - Manages real-time game communication
  * 
- * FIXED: Better timer handling and debugging
+ * UPDATED: Support for 2D coordinate system
  * ================================= */
 
 class SocketHandler {
@@ -129,7 +129,7 @@ class SocketHandler {
                     const isClueGiver = pid === room.clueGiverId;
                     playerSocket.emit('game:round-start', {
                         ...roundData,
-                        targetPosition: isClueGiver ? room.targetPosition : null
+                        targetCoordinate: isClueGiver ? room.targetCoordinate : null
                     });
                 }
             });
@@ -151,10 +151,11 @@ class SocketHandler {
                     currentRound: room.currentRound,
                     totalRounds: room.totalRounds || 10,
                     clueGiverId: room.clueGiverId,
-                    spectrum: room.currentSpectrum,
+                    spectrumX: room.spectrumX,      // Updated for 2D
+                    spectrumY: room.spectrumY,      // Updated for 2D
                     clue: room.clue,
                     timeRemaining: this.calculateTimeRemaining(room),
-                    targetPosition: playerId === room.clueGiverId ? room.targetPosition : null
+                    targetCoordinate: playerId === room.clueGiverId ? room.targetCoordinate : null
                 },
                 roomInfo,
                 players: roomInfo.players,
@@ -181,12 +182,12 @@ class SocketHandler {
         }
     }
 
-    async handleSubmitGuess(socket, { position }) {
+    async handleSubmitGuess(socket, { coordinate }) {
         try {
             const { room, playerId } = this.getPlayerRoom(socket);
-            console.log(`🎯 Guess submitted in room ${room.code}: ${position}`);
+            console.log(`🎯 Guess submitted in room ${room.code}: (${coordinate.x}, ${coordinate.y})`);
             
-            const result = this.gameManager.submitGuess(room, playerId, position);
+            const result = this.gameManager.submitGuess(room, playerId, coordinate);
             this.io.to(room.id).emit('game:guess-submitted', result);
             
             console.log(`✅ Guess submitted successfully in room ${room.code}`);

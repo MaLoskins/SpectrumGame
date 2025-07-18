@@ -9,7 +9,7 @@
  * - Handles user input validation
  * - Triggers UI updates through StateManager
  * 
- * FIXED: Reduced notifications, better error handling, prevented double submissions
+ * UPDATED: Support for 2D coordinate system
  * ================================= */
 
 export class GameClient {
@@ -64,13 +64,13 @@ export class GameClient {
             'join-room': 'joinRoom',
             'start-game': 'startGame',
             'submit-clue': 'submitClue',
-            'submit-guess': 'submitGuess',
             'send-chat': 'sendChatMessage',
             'leave-room': 'leaveRoom'
         };
         
         Object.entries(actions).forEach(([event, method]) => 
             this.stateManager.on(`ui:${event}`, this[method].bind(this)));
+            this.stateManager.on('spectrum:guess-placed', this.submitGuess.bind(this));
     }
 
     async createRoom(data) {
@@ -142,9 +142,9 @@ export class GameClient {
             
             this.isSubmitting = true;
             if (this.debugMode) console.log('🎯 Submitting guess...', data);
-            if (!this.validateGuess(data.position)) {
+            if (!this.validateGuess(data.coordinate)) {
                 this.isSubmitting = false;
-                throw new Error('Invalid guess position');
+                throw new Error('Invalid guess coordinate');
             }
             if (!this.currentRoomId) {
                 this.isSubmitting = false;
@@ -153,7 +153,10 @@ export class GameClient {
             
             this.socketClient.emit('game:submit-guess', {
                 roomId: this.currentRoomId,
-                position: Number(data.position)
+                coordinate: {
+                    x: Number(data.coordinate.x),
+                    y: Number(data.coordinate.y)
+                }
             });
         } catch (error) {
             this.isSubmitting = false;
@@ -318,7 +321,7 @@ export class GameClient {
     handleRoundStart(data) {
         if (this.debugMode) console.log('🎯 Round started:', data);
         
-        if (!data?.spectrum) {
+        if (!data?.spectrumX || !data?.spectrumY) {
             console.error('❌ Invalid round start data received:', data);
             if (this.debugMode) {
                 this.stateManager.addNotification({
@@ -330,14 +333,14 @@ export class GameClient {
             return;
         }
         
-        const isClueGiver = data.targetPosition !== undefined && data.targetPosition !== null;
+        const isClueGiver = data.targetCoordinate !== undefined && data.targetCoordinate !== null;
         
         if (this.debugMode) {
             console.log('📍 Round start data received:', {
                 roundNumber: data.roundNumber,
                 clueGiverId: data.clueGiverId,
                 myPlayerId: this.playerId,
-                targetPositionReceived: data.targetPosition,
+                targetCoordinateReceived: data.targetCoordinate,
                 isClueGiver
             });
         }
@@ -347,8 +350,9 @@ export class GameClient {
             currentRound: data.roundNumber || 1,
             totalRounds: data.totalRounds || 10,
             clueGiverId: data.clueGiverId,
-            spectrum: data.spectrum,
-            targetPosition: data.targetPosition || null,
+            spectrumX: data.spectrumX,
+            spectrumY: data.spectrumY,
+            targetCoordinate: data.targetCoordinate || null,
             timeRemaining: data.duration || 60,
             clue: null,
             guesses: {},
@@ -360,12 +364,12 @@ export class GameClient {
         
         this.isSubmitting = false;
         
-        this.stateManager.showTargetPosition(isClueGiver);
+        this.stateManager.showTargetCoordinate(isClueGiver);
         this.stateManager.enableSpectrumInteraction(false);
         
         if (this.debugMode) {
             console.log(isClueGiver 
-                ? `🎯 Clue giver mode activated: Target visible at position ${data.targetPosition}`
+                ? `🎯 Clue giver mode activated: Target visible at (${data.targetCoordinate.x}, ${data.targetCoordinate.y})`
                 : '🎲 Guesser mode activated: Waiting for clue');
         }
         
@@ -392,7 +396,7 @@ export class GameClient {
         if (isClueGiver && this.debugMode) {
             this.stateManager.addNotification({
                 type: 'warning',
-                message: `You are the Clue Giver! Target is at ${data.targetPosition}%`,
+                message: `You are the Clue Giver! Target is at (${data.targetCoordinate.x}, ${data.targetCoordinate.y})`,
                 duration: 5000
             });
         }
@@ -404,7 +408,7 @@ export class GameClient {
         this.stateManager.updateGameState({ phase: 'guessing', clue: data.clue });
         
         const isClueGiver = data.clueGiverId === this.playerId;
-        this.stateManager.showTargetPosition(isClueGiver);
+        this.stateManager.showTargetCoordinate(isClueGiver);
         this.stateManager.enableSpectrumInteraction(!isClueGiver);
         
         if (this.debugMode) {
@@ -441,14 +445,14 @@ export class GameClient {
         
         this.stateManager.updateGameState({
             phase: 'results',
-            targetPosition: data.targetPosition,
+            targetCoordinate: data.targetCoordinate,
             guesses: data.guesses,
             roundScores: data.roundScores,
             totalScores: data.totalScores,
             bonusAwarded: data.bonusAwarded
         });
         
-        this.stateManager.showTargetPosition(true);
+        this.stateManager.showTargetCoordinate(true);
         this.stateManager.enableSpectrumInteraction(false);
         
         Object.entries(data.totalScores).forEach(([playerId, score]) => 
@@ -457,7 +461,7 @@ export class GameClient {
         if (data.bonusAwarded && this.debugMode) {
             this.stateManager.addNotification({
                 type: 'success',
-                message: '🎉 Bonus round! All players guessed within 10%!',
+                message: '🎉 Bonus round! All players guessed within 10 units!',
                 duration: 5000
             });
         }
@@ -554,9 +558,11 @@ export class GameClient {
         return trimmed && trimmed.length <= 100 && !/\d/.test(trimmed);
     }
 
-    validateGuess(position) {
-        const num = Number(position);
-        return !isNaN(num) && num >= 0 && num <= 100;
+    validateGuess(coordinate) {
+        if (!coordinate || typeof coordinate.x !== 'number' || typeof coordinate.y !== 'number') {
+            return false;
+        }
+        return coordinate.x >= 0 && coordinate.x <= 100 && coordinate.y >= 0 && coordinate.y <= 100;
     }
 
     handleError(error) {

@@ -25,7 +25,10 @@ export class ChatManager {
             historyIndex: -1,
             typingUsers: new Set(),
             typingTimeout: null,
-            debugMode: false
+            debugMode: false,
+            // Performance optimizations
+            scrollRAF: null,
+            resizeObserver: null
         });
     }
 
@@ -39,11 +42,17 @@ export class ChatManager {
     }
 
     cacheElements() {
-        const els = ['chatContainer:.chat-panel', 'messagesContainer:#chat-messages', 
-                     'inputElement:#chat-input', 'sendButton:#send-chat', 'toggleButton:#toggle-chat'];
-        els.forEach(el => {
-            const [prop, selector] = el.split(':');
-            this[prop] = document.querySelector(selector);
+        // Batch DOM queries
+        const selectors = {
+            chatContainer: '.chat-panel',
+            messagesContainer: '#chat-messages',
+            inputElement: '#chat-input',
+            sendButton: '#send-chat',
+            toggleButton: '#toggle-chat'
+        };
+        
+        Object.entries(selectors).forEach(([key, selector]) => {
+            this[key] = document.querySelector(selector);
         });
         
         if (!this.messagesContainer || !this.inputElement) {
@@ -52,26 +61,52 @@ export class ChatManager {
     }
 
     setupEventListeners() {
-        const listeners = [
-            [this.sendButton, 'click', this.handleSendMessage],
-            [this.inputElement, 'keypress', this.handleInputKeyPress],
-            [this.inputElement, 'keydown', e => this.handleInputKeyDown(e)],
-            [this.inputElement, 'input', () => this.handleInputChange()],
-            [this.inputElement, 'focus', () => this.handleInputFocus()],
-            [this.inputElement, 'blur', () => this.handleInputBlur()],
-            [this.toggleButton, 'click', () => this.handleToggleChat()],
-            [this.messagesContainer, 'scroll', this.handleScroll]
-        ];
+        // Use event delegation for better performance
+        if (this.messagesContainer) {
+            this.messagesContainer.addEventListener('scroll', this.throttledScroll);
+        }
         
-        listeners.forEach(([el, event, handler]) => 
-            el?.addEventListener(event, handler.bind ? handler.bind(this) : handler));
+        if (this.inputElement) {
+            this.inputElement.addEventListener('keypress', this.handleInputKeyPress);
+            this.inputElement.addEventListener('keydown', this.handleInputKeyDown);
+            this.inputElement.addEventListener('input', this.throttledInputChange);
+            this.inputElement.addEventListener('focus', this.handleInputFocus);
+            this.inputElement.addEventListener('blur', this.handleInputBlur);
+        }
         
+        this.sendButton?.addEventListener('click', this.handleSendMessage);
+        this.toggleButton?.addEventListener('click', this.handleToggleChat);
+        
+        // Optimize resize observer
         if (window.ResizeObserver && this.messagesContainer) {
-            this.resizeObserver = new ResizeObserver(() => {
-                if (this.isScrolledToBottom) this.scrollToBottom(false);
-            });
+            this.resizeObserver = new ResizeObserver(this.throttledResize);
             this.resizeObserver.observe(this.messagesContainer);
         }
+    }
+
+    // Throttled event handlers for performance
+    throttledScroll = this.throttle(() => this.handleScroll(), 100);
+    throttledInputChange = this.throttle(() => this.handleInputChange(), 300);
+    throttledResize = this.throttle(() => {
+        if (this.isScrolledToBottom) this.scrollToBottom(false);
+    }, 250);
+
+    throttle(func, delay) {
+        let timeoutId;
+        let lastExecTime = 0;
+        return (...args) => {
+            const currentTime = Date.now();
+            if (currentTime - lastExecTime > delay) {
+                func.apply(this, args);
+                lastExecTime = currentTime;
+            } else {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    func.apply(this, args);
+                    lastExecTime = Date.now();
+                }, delay - (currentTime - lastExecTime));
+            }
+        };
     }
 
     setupStateListeners() {
@@ -112,7 +147,7 @@ export class ChatManager {
         }
     }
 
-    handleInputKeyDown(e) {
+    handleInputKeyDown = e => {
         const actions = {
             ArrowUp: () => { e.preventDefault(); this.navigateHistory('up'); },
             ArrowDown: () => { e.preventDefault(); this.navigateHistory('down'); },
@@ -121,7 +156,7 @@ export class ChatManager {
         actions[e.key]?.();
     }
 
-    handleInputChange() {
+    handleInputChange = () => {
         this.updateSendButton();
         this.handleTypingIndicator();
     }
@@ -174,10 +209,16 @@ export class ChatManager {
         if (!this.messagesContainer) return;
         
         const wasAtBottom = this.isScrolledToBottom;
-        this.messagesContainer.innerHTML = '';
+        
+        // Use DocumentFragment for better performance
+        const fragment = document.createDocumentFragment();
         
         this.groupMessages(messages).forEach(group => 
-            this.messagesContainer.appendChild(this.createMessageGroup(group)));
+            fragment.appendChild(this.createMessageGroup(group)));
+        
+        // Single DOM update
+        this.messagesContainer.innerHTML = '';
+        this.messagesContainer.appendChild(fragment);
         
         if (wasAtBottom || messages.length === 1) this.scrollToBottom(true);
         
@@ -272,6 +313,7 @@ export class ChatManager {
             div.appendChild(timestamp);
         }
         
+        // Use CSS animation instead of JS
         div.classList.add('animate-message-slide-in');
         return div;
     }
@@ -282,12 +324,17 @@ export class ChatManager {
             return '';
         }
         
+        // More efficient escaping
+        const escapeMap = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        };
+        
         return content
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;')
+            .replace(/[&<>"']/g, m => escapeMap[m])
             .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
             .replace(/\n/g, '<br>');
     }
@@ -315,7 +362,12 @@ export class ChatManager {
     scrollToBottom(animate = true) {
         if (!this.messagesContainer) return;
         
-        const { scrollHeight, clientHeight, scrollTop } = this.messagesContainer;
+        // Cancel any pending scroll animation
+        if (this.scrollRAF) {
+            cancelAnimationFrame(this.scrollRAF);
+        }
+        
+        const { scrollHeight, clientHeight } = this.messagesContainer;
         const targetScroll = scrollHeight - clientHeight;
         
         if (!animate) {
@@ -323,34 +375,44 @@ export class ChatManager {
             return;
         }
         
+        // Use requestAnimationFrame for smooth scrolling
+        const startScroll = this.messagesContainer.scrollTop;
+        const distance = targetScroll - startScroll;
         const startTime = performance.now();
-        const distance = targetScroll - scrollTop;
         
         const animateScroll = currentTime => {
-            const progress = Math.min((currentTime - startTime) / this.scrollAnimationDuration, 1);
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / this.scrollAnimationDuration, 1);
+            
+            // Easing function
             const easeOut = 1 - Math.pow(1 - progress, 3);
             
-            this.messagesContainer.scrollTop = scrollTop + distance * easeOut;
-            if (progress < 1) requestAnimationFrame(animateScroll);
+            this.messagesContainer.scrollTop = startScroll + distance * easeOut;
+            
+            if (progress < 1) {
+                this.scrollRAF = requestAnimationFrame(animateScroll);
+            }
         };
         
-        requestAnimationFrame(animateScroll);
+        this.scrollRAF = requestAnimationFrame(animateScroll);
     }
 
     updateVisibility(visible) {
         this.isVisible = visible;
         if (!this.chatContainer) return;
         
+        // Use CSS classes for animations
         this.chatContainer.classList.toggle('collapsed', !visible);
         this.messagesContainer.style.display = visible ? 'flex' : 'none';
         this.toggleButton.textContent = visible ? '−' : '+';
         
         if (visible) {
-            setTimeout(() => {
+            // Use requestAnimationFrame for DOM updates
+            requestAnimationFrame(() => {
                 this.inputElement?.focus();
                 this.markAsRead();
                 this.scrollToBottom(false);
-            }, 100);
+            });
         }
     }
 
@@ -434,8 +496,21 @@ export class ChatManager {
     }
 
     destroy() {
+        // Clean up event listeners
         if (this.typingTimeout) clearTimeout(this.typingTimeout);
+        if (this.scrollRAF) cancelAnimationFrame(this.scrollRAF);
         if (this.resizeObserver) this.resizeObserver.disconnect();
+        
+        // Remove event listeners
+        this.messagesContainer?.removeEventListener('scroll', this.throttledScroll);
+        this.inputElement?.removeEventListener('keypress', this.handleInputKeyPress);
+        this.inputElement?.removeEventListener('keydown', this.handleInputKeyDown);
+        this.inputElement?.removeEventListener('input', this.throttledInputChange);
+        this.inputElement?.removeEventListener('focus', this.handleInputFocus);
+        this.inputElement?.removeEventListener('blur', this.handleInputBlur);
+        this.sendButton?.removeEventListener('click', this.handleSendMessage);
+        this.toggleButton?.removeEventListener('click', this.handleToggleChat);
+        
         this.messageHistory = [];
         this.typingUsers.clear();
         console.log('🧹 ChatManager destroyed');

@@ -9,6 +9,7 @@
  * - Event handling helpers
  * - Validation utilities
  * - Performance optimizations
+ * - Dark mode color utilities
  * 
  * ================================= */
 
@@ -34,40 +35,41 @@ export function debounce(func, wait, immediate = false) {
  */
 export function throttle(func, limit) {
     let inThrottle;
+    let lastFunc;
+    let lastRan;
     return function(...args) {
         if (!inThrottle) {
             func.apply(this, args);
+            lastRan = Date.now();
             inThrottle = true;
-            setTimeout(() => inThrottle = false, limit);
+        } else {
+            clearTimeout(lastFunc);
+            lastFunc = setTimeout(() => {
+                if ((Date.now() - lastRan) >= limit) {
+                    func.apply(this, args);
+                    lastRan = Date.now();
+                }
+            }, Math.max(limit - (Date.now() - lastRan), 0));
         }
     };
 }
 
 /**
- * Deep clone an object
+ * Deep clone an object (optimized version)
  */
 export function deepClone(obj) {
-    if (obj === null || typeof obj !== 'object') {
-        return obj;
-    }
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (obj instanceof Date) return new Date(obj.getTime());
+    if (obj instanceof Array) return obj.map(item => deepClone(item));
+    if (obj instanceof RegExp) return new RegExp(obj);
     
-    if (obj instanceof Date) {
-        return new Date(obj.getTime());
-    }
-    
-    if (obj instanceof Array) {
-        return obj.map(item => deepClone(item));
-    }
-    
-    if (typeof obj === 'object') {
-        const clonedObj = {};
-        for (const key in obj) {
-            if (obj.hasOwnProperty(key)) {
-                clonedObj[key] = deepClone(obj[key]);
-            }
+    const clonedObj = new obj.constructor();
+    for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            clonedObj[key] = deepClone(obj[key]);
         }
-        return clonedObj;
     }
+    return clonedObj;
 }
 
 /**
@@ -83,9 +85,7 @@ export function generateId(prefix = '') {
  * Format time duration
  */
 export function formatDuration(seconds) {
-    if (seconds < 60) {
-        return `${seconds}s`;
-    }
+    if (seconds < 60) return `${seconds}s`;
     
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -150,7 +150,7 @@ export function randomInt(min, max) {
 }
 
 /**
- * Shuffle an array
+ * Shuffle an array (Fisher-Yates)
  */
 export function shuffle(array) {
     const shuffled = [...array];
@@ -169,14 +169,12 @@ export function randomItem(array) {
 }
 
 /**
- * Remove item from array
+ * Remove item from array (immutable)
  */
 export function removeItem(array, item) {
     const index = array.indexOf(item);
-    if (index > -1) {
-        array.splice(index, 1);
-    }
-    return array;
+    if (index === -1) return array;
+    return [...array.slice(0, index), ...array.slice(index + 1)];
 }
 
 /**
@@ -197,7 +195,7 @@ export function capitalize(str) {
  * Convert string to title case
  */
 export function titleCase(str) {
-    return str.replace(/\w\S*/g, (txt) => 
+    return str.replace(/\w\S*/g, txt => 
         txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
     );
 }
@@ -206,19 +204,24 @@ export function titleCase(str) {
  * Truncate string with ellipsis
  */
 export function truncate(str, length, suffix = '...') {
-    if (str.length <= length) {
-        return str;
-    }
+    if (str.length <= length) return str;
     return str.substring(0, length - suffix.length) + suffix;
 }
 
 /**
- * Escape HTML characters
+ * Escape HTML characters (optimized)
  */
+const escapeMap = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+    '/': '&#x2F;'
+};
+
 export function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return text.replace(/[&<>"'/]/g, char => escapeMap[char]);
 }
 
 /**
@@ -254,7 +257,8 @@ export function createQueryString(params) {
  * Check if device is mobile
  */
 export function isMobile() {
-    return window.innerWidth <= 767 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return window.innerWidth <= 767 || 
+           /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
 /**
@@ -324,11 +328,9 @@ export function isInViewport(element) {
 export function addClassWithAnimation(element, className, duration = 300) {
     if (!element) return Promise.resolve();
     
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
         element.classList.add(className);
-        setTimeout(() => {
-            resolve();
-        }, duration);
+        setTimeout(resolve, duration);
     });
 }
 
@@ -338,7 +340,7 @@ export function addClassWithAnimation(element, className, duration = 300) {
 export function removeClassWithAnimation(element, className, duration = 300) {
     if (!element) return Promise.resolve();
     
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
         setTimeout(() => {
             element.classList.remove(className);
             resolve();
@@ -461,33 +463,29 @@ export const cookies = {
 };
 
 /**
- * Event emitter class
+ * Event emitter class (optimized)
  */
 export class EventEmitter {
     constructor() {
-        this.events = {};
+        this.events = new Map();
     }
     
     on(event, callback) {
-        if (!this.events[event]) {
-            this.events[event] = [];
+        if (!this.events.has(event)) {
+            this.events.set(event, new Set());
         }
-        this.events[event].push(callback);
+        this.events.get(event).add(callback);
     }
     
     off(event, callback) {
-        if (!this.events[event]) return;
-        
-        const index = this.events[event].indexOf(callback);
-        if (index > -1) {
-            this.events[event].splice(index, 1);
-        }
+        this.events.get(event)?.delete(callback);
     }
     
     emit(event, ...args) {
-        if (!this.events[event]) return;
+        const callbacks = this.events.get(event);
+        if (!callbacks) return;
         
-        this.events[event].forEach(callback => {
+        callbacks.forEach(callback => {
             try {
                 callback(...args);
             } catch (error) {
@@ -506,9 +504,9 @@ export class EventEmitter {
     
     removeAllListeners(event) {
         if (event) {
-            delete this.events[event];
+            this.events.delete(event);
         } else {
-            this.events = {};
+            this.events.clear();
         }
     }
 }
@@ -547,7 +545,37 @@ export const perf = {
 };
 
 /**
- * Color utilities
+ * Dark mode color utilities
+ */
+export const darkModeColors = {
+    // Primary colors
+    teal: '#00d4ff',
+    lilac: '#b794f4',
+    electricBlue: '#0096ff',
+    pink: '#ff006e',
+    green: '#00f593',
+    orange: '#ff9500',
+    red: '#ff3864',
+    
+    // Background colors
+    darkBg: '#0a0f1c',
+    secondaryBg: '#0f1628',
+    accentBg: '#141d33',
+    glassBg: 'rgba(255, 255, 255, 0.05)',
+    
+    // Text colors
+    textPrimary: '#e0e6f0',
+    textSecondary: '#a8b2c7',
+    textMuted: '#6b7890',
+    
+    // Glass effect colors
+    glassBorder: 'rgba(255, 255, 255, 0.1)',
+    glassShadow: '0 8px 32px rgba(0, 212, 255, 0.1)',
+    glowShadow: '0 0 30px rgba(0, 212, 255, 0.2)'
+};
+
+/**
+ * Color utilities (optimized)
  */
 export const color = {
     hexToRgb(hex) {
@@ -585,6 +613,30 @@ export const color = {
             Math.max(0, Math.round(rgb.g * factor)),
             Math.max(0, Math.round(rgb.b * factor))
         );
+    },
+    
+    addAlpha(hex, alpha) {
+        const rgb = this.hexToRgb(hex);
+        if (!rgb) return hex;
+        
+        return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+    },
+    
+    getGlassEffect(color = '#ffffff', opacity = 0.05) {
+        return {
+            background: this.addAlpha(color, opacity),
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: `1px solid ${this.addAlpha(color, opacity * 2)}`
+        };
+    },
+    
+    getNeonGlow(color, intensity = 1) {
+        return `
+            0 0 ${10 * intensity}px ${color},
+            0 0 ${20 * intensity}px ${color},
+            0 0 ${30 * intensity}px ${this.addAlpha(color, 0.5)}
+        `;
     }
 };
 
@@ -631,7 +683,8 @@ export const helpers = {
     cookies,
     EventEmitter,
     perf,
-    color
+    color,
+    darkModeColors
 };
 
 export default helpers;

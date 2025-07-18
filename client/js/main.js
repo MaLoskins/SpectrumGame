@@ -25,7 +25,9 @@ class SpectrumApp {
         Object.assign(this, {
             isInitialized: false,
             modules: {},
-            debugMode: true
+            debugMode: true,
+            resizeRAF: null,
+            visibilityTimeout: null
         });
     }
 
@@ -52,7 +54,9 @@ class SpectrumApp {
     async initializeModules() {
         try {
             console.log('📦 Initializing modules...');
-            const modules = [
+            
+            // Initialize modules in dependency order
+            const moduleConfig = [
                 ['stateManager', StateManager],
                 ['socketClient', SocketClient, m => m.stateManager],
                 ['gameClient', GameClient, m => [m.stateManager, m.socketClient]],
@@ -61,8 +65,8 @@ class SpectrumApp {
                 ['chatManager', ChatManager, m => [m.stateManager, m.socketClient]]
             ];
             
-            for (const [name, Class, getDeps] of modules) {
-                console.log(`  ${modules.indexOf(modules.find(m => m[0] === name)) + 1}️⃣ ${Class.name}...`);
+            for (const [name, Class, getDeps] of moduleConfig) {
+                console.log(`  ${moduleConfig.indexOf(moduleConfig.find(m => m[0] === name)) + 1}️⃣ ${Class.name}...`);
                 const deps = getDeps ? [getDeps(this.modules)].flat() : [];
                 this.modules[name] = new Class(...deps);
                 await this.modules[name].init();
@@ -78,20 +82,16 @@ class SpectrumApp {
     setupEventListeners() {
         console.log('🎧 Setting up global event listeners...');
         
-        const listeners = {
-            beforeunload: this.handleBeforeUnload,
-            visibilitychange: this.handleVisibilityChange,
-            error: this.handleGlobalError,
-            unhandledrejection: this.handleUnhandledRejection,
-            keydown: this.handleKeyboardShortcuts,
-            resize: helpers.debounce(this.handleResize, 250),
-            orientationchange: this.handleOrientationChange
-        };
+        // Use passive listeners where appropriate
+        window.addEventListener('beforeunload', this.handleBeforeUnload, { passive: false });
+        window.addEventListener('visibilitychange', this.handleVisibilityChange, { passive: true });
+        window.addEventListener('error', this.handleGlobalError, { passive: true });
+        window.addEventListener('unhandledrejection', this.handleUnhandledRejection, { passive: true });
+        window.addEventListener('keydown', this.handleKeyboardShortcuts, { passive: true });
+        window.addEventListener('resize', this.handleResize, { passive: true });
+        window.addEventListener('orientationchange', this.handleOrientationChange, { passive: true });
         
-        Object.entries(listeners).forEach(([event, handler]) => 
-            window.addEventListener(event, handler.bind(this)));
-        
-        document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+        document.addEventListener('visibilitychange', this.handleVisibilityChange, { passive: true });
         
         const { socketClient, stateManager } = this.modules;
         
@@ -155,6 +155,11 @@ class SpectrumApp {
     }
 
     handleVisibilityChange = () => {
+        // Clear any pending timeout
+        if (this.visibilityTimeout) {
+            clearTimeout(this.visibilityTimeout);
+        }
+        
         const { stateManager, socketClient } = this.modules;
         if (document.hidden) {
             stateManager.emit('app:hidden');
@@ -162,10 +167,14 @@ class SpectrumApp {
         } else {
             stateManager.emit('app:visible');
             console.log('📱 App visible');
-            if (socketClient && !socketClient.isConnected()) {
-                console.log('🔄 Attempting reconnection after visibility change');
-                socketClient.reconnect();
-            }
+            
+            // Debounce reconnection attempt
+            this.visibilityTimeout = setTimeout(() => {
+                if (socketClient && !socketClient.isConnected()) {
+                    console.log('🔄 Attempting reconnection after visibility change');
+                    socketClient.reconnect();
+                }
+            }, 500);
         }
     }
 
@@ -268,19 +277,33 @@ class SpectrumApp {
     }
 
     handleResize = () => {
-        this.modules.spectrumRenderer?.handleResize();
-        this.modules.uiManager?.handleResize();
-        this.modules.stateManager?.emit('app:resize', {
-            width: window.innerWidth,
-            height: window.innerHeight
+        // Cancel any pending resize
+        if (this.resizeRAF) {
+            cancelAnimationFrame(this.resizeRAF);
+        }
+        
+        // Batch resize handlers
+        this.resizeRAF = requestAnimationFrame(() => {
+            this.modules.spectrumRenderer?.handleResize();
+            this.modules.uiManager?.handleResize();
+            this.modules.stateManager?.emit('app:resize', {
+                width: window.innerWidth,
+                height: window.innerHeight
+            });
         });
     }
 
-    handleOrientationChange = () => setTimeout(this.handleResize, 100);
+    handleOrientationChange = () => {
+        // Delay resize to allow for orientation change to complete
+        setTimeout(this.handleResize, 100);
+    }
 
     handleInitializationError(error) {
         console.error('💥 Initialization error:', error);
-        document.body.innerHTML = `
+        
+        // Use template element for better performance
+        const template = document.createElement('template');
+        template.innerHTML = `
             <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;text-align:center;padding:20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;">
                 <div style="background:rgba(255,255,255,0.1);backdrop-filter:blur(10px);border-radius:20px;padding:40px;max-width:500px;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
                     <h1 style="color:#ff6b6b;margin-bottom:20px;font-size:2.5em;">⚠️ Failed to Load Game</h1>
@@ -299,6 +322,9 @@ class SpectrumApp {
                 </div>
             </div>
         `;
+        
+        document.body.innerHTML = '';
+        document.body.appendChild(template.content.cloneNode(true));
     }
 
     reportError(error) {
@@ -328,17 +354,36 @@ class SpectrumApp {
 
     destroy() {
         console.log('🧹 Cleaning up Spectrum Game...');
+        
+        // Clean up event listeners
+        window.removeEventListener('beforeunload', this.handleBeforeUnload);
+        window.removeEventListener('visibilitychange', this.handleVisibilityChange);
+        window.removeEventListener('error', this.handleGlobalError);
+        window.removeEventListener('unhandledrejection', this.handleUnhandledRejection);
+        window.removeEventListener('keydown', this.handleKeyboardShortcuts);
+        window.removeEventListener('resize', this.handleResize);
+        window.removeEventListener('orientationchange', this.handleOrientationChange);
+        document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+        
+        // Cancel any pending operations
+        if (this.resizeRAF) cancelAnimationFrame(this.resizeRAF);
+        if (this.visibilityTimeout) clearTimeout(this.visibilityTimeout);
+        
+        // Disconnect socket first
         this.modules.socketClient?.disconnect();
         
-        Object.values(this.modules).forEach(module => {
-            if (typeof module.destroy === 'function') {
-                try { module.destroy(); } catch (error) { console.error('Error destroying module:', error); }
-            }
-        });
-        
-        ['beforeunload', 'error', 'unhandledrejection', 'keydown', 'resize', 'orientationchange']
-            .forEach(event => window.removeEventListener(event, this[`handle${event.charAt(0).toUpperCase() + event.slice(1)}`]));
-        document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+        // Destroy modules in reverse order
+        ['chatManager', 'spectrumRenderer', 'uiManager', 'gameClient', 'socketClient', 'stateManager']
+            .forEach(moduleName => {
+                const module = this.modules[moduleName];
+                if (module && typeof module.destroy === 'function') {
+                    try { 
+                        module.destroy(); 
+                    } catch (error) { 
+                        console.error(`Error destroying ${moduleName}:`, error); 
+                    }
+                }
+            });
         
         this.isInitialized = false;
         this.modules = {};
@@ -346,12 +391,16 @@ class SpectrumApp {
     }
 }
 
+// Initialize app
 const app = new SpectrumApp();
+
+// Use DOMContentLoaded for initialization
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', app.handleDOMContentLoaded);
+    document.addEventListener('DOMContentLoaded', app.handleDOMContentLoaded, { once: true });
 } else {
     app.handleDOMContentLoaded();
 }
 
+// Export for debugging
 window.SpectrumApp = app;
 export default app;

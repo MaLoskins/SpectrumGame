@@ -1,6 +1,7 @@
 /**
  * Client-side game logic and utilities for Spectrum
  * Handles game rule validation, score calculations, and utility functions
+ * UPDATED: Support for 2D coordinate system
  */
 
 class GameLogic {
@@ -11,27 +12,41 @@ class GameLogic {
             MAX_CLUE_LENGTH: 100,
             MAX_PLAYER_NAME_LENGTH: 20,
             ROUND_DURATION: 60,
-            BONUS_THRESHOLD: 10,
+            BONUS_THRESHOLD: 10,  // Distance threshold for bonus
             BONUS_POINTS: 50,
             MIN_PLAYERS: 2,
-            MAX_PLAYERS: 4
+            MAX_PLAYERS: 4,
+            MAX_DISTANCE: Math.sqrt(100 * 100 + 100 * 100) // ~141.4
         });
     }
 
-    calculateDistance = (guess, target) => Math.abs(guess - target);
-
-    calculateScore(guess, target) {
-        const distance = this.calculateDistance(guess, target);
-        const baseScore = Math.max(0, 100 - distance);
-        return { baseScore, distance, distancePercentage: distance / 100 };
+    // Updated for 2D - Calculate Euclidean distance
+    calculateDistance = (guess, target) => {
+        return Math.sqrt(
+            Math.pow(guess.x - target.x, 2) + 
+            Math.pow(guess.y - target.y, 2)
+        );
     }
 
+    // Updated for 2D
+    calculateScore(guess, target) {
+        const distance = this.calculateDistance(guess, target);
+        const normalizedDistance = distance / this.MAX_DISTANCE;
+        const baseScore = Math.max(0, Math.round(100 * (1 - normalizedDistance)));
+        return { 
+            baseScore, 
+            distance: Math.round(distance * 10) / 10,
+            distancePercentage: normalizedDistance 
+        };
+    }
+
+    // Updated for 2D
     calculateClueGiverScore(guesses, target) {
         if (!guesses?.length) return { score: 0, averageScore: 0, bonusAwarded: false, bonusPoints: 0 };
         
         const scores = guesses.map(g => this.calculateScore(g, target));
         const averageScore = scores.reduce((sum, s) => sum + s.baseScore, 0) / scores.length;
-        const allWithinBonus = scores.every(s => s.distancePercentage <= this.BONUS_THRESHOLD / 100);
+        const allWithinBonus = scores.every(s => s.distance <= this.BONUS_THRESHOLD);
         const bonusPoints = allWithinBonus ? this.BONUS_POINTS : 0;
         
         return {
@@ -42,6 +57,7 @@ class GameLogic {
         };
     }
 
+    // Updated for 2D
     getBestGuess(guesses, target) {
         const entries = Object.entries(guesses || {});
         if (!entries.length) return null;
@@ -52,7 +68,16 @@ class GameLogic {
         }, { distance: Infinity });
     }
 
-    validateGuess = position => !isNaN(position) && position >= this.SPECTRUM_MIN && position <= this.SPECTRUM_MAX;
+    // Updated for 2D
+    validateGuess = coordinate => {
+        return coordinate && 
+               typeof coordinate.x === 'number' && 
+               typeof coordinate.y === 'number' &&
+               coordinate.x >= this.SPECTRUM_MIN && 
+               coordinate.x <= this.SPECTRUM_MAX &&
+               coordinate.y >= this.SPECTRUM_MIN && 
+               coordinate.y <= this.SPECTRUM_MAX;
+    }
 
     validateClue(clue) {
         const trimmed = clue?.trim();
@@ -103,10 +128,23 @@ class GameLogic {
         return phases[phase] || 'Loading...';
     }
 
-    getSpectrumPercentage = position => Math.max(0, Math.min(100, position));
-    percentageToPosition = percentage => Math.round(Math.max(0, Math.min(100, percentage)));
-    generateRandomTarget = (minMargin = 5) => 
-        Math.floor(Math.random() * (this.SPECTRUM_MAX - 2 * minMargin + 1)) + minMargin;
+    // Updated for 2D - Get coordinate percentage
+    getCoordinatePercentage = coordinate => ({
+        x: Math.max(0, Math.min(100, coordinate.x)),
+        y: Math.max(0, Math.min(100, coordinate.y))
+    });
+
+    // Updated for 2D
+    percentageToCoordinate = (xPercent, yPercent) => ({
+        x: Math.round(Math.max(0, Math.min(100, xPercent))),
+        y: Math.round(Math.max(0, Math.min(100, yPercent)))
+    });
+
+    // Updated for 2D
+    generateRandomTarget = (minMargin = 5) => ({
+        x: Math.floor(Math.random() * (this.SPECTRUM_MAX - 2 * minMargin + 1)) + minMargin,
+        y: Math.floor(Math.random() * (this.SPECTRUM_MAX - 2 * minMargin + 1)) + minMargin
+    });
 
     allPlayersGuessed = (players, clueGiverId) => 
         Object.values(players).filter(p => p.id !== clueGiverId).every(p => p.hasGuessed);
@@ -118,10 +156,12 @@ class GameLogic {
             .sort((a, b) => (b.score || 0) - (a.score || 0))
             .map((player, index) => ({ ...player, rank: index + 1 }));
 
+    // Updated for 2D
     getDistanceDescription = distance => 
-        distance <= 5 ? 'Excellent!' :
-        distance <= 15 ? 'Very close!' :
-        distance <= 30 ? 'Close!' :
+        distance <= 5 ? 'Perfect!' :
+        distance <= 10 ? 'Excellent!' :
+        distance <= 20 ? 'Very close!' :
+        distance <= 35 ? 'Close!' :
         distance <= 50 ? 'Not bad!' : 'Try again!';
 
     getScoreColor = score => 
@@ -142,12 +182,15 @@ class GameLogic {
 
     formatScore = score => Math.round(score || 0).toLocaleString();
 
+    // Updated for 2D
     calculateGameStats(gameHistory) {
         if (!gameHistory?.length) return null;
         
         const totalRounds = gameHistory.length;
         const averageDistance = gameHistory.reduce((sum, round) => {
-            const distances = Object.values(round.guesses || {}).map(g => this.calculateDistance(g, round.target));
+            const distances = Object.values(round.guesses || {}).map(g => 
+                this.calculateDistance(g, round.target)
+            );
             return sum + (distances.length ? distances.reduce((s, d) => s + d, 0) / distances.length : 0);
         }, 0) / totalRounds;
         
@@ -164,6 +207,7 @@ class GameLogic {
     deepClone = obj => JSON.parse(JSON.stringify(obj));
     generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
+    // Updated for 2D
     checkBonusEligibility = (guesses, target) => 
         guesses?.length && guesses.every(g => this.calculateDistance(g, target) <= this.BONUS_THRESHOLD);
 
@@ -187,6 +231,26 @@ class GameLogic {
         return middle 
             ? `linear-gradient(90deg, ${start} 0%, ${middle} 50%, ${end} 100%)`
             : `linear-gradient(90deg, ${start} 0%, ${end} 100%)`;
+    }
+
+    // New method for 2D - Create a 2D gradient effect
+    create2DGradient(spectrumX, spectrumY) {
+        if (!spectrumX?.gradient || !spectrumY?.gradient) {
+            return {
+                background: 'linear-gradient(45deg, #333, #666)',
+                fallback: '#444'
+            };
+        }
+        
+        // Create a complex gradient that blends both spectrums
+        return {
+            background: `
+                linear-gradient(to right, ${spectrumX.gradient.start}00, ${spectrumX.gradient.end}ff),
+                linear-gradient(to bottom, ${spectrumY.gradient.start}ff, ${spectrumY.gradient.end}00)
+            `,
+            backgroundBlendMode: 'multiply',
+            fallback: spectrumX.gradient.middle || '#666'
+        };
     }
 }
 
