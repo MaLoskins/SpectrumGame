@@ -963,7 +963,7 @@ class ResponsiveManager {
 
 /* Game-specific animations */
 .guess-marker.placing { animation: guessPlace 0.8s ease-out; }
-.target-reveal { animation: targetReveal 1.2s ease-out; }
+.target-reveal { animation: targetReveal 0.2s ease-out; }
 .score-update { animation: scoreCount 1s ease-out; }
 ```
 

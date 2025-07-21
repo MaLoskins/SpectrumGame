@@ -5,8 +5,6 @@
       "name": "Temperature",
       "leftLabel": "Freezing Cold",
       "rightLabel": "Blazing Hot",
-      "leftValue": "❄️ Arctic",
-      "rightValue": "🔥 Desert",
       "gradient": {
         "start": "#4FC3F7",
         "middle": "#81C784",
@@ -20,8 +18,6 @@
       "name": "Emotional State",
       "leftLabel": "Deeply Sad",
       "rightLabel": "Extremely Happy",
-      "leftValue": "😢 Heartbroken",
-      "rightValue": "😄 Ecstatic",
       "gradient": {
         "start": "#7986CB",
         "middle": "#AED581",
@@ -35,8 +31,6 @@
       "name": "Historical Era",
       "leftLabel": "Ancient Past",
       "rightLabel": "Far Future",
-      "leftValue": "🏛️ Stone Age",
-      "rightValue": "🚀 Space Age",
       "gradient": {
         "start": "#8D6E63",
         "middle": "#90A4AE",
@@ -50,8 +44,6 @@
       "name": "Speed",
       "leftLabel": "Extremely Slow",
       "rightLabel": "Lightning Fast",
-      "leftValue": "🐌 Snail",
-      "rightValue": "⚡ Lightning",
       "gradient": {
         "start": "#A5D6A7",
         "middle": "#FFCC02",
@@ -65,8 +57,6 @@
       "name": "Size",
       "leftLabel": "Microscopic",
       "rightLabel": "Gigantic",
-      "leftValue": "🔬 Atom",
-      "rightValue": "🌍 Planet",
       "gradient": {
         "start": "#E1BEE7",
         "middle": "#81C784",
@@ -80,8 +70,6 @@
       "name": "Brightness",
       "leftLabel": "Pitch Black",
       "rightLabel": "Blinding Light",
-      "leftValue": "🌑 Void",
-      "rightValue": "☀️ Sun",
       "gradient": {
         "start": "#263238",
         "middle": "#78909C",
@@ -95,8 +83,6 @@
       "name": "Stress Level",
       "leftLabel": "Completely Relaxed",
       "rightLabel": "Extremely Stressed",
-      "leftValue": "🧘 Zen",
-      "rightValue": "😰 Panic",
       "gradient": {
         "start": "#81C784",
         "middle": "#FFB74D",
@@ -110,8 +96,6 @@
       "name": "Complexity",
       "leftLabel": "Dead Simple",
       "rightLabel": "Mind-Bendingly Complex",
-      "leftValue": "🔵 Circle",
-      "rightValue": "🧬 DNA",
       "gradient": {
         "start": "#4FC3F7",
         "middle": "#9C27B0",
@@ -125,8 +109,6 @@
       "name": "Popularity",
       "leftLabel": "Unknown",
       "rightLabel": "World Famous",
-      "leftValue": "👤 Nobody",
-      "rightValue": "⭐ Celebrity",
       "gradient": {
         "start": "#90A4AE",
         "middle": "#FFB74D",
@@ -140,8 +122,6 @@
       "name": "Danger Level",
       "leftLabel": "Completely Safe",
       "rightLabel": "Extremely Dangerous",
-      "leftValue": "🛡️ Protected",
-      "rightValue": "💀 Deadly",
       "gradient": {
         "start": "#4CAF50",
         "middle": "#FF9800",
@@ -155,8 +135,6 @@
       "name": "Age",
       "leftLabel": "Brand New",
       "rightLabel": "Ancient",
-      "leftValue": "👶 Baby",
-      "rightValue": "🏺 Relic",
       "gradient": {
         "start": "#E8F5E8",
         "middle": "#8D6E63",
@@ -170,8 +148,6 @@
       "name": "Weirdness",
       "leftLabel": "Perfectly Normal",
       "rightLabel": "Absolutely Bizarre",
-      "leftValue": "😐 Ordinary",
-      "rightValue": "🤪 Surreal",
       "gradient": {
         "start": "#90A4AE",
         "middle": "#AB47BC",

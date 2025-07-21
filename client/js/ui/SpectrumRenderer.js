@@ -1,504 +1,351 @@
 /**
- * Spectrum Renderer - Interactive spectrum visualization with canvas rendering
- * Handles spectrum display, guess placement, target visualization, and animations
- * FIXED: Proper target position handling, visibility control, and round cleanup
+ * Spectrum Renderer - Interactive 2D spectrum grid visualization
+ * OPTIMIZED: Reduced computational overhead while maintaining functionality
  */
 
 import { gameLogic } from '../game/GameLogic.js';
 
 export class SpectrumRenderer {
     constructor(stateManager) {
-        this.stateManager = stateManager;
+        Object.assign(this, {
+            stateManager,
+            canvas: null,
+            ctx: null,
+            gridContainer: null,
+            devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2), // Cap at 2 for performance
+            spectrumX: null,
+            spectrumY: null,
+            targetCoordinate: null,
+            guesses: {},
+            showTarget: false,
+            interactionEnabled: false,
+            animationFrame: null,
+            particles: [],
+            isHovering: false,
+            hoverCoordinate: null,
+            isDragging: false,
+            previewGuess: null,
+            containerRect: null,
+            canvasSize: { width: 0, height: 0 },
+            gradientCache: new Map(),
+            _isClueGiver: undefined,
+            // Performance optimizations
+            renderThrottleTime: 33, // ~30fps instead of 60fps
+            lastRenderTime: 0,
+            renderRequested: false,
+            maxParticles: 50, // Limit particle count
+            particlePoolSize: 100,
+            particlePool: [],
+            lastInteractionTime: 0,
+            interactionThrottle: 50, // Throttle mouse moves
+            // Dark mode color palette
+            colors: {
+                teal: '#00d4ff',
+                lilac: '#b794f4',
+                electricBlue: '#0096ff',
+                pink: '#ff006e',
+                green: '#00f593',
+                orange: '#ff9500',
+                red: '#ff3864',
+                darkBg: '#0a0f1c',
+                glassBg: 'rgba(255, 255, 255, 0.05)',
+                textPrimary: '#e0e6f0',
+                textSecondary: '#a8b2c7',
+                gridLine: 'rgba(255, 255, 255, 0.1)',
+                gridLineMajor: 'rgba(255, 255, 255, 0.2)'
+            }
+        });
         
-        // Canvas and rendering
-        this.canvas = null;
-        this.ctx = null;
-        this.canvasContainer = null;
-        this.devicePixelRatio = window.devicePixelRatio || 1;
-        
-        // Spectrum state
-        this.spectrum = null;
-        this.targetPosition = null;
-        this.guesses = {};
-        this.showTarget = false;
-        this.interactionEnabled = false;
-        
-        // Animation state
-        this.animationFrame = null;
-        this.animations = [];
-        this.particles = [];
-        
-        // Interaction state
-        this.isHovering = false;
-        this.hoverPosition = null;
-        this.isDragging = false;
-        this.previewGuess = null;
-        
-        // Dimensions
-        this.width = 0;
-        this.height = 60;
-        this.padding = 20;
-        
-        // Colors and gradients
-        this.gradientCache = new Map();
-        
-        // Debug mode with frame counter for reduced logging
-        this.debugMode = false;
-        this.frameCount = 0;
-        this.logFrequency = 60; // Log every 60 frames (once per second at 60fps)
-        
-        // Bind methods
-        this.init = this.init.bind(this);
-        this.render = this.render.bind(this);
-        this.handleResize = this.handleResize.bind(this);
+        // Pre-create particle pool
+        this.initParticlePool();
     }
 
-    /**
-     * Initialize the spectrum renderer
-     */
     async init() {
-        console.log('🎨 Initializing SpectrumRenderer...');
-        
-        // Find or create canvas
         this.setupCanvas();
-        
-        // Set up event listeners
         this.setupEventListeners();
-        
-        // Set up state listeners
         this.setupStateListeners();
-        
-        // Start render loop
         this.startRenderLoop();
-        
-        console.log('✅ SpectrumRenderer initialized');
     }
 
-    /**
-     * Set up canvas element
-     */
-    setupCanvas() {
-        // Find the spectrum line container
-        this.canvasContainer = document.getElementById('spectrum-line');
-        if (!this.canvasContainer) {
-            console.error('❌ Spectrum line container not found');
-            return;
+    initParticlePool() {
+        for (let i = 0; i < this.particlePoolSize; i++) {
+            this.particlePool.push({
+                x: 0, y: 0, vx: 0, vy: 0,
+                size: 0, alpha: 0, decay: 0,
+                shrink: 0, color: '', active: false
+            });
         }
+    }
+
+    getPooledParticle() {
+        return this.particlePool.find(p => !p.active) || this.particlePool[0];
+    }
+
+    setupCanvas() {
+        this.gridContainer = document.getElementById('spectrum-grid');
+        if (!this.gridContainer) return;
         
-        // Create canvas element
         this.canvas = document.createElement('canvas');
-        this.canvas.style.position = 'absolute';
-        this.canvas.style.top = '0';
-        this.canvas.style.left = '0';
+        this.canvas.className = 'spectrum-canvas';
+        this.ctx = this.canvas.getContext('2d', { 
+            alpha: false,
+            desynchronized: true
+        });
+        
+        this.gridContainer.appendChild(this.canvas);
+        this.updateCanvasSize();
+    }
+
+    setupEventListeners() {
+        // Simplified resize handling
+        this.resizeObserver = new ResizeObserver(() => {
+            clearTimeout(this.resizeTimeout);
+            this.resizeTimeout = setTimeout(() => this.handleResize(), 250);
+        });
+        this.resizeObserver.observe(this.gridContainer);
+        
+        // Simplified event listeners
+        const events = [
+            ['pointerenter', this.handlePointerEnter],
+            ['pointerleave', this.handlePointerLeave],
+            ['pointermove', this.handlePointerMove],
+            ['pointerdown', this.handlePointerDown],
+            ['pointerup', this.handlePointerUp]
+        ];
+        
+        events.forEach(([event, handler]) => 
+            this.canvas.addEventListener(event, handler.bind(this), { passive: true }));
+    }
+
+    setupStateListeners() {
+        const listeners = {
+            'game.spectrumX': data => this.updateSpectrumX(data.newValue),
+            'game.spectrumY': data => this.updateSpectrumY(data.newValue),
+            'game.targetCoordinate': data => this.updateTargetCoordinate(data.newValue),
+            'game.guesses': data => this.updateGuesses(data.newValue),
+            'ui.spectrumInteractionEnabled': data => this.setInteractionEnabled(data.newValue),
+            'ui.showTargetCoordinate': data => this.setShowTarget(data.newValue),
+            'game.phase': data => this.handlePhaseChange(data.newValue),
+            'game.clueGiverId': () => this.updateTargetVisibility()
+        };
+        
+        Object.entries(listeners).forEach(([state, handler]) => 
+            this.stateManager.on(`state:${state}`, handler));
+    }
+
+    updateCanvasSize() {
+        if (!this.canvas || !this.gridContainer) return;
+        
+        this.containerRect = this.gridContainer.getBoundingClientRect();
+        const width = this.containerRect.width;
+        const height = this.containerRect.height;
+        
+        this.canvasSize = { width, height };
+        
+        const pixelWidth = width * this.devicePixelRatio;
+        const pixelHeight = height * this.devicePixelRatio;
+        
+        this.canvas.width = pixelWidth;
+        this.canvas.height = pixelHeight;
+        
         this.canvas.style.width = '100%';
         this.canvas.style.height = '100%';
-        this.canvas.style.pointerEvents = 'none';
-        this.canvas.style.zIndex = '10';
         
-        // Get 2D context
-        this.ctx = this.canvas.getContext('2d');
-        
-        // Add canvas to container
-        this.canvasContainer.appendChild(this.canvas);
-        
-        // Set initial size
-        this.updateCanvasSize();
-        
-        console.log('📐 Canvas setup complete');
-    }
-
-    /**
-     * Set up event listeners
-     */
-    setupEventListeners() {
-        // Resize observer for responsive canvas
-        if (window.ResizeObserver) {
-            this.resizeObserver = new ResizeObserver(() => {
-                this.handleResize();
-            });
-            this.resizeObserver.observe(this.canvasContainer);
-        } else {
-            window.addEventListener('resize', this.handleResize);
-        }
-        
-        // Mouse events
-        this.canvasContainer.addEventListener('mouseenter', this.handleMouseEnter.bind(this));
-        this.canvasContainer.addEventListener('mouseleave', this.handleMouseLeave.bind(this));
-        this.canvasContainer.addEventListener('mousemove', this.handleMouseMove.bind(this));
-        this.canvasContainer.addEventListener('click', this.handleClick.bind(this));
-        this.canvasContainer.addEventListener('mousedown', this.handleMouseDown.bind(this));
-        this.canvasContainer.addEventListener('mouseup', this.handleMouseUp.bind(this));
-        
-        // Touch events for mobile
-        this.canvasContainer.addEventListener('touchstart', this.handleTouchStart.bind(this));
-        this.canvasContainer.addEventListener('touchmove', this.handleTouchMove.bind(this));
-        this.canvasContainer.addEventListener('touchend', this.handleTouchEnd.bind(this));
-        
-        // Prevent context menu
-        this.canvasContainer.addEventListener('contextmenu', (e) => e.preventDefault());
-    }
-
-    /**
-     * Set up state listeners - FIXED: Better state management
-     */
-    setupStateListeners() {
-        // Spectrum changes
-        this.stateManager.on('state:game.spectrum', (data) => {
-            console.log('🌈 Spectrum updated:', data.newValue);
-            this.updateSpectrum(data.newValue);
-        });
-        
-        // Target position changes
-        this.stateManager.on('state:game.targetPosition', (data) => {
-            console.log('🎯 Target position state changed:', data.newValue);
-            this.updateTargetPosition(data.newValue);
-        });
-        
-        // Guess updates
-        this.stateManager.on('state:game.guesses', (data) => {
-            console.log('🎲 Guesses updated:', data.newValue);
-            this.updateGuesses(data.newValue);
-        });
-        
-        // UI state changes
-        this.stateManager.on('state:ui.spectrumInteractionEnabled', (data) => {
-            console.log('🖱️ Spectrum interaction enabled:', data.newValue);
-            this.setInteractionEnabled(data.newValue);
-        });
-        
-        this.stateManager.on('state:ui.showTargetPosition', (data) => {
-            console.log('👁️ Show target position state changed:', data.newValue);
-            this.setShowTarget(data.newValue);
-        });
-        
-        // Game phase changes
-        this.stateManager.on('state:game.phase', (data) => {
-            console.log('🎮 Game phase changed:', data.newValue);
-            this.handlePhaseChange(data.newValue);
-        });
-        
-        // Listen for clue giver changes to update target visibility
-        this.stateManager.on('state:game.clueGiverId', (data) => {
-            console.log('👑 Clue giver changed:', data.newValue);
-            this.updateTargetVisibility();
-        });
-    }
-
-    /**
-     * Update canvas size
-     */
-    updateCanvasSize() {
-        if (!this.canvas || !this.canvasContainer) return;
-        
-        const rect = this.canvasContainer.getBoundingClientRect();
-        this.width = rect.width;
-        this.height = rect.height;
-        
-        // Set canvas size with device pixel ratio for crisp rendering
-        this.canvas.width = this.width * this.devicePixelRatio;
-        this.canvas.height = this.height * this.devicePixelRatio;
-        
-        // Scale context to match device pixel ratio
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.scale(this.devicePixelRatio, this.devicePixelRatio);
         
-        // Set CSS size
-        this.canvas.style.width = this.width + 'px';
-        this.canvas.style.height = this.height + 'px';
-        
-        console.log(`📏 Canvas resized to ${this.width}x${this.height}`);
+        // Clear cache on resize
+        this.gradientCache.clear();
     }
 
-    /**
-     * Handle resize
-     */
-    handleResize() {
+    handleResize = () => {
         this.updateCanvasSize();
-        this.clearGradientCache();
+        this.requestRender();
     }
 
-    /**
-     * Start render loop
-     */
     startRenderLoop() {
-        const renderFrame = () => {
-            this.render();
+        const renderFrame = (timestamp) => {
+            if (this.renderRequested && timestamp - this.lastRenderTime >= this.renderThrottleTime) {
+                this.render();
+                this.lastRenderTime = timestamp;
+                this.renderRequested = false;
+            }
             this.animationFrame = requestAnimationFrame(renderFrame);
         };
-        renderFrame();
+        this.animationFrame = requestAnimationFrame(renderFrame);
     }
 
-    /**
-     * Main render method - FIXED: Reduced debug logging
-     */
+    requestRender() {
+        this.renderRequested = true;
+    }
+
     render() {
-        if (!this.ctx || !this.spectrum) return;
+        if (!this.ctx || !this.canvasSize.width || !this.canvasSize.height) return;
+
+        const { width, height } = this.canvasSize;
         
-        // Increment frame counter
-        this.frameCount++;
-        
-        // Clear canvas
-        this.ctx.clearRect(0, 0, this.width, this.height);
-        
+        // Clear with solid color
+        this.ctx.fillStyle = this.colors.darkBg;
+        this.ctx.fillRect(0, 0, width, height);
+
         // Update animations
-        this.updateAnimations();
+        this.updateParticles();
+
+        // Render layers
+        this.render2DGradient();
+        this.renderGridLines();
         
-        // Render spectrum gradient
-        this.renderSpectrumGradient();
-        
-        // Only check clue giver status once per second instead of every frame
-        if (this.frameCount % 60 === 0) {
-            this._isClueGiver = this.stateManager.isCurrentPlayerClueGiver();
+        if (this.particles.length > 0) {
+            this.renderParticles();
         }
-        
-        // Render debug info if enabled
-        if (this.debugMode && this.frameCount % this.logFrequency === 0) {
-            this.renderDebugInfo();
-        }
-        
-        // Render particles
-        this.renderParticles();
-        
-        // Render target (if visible) - use cached value
+
         if (this.shouldRenderTarget()) {
             this.renderTarget();
         }
         
-        // Render guesses
         this.renderGuesses();
-        
-        // Render hover preview
-        if (this.isHovering && this.interactionEnabled && this.hoverPosition !== null) {
+
+        if (this.isHovering && this.interactionEnabled && this.hoverCoordinate) {
             this.renderHoverPreview();
         }
-        
-        // Render preview guess
-        if (this.previewGuess !== null) {
+
+        if (this.previewGuess) {
             this.renderPreviewGuess();
         }
     }
 
-    shouldRenderTarget() {
-        // Use cached clue giver check
-        const hasValidPosition = this.targetPosition !== null && this.targetPosition !== undefined;
-        const shouldShow = this.showTarget === true;
-        const isClueGiver = this._isClueGiver !== undefined ? this._isClueGiver : this.stateManager.isCurrentPlayerClueGiver();
-        
-        return hasValidPosition && shouldShow && isClueGiver;
-    }
+    render2DGradient() {
+        const { width, height } = this.canvasSize;
+        this.ctx.save();
 
-    /**
-     * Update target visibility based on current player role - NEW METHOD
-     */
-    updateTargetVisibility() {
-        const isClueGiver = this.stateManager.isCurrentPlayerClueGiver();
-        const gamePhase = this.stateManager.getGameState().phase;
-        
-        // Only show target to clue giver during appropriate phases
-        if (isClueGiver && (gamePhase === 'giving-clue' || gamePhase === 'guessing')) {
-            this.showTarget = true;
-        } else if (gamePhase === 'scoring') {
-            // Everyone sees target during scoring
-            this.showTarget = true;
+        if (!this.spectrumX || !this.spectrumY) {
+            this.ctx.fillStyle = this.colors.glassBg;
+            this.ctx.fillRect(0, 0, width, height);
         } else {
-            this.showTarget = false;
+            // Simplified gradient without caching
+            const gradientX = this.ctx.createLinearGradient(0, 0, width, 0);
+            gradientX.addColorStop(0, this.colors.teal + '40');
+            gradientX.addColorStop(1, this.colors.lilac + '40');
+            
+            const gradientY = this.ctx.createLinearGradient(0, height, 0, 0);
+            gradientY.addColorStop(0, this.colors.electricBlue + '40');
+            gradientY.addColorStop(1, this.colors.green + '40');
+            
+            this.ctx.fillStyle = gradientX;
+            this.ctx.fillRect(0, 0, width, height);
+            
+            this.ctx.globalCompositeOperation = 'multiply';
+            this.ctx.fillStyle = gradientY;
+            this.ctx.fillRect(0, 0, width, height);
+            
+            this.ctx.globalCompositeOperation = 'source-over';
         }
-        
-        console.log(`👁️ Updated target visibility - IsClueGiver: ${isClueGiver}, Phase: ${gamePhase}, ShowTarget: ${this.showTarget}`);
-    }
 
-    /**
-     * Render debug information
-     */
-    renderDebugInfo() {
-        // Only render debug info if explicitly in development mode
-        if (!this.debugMode || window.location.hostname === 'localhost') {
-            return;
-        }
-        
-        this.ctx.save();
-        this.ctx.font = '10px monospace';
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';  // More transparent
-        
-        const isClueGiver = this.stateManager.isCurrentPlayerClueGiver();
-        const debugText = `Target: ${this.targetPosition} | Show: ${this.showTarget} | ClueGiver: ${isClueGiver} | Enabled: ${this.interactionEnabled}`;
-        
-        // Render in top-left corner instead of on the spectrum
-        this.ctx.fillText(debugText, 5, 10);
         this.ctx.restore();
     }
 
-    /**
-     * Render spectrum gradient
-     */
-    renderSpectrumGradient() {
-        if (!this.spectrum || !this.spectrum.gradient) return;
+    renderGridLines() {
+        const { width, height } = this.canvasSize;
+        this.ctx.save();
         
-        const gradient = this.getOrCreateGradient();
-        
-        // Draw gradient background
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, 0, this.width, this.height);
-        
-        // Add subtle border
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        // Simplified grid - only major lines
+        this.ctx.strokeStyle = this.colors.gridLineMajor;
         this.ctx.lineWidth = 1;
-        this.ctx.strokeRect(0.5, 0.5, this.width - 1, this.height - 1);
+        
+        const centerX = width / 2;
+        const centerY = height / 2;
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(centerX, 0);
+        this.ctx.lineTo(centerX, height);
+        this.ctx.moveTo(0, centerY);
+        this.ctx.lineTo(width, centerY);
+        this.ctx.stroke();
+        
+        // Border
+        this.ctx.strokeRect(0, 0, width, height);
+        
+        this.ctx.restore();
     }
 
-    /**
-     * Get or create gradient
-     */
-    getOrCreateGradient() {
-        const cacheKey = `${this.spectrum.id}-${this.width}`;
-        
-        if (this.gradientCache.has(cacheKey)) {
-            return this.gradientCache.get(cacheKey);
-        }
-        
-        const gradient = this.ctx.createLinearGradient(0, 0, this.width, 0);
-        const { start, middle, end } = this.spectrum.gradient;
-        
-        gradient.addColorStop(0, start);
-        if (middle) {
-            gradient.addColorStop(0.5, middle);
-        }
-        gradient.addColorStop(1, end);
-        
-        this.gradientCache.set(cacheKey, gradient);
-        return gradient;
+    coordToCanvas(coord) {
+        const { width, height } = this.canvasSize;
+        return {
+            x: (coord.x / 100) * width,
+            y: height - (coord.y / 100) * height
+        };
     }
 
-    /**
-     * Clear gradient cache
-     */
-    clearGradientCache() {
-        this.gradientCache.clear();
+    canvasToCoord(x, y) {
+        const { width, height } = this.canvasSize;
+        return {
+            x: Math.max(0, Math.min(100, Math.round((x / width) * 100))),
+            y: Math.max(0, Math.min(100, Math.round((1 - y / height) * 100)))
+        };
     }
 
-    /**
-     * Render target marker - FIXED: Only logs periodically
-     */
+    shouldRenderTarget() {
+        const hasValidCoordinate = this.targetCoordinate && 
+                                  typeof this.targetCoordinate.x === 'number' &&
+                                  typeof this.targetCoordinate.y === 'number';
+        const isClueGiver = this._isClueGiver ?? this.stateManager.isCurrentPlayerClueGiver();
+        return hasValidCoordinate && this.showTarget && isClueGiver;
+    }
+
     renderTarget() {
-        const x = this.positionToPixel(this.targetPosition);
-        const y = this.height / 2;
+        const pos = this.coordToCanvas(this.targetCoordinate);
         
-        // Only log periodically
-        if (this.debugMode && this.frameCount % this.logFrequency === 0) {
-            console.log(`🎯 Rendering target at position ${this.targetPosition} (${x}px)`);
-        }
-        
-        // Target circle with pulsing effect
         this.ctx.save();
         
-        // Pulsing scale
-        const pulse = Math.sin(Date.now() * 0.003) * 0.1 + 1;
-        
-        // Glow effect
-        this.ctx.shadowColor = '#ff0000';
-        this.ctx.shadowBlur = 20;
-        this.ctx.shadowOffsetX = 0;
-        this.ctx.shadowOffsetY = 0;
-        
-        // Outer circle (pulsing)
-        this.ctx.fillStyle = '#ef4444';
+        // Simplified target without pulse animation
+        this.ctx.fillStyle = this.colors.red;
         this.ctx.beginPath();
-        this.ctx.arc(x, y, 12 * pulse, 0, Math.PI * 2);
+        this.ctx.arc(pos.x, pos.y, 15, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // Inner circle
-        this.ctx.shadowBlur = 0;
-        this.ctx.fillStyle = '#ffffff';
+        this.ctx.fillStyle = this.colors.darkBg;
         this.ctx.beginPath();
-        this.ctx.arc(x, y, 8, 0, Math.PI * 2);
+        this.ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // Center dot
-        this.ctx.fillStyle = '#ef4444';
+        this.ctx.fillStyle = this.colors.red;
         this.ctx.beginPath();
-        this.ctx.arc(x, y, 3, 0, Math.PI * 2);
+        this.ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
         this.ctx.fill();
-        
-        this.ctx.restore();
-        
-        // Target icon above
-        this.renderTargetIcon(x, y - 25);
-        
-        // Position label
-        this.ctx.save();
-        this.ctx.font = 'bold 12px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillStyle = '#ef4444';
-        this.ctx.fillText(`${this.targetPosition}`, x, y + 25);
-        this.ctx.restore();
-    }
-
-    /**
-     * Render target icon
-     */
-    renderTargetIcon(x, y) {
-        this.ctx.save();
-        this.ctx.font = '20px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        
-        // Shadow for better visibility
-        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-        this.ctx.shadowBlur = 5;
-        this.ctx.shadowOffsetX = 2;
-        this.ctx.shadowOffsetY = 2;
-        
-        // Icon
-        this.ctx.fillStyle = '#ef4444';
         
         this.ctx.restore();
     }
 
-    /**
-     * Render guess markers
-     */
     renderGuesses() {
         const players = this.stateManager.getPlayers();
-        const playerColors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899'];
+        const playerColors = [this.colors.teal, this.colors.green, this.colors.orange, this.colors.lilac];
         
-        Object.entries(this.guesses).forEach(([playerId, position], index) => {
+        Object.entries(this.guesses).forEach(([playerId, coordinate], index) => {
             const player = players[playerId];
-            if (!player) return;
+            if (!player || !coordinate) return;
             
-            const x = this.positionToPixel(position);
-            const y = this.height / 2;
+            const pos = this.coordToCanvas(coordinate);
             const color = playerColors[index % playerColors.length];
             
-            this.renderGuessMarker(x, y, color, player.name.charAt(0).toUpperCase());
+            this.renderGuessMarker(pos.x, pos.y, color, player.name.charAt(0).toUpperCase());
         });
     }
 
-    /**
-     * Render individual guess marker
-     */
     renderGuessMarker(x, y, color, initial) {
         this.ctx.save();
         
-        // Glow effect
-        this.ctx.shadowColor = color;
-        this.ctx.shadowBlur = 8;
-        this.ctx.shadowOffsetX = 0;
-        this.ctx.shadowOffsetY = 0;
-        
-        // Outer circle
+        // Simplified marker without glow
         this.ctx.fillStyle = color;
         this.ctx.beginPath();
-        this.ctx.arc(x, y, 10, 0, Math.PI * 2);
+        this.ctx.arc(x, y, 12, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // Border
-        this.ctx.shadowBlur = 0;
-        this.ctx.strokeStyle = '#ffffff';
+        this.ctx.strokeStyle = this.colors.darkBg;
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
         
-        // Initial letter
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = 'bold 10px Arial';
+        this.ctx.fillStyle = this.colors.darkBg;
+        this.ctx.font = 'bold 12px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText(initial, x, y);
@@ -506,466 +353,271 @@ export class SpectrumRenderer {
         this.ctx.restore();
     }
 
-    /**
-     * Render hover preview
-     */
     renderHoverPreview() {
-        const x = this.positionToPixel(this.hoverPosition);
-        const y = this.height / 2;
+        const pos = this.coordToCanvas(this.hoverCoordinate);
         
         this.ctx.save();
         
-        // Semi-transparent preview
+        // Simplified hover marker
         this.ctx.globalAlpha = 0.6;
-        this.ctx.fillStyle = '#8b5cf6';
+        this.ctx.fillStyle = this.colors.lilac;
         this.ctx.beginPath();
-        this.ctx.arc(x, y, 8, 0, Math.PI * 2);
+        this.ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // Dashed border
-        this.ctx.globalAlpha = 1;
-        this.ctx.strokeStyle = '#8b5cf6';
-        this.ctx.lineWidth = 2;
-        this.ctx.setLineDash([3, 3]);
-        this.ctx.beginPath();
-        this.ctx.arc(x, y, 12, 0, Math.PI * 2);
-        this.ctx.stroke();
-        
         this.ctx.restore();
-        
-        // Position indicator
-        this.renderPositionIndicator(x, y - 20, this.hoverPosition);
     }
 
-    /**
-     * Render preview guess
-     */
     renderPreviewGuess() {
-        const x = this.positionToPixel(this.previewGuess);
-        const y = this.height / 2;
+        const pos = this.coordToCanvas(this.previewGuess);
         
         this.ctx.save();
         
-        // Pulsing effect
-        const pulse = Math.sin(Date.now() * 0.005) * 0.2 + 0.8;
-        this.ctx.globalAlpha = pulse;
-        
-        // Preview marker
-        this.ctx.fillStyle = '#8b5cf6';
+        this.ctx.globalAlpha = 0.8;
+        this.ctx.fillStyle = this.colors.lilac;
         this.ctx.beginPath();
-        this.ctx.arc(x, y, 10, 0, Math.PI * 2);
+        this.ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
         this.ctx.fill();
         
-        this.ctx.strokeStyle = '#ffffff';
+        this.ctx.strokeStyle = this.colors.darkBg;
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
         
         this.ctx.restore();
     }
 
-    /**
-     * Render position indicator
-     */
-    renderPositionIndicator(x, y, position) {
+    renderParticles() {
         this.ctx.save();
         
-        // Background
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        this.ctx.fillRect(x - 15, y - 10, 30, 20);
-        
-        // Text
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = '12px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(Math.round(position), x, y);
+        // Batch render active particles
+        this.particles.forEach(p => {
+            if (p.alpha > 0) {
+                this.ctx.globalAlpha = p.alpha;
+                this.ctx.fillStyle = p.color;
+                this.ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+            }
+        });
         
         this.ctx.restore();
     }
 
-    /**
-     * Render particles
-     */
-    renderParticles() {
-        this.particles.forEach(particle => {
-            this.ctx.save();
+    updateParticles() {
+        // Update only active particles
+        this.particles = this.particles.filter(p => {
+            if (!p.active) return false;
             
-            this.ctx.globalAlpha = particle.alpha;
-            this.ctx.fillStyle = particle.color;
-            this.ctx.beginPath();
-            this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-            this.ctx.fill();
+            p.x += p.vx;
+            p.y += p.vy;
+            p.alpha -= p.decay;
+            p.size *= p.shrink;
             
-            this.ctx.restore();
-        });
-    }
-
-    /**
-     * Update animations
-     */
-    updateAnimations() {
-        const now = Date.now();
-        
-        // Update particles
-        this.particles = this.particles.filter(particle => {
-            particle.x += particle.vx;
-            particle.y += particle.vy;
-            particle.alpha -= particle.decay;
-            particle.size *= particle.shrink;
-            
-            return particle.alpha > 0 && particle.size > 0.1;
-        });
-        
-        // Update other animations
-        this.animations = this.animations.filter(animation => {
-            const progress = (now - animation.startTime) / animation.duration;
-            
-            if (progress >= 1) {
-                animation.onComplete?.();
+            if (p.alpha <= 0 || p.size < 0.5) {
+                p.active = false;
                 return false;
             }
-            
-            animation.onUpdate?.(progress);
             return true;
         });
-    }
-
-    /**
-     * Mouse event handlers
-     */
-    handleMouseEnter() {
-        this.isHovering = true;
-        if (this.interactionEnabled) {
-            this.canvasContainer.style.cursor = 'crosshair';
+        
+        // Request render if particles exist
+        if (this.particles.length > 0) {
+            this.requestRender();
         }
     }
 
-    handleMouseLeave() {
+    // Throttled pointer event handlers
+    handlePointerEnter = (e) => {
+        this.isHovering = true;
+        if (this.interactionEnabled) {
+            this.gridContainer.classList.add('interactive');
+        }
+        this.requestRender();
+    }
+
+    handlePointerLeave = (e) => {
         this.isHovering = false;
-        this.hoverPosition = null;
-        this.canvasContainer.style.cursor = 'default';
+        this.hoverCoordinate = null;
+        this.gridContainer.classList.remove('interactive');
+        this.requestRender();
     }
 
-    handleMouseMove(e) {
-        if (!this.interactionEnabled) return;
+    handlePointerMove = (e) => {
+        if (!this.interactionEnabled || !this.isHovering) return;
         
-        const rect = this.canvasContainer.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        this.hoverPosition = this.pixelToPosition(x);
+        const now = Date.now();
+        if (now - this.lastInteractionTime < this.interactionThrottle) return;
+        this.lastInteractionTime = now;
+        
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvasSize.width / rect.width;
+        const scaleY = this.canvasSize.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+        
+        this.hoverCoordinate = this.canvasToCoord(x, y);
+        this.requestRender();
     }
 
-    handleClick(e) {
-        if (!this.interactionEnabled) return;
-        
-        const rect = this.canvasContainer.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const position = this.pixelToPosition(x);
-        
-        this.handleGuessPlacement(position);
-    }
-
-    handleMouseDown(e) {
-        if (!this.interactionEnabled) return;
+    handlePointerDown = (e) => {
+        if (!this.interactionEnabled || e.button !== 0) return;
         this.isDragging = true;
     }
 
-    handleMouseUp() {
+    handlePointerUp = (e) => {
+        if (!this.interactionEnabled || !this.isDragging || e.button !== 0) return;
+        
         this.isDragging = false;
-    }
-
-    /**
-     * Touch event handlers
-     */
-    handleTouchStart(e) {
-        e.preventDefault();
-        if (!this.interactionEnabled) return;
-        
-        const touch = e.touches[0];
-        const rect = this.canvasContainer.getBoundingClientRect();
-        const x = touch.clientX - rect.left;
-        this.hoverPosition = this.pixelToPosition(x);
-        this.isHovering = true;
-    }
-
-    handleTouchMove(e) {
-        e.preventDefault();
-        if (!this.interactionEnabled) return;
-        
-        const touch = e.touches[0];
-        const rect = this.canvasContainer.getBoundingClientRect();
-        const x = touch.clientX - rect.left;
-        this.hoverPosition = this.pixelToPosition(x);
-    }
-
-    handleTouchEnd(e) {
-        e.preventDefault();
-        if (!this.interactionEnabled || this.hoverPosition === null) return;
-        
-        this.handleGuessPlacement(this.hoverPosition);
-        this.isHovering = false;
-        this.hoverPosition = null;
-    }
-
-    /**
-     * Handle guess placement
-     */
-    handleGuessPlacement(position) {
-        // Clamp position
-        position = Math.max(0, Math.min(100, Math.round(position)));
-        
-        console.log(`🎲 Guess placed at position ${position}`);
-        
-        // Set preview guess
-        this.previewGuess = position;
-        
-        // Create placement particles
-        this.createPlacementParticles(this.positionToPixel(position));
-        
-        // Emit guess event
-        this.stateManager.emit('spectrum:guess-placed', { position });
-        
-        // Update slider if it exists
-        const slider = document.getElementById('guess-slider');
-        const valueDisplay = document.getElementById('guess-value');
-        if (slider) {
-            slider.value = position;
-        }
-        if (valueDisplay) {
-            valueDisplay.textContent = position;
+        if (this.hoverCoordinate) {
+            this.handleGuessPlacement(this.hoverCoordinate);
         }
     }
 
-    /**
-     * Create placement particles
-     */
-    createPlacementParticles(x) {
-        const colors = ['#8b5cf6', '#ec4899', '#3b82f6', '#10b981'];
+    handleGuessPlacement(coordinate) {
+        const roundedCoordinate = {
+            x: Math.round(coordinate.x),
+            y: Math.round(coordinate.y)
+        };
         
-        for (let i = 0; i < 12; i++) {
-            const angle = (Math.PI * 2 * i) / 12;
-            const speed = 2 + Math.random() * 3;
+        this.previewGuess = roundedCoordinate;
+        const pos = this.coordToCanvas(roundedCoordinate);
+        this.createPlacementParticles(pos.x, pos.y);
+        
+        this.stateManager.emit('spectrum:guess-placed', { coordinate: roundedCoordinate });
+        this.requestRender();
+    }
+
+    createPlacementParticles(x, y) {
+        // Limit particle creation
+        const particleCount = Math.min(8, this.maxParticles - this.particles.length);
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = this.getPooledParticle();
+            const angle = (Math.PI * 2 * i) / particleCount;
+            const speed = 2 + Math.random() * 2;
             
-            this.particles.push({
-                x: x,
-                y: this.height / 2,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                size: 2 + Math.random() * 3,
-                alpha: 1,
-                decay: 0.02,
-                shrink: 0.98,
-                color: colors[Math.floor(Math.random() * colors.length)]
-            });
-        }
-    }
-
-    /**
-     * Create celebration particles
-     */
-    createCelebrationParticles(x, color = '#10b981') {
-        for (let i = 0; i < 20; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 3 + Math.random() * 5;
+            particle.x = x;
+            particle.y = y;
+            particle.vx = Math.cos(angle) * speed;
+            particle.vy = Math.sin(angle) * speed;
+            particle.size = 3;
+            particle.alpha = 1;
+            particle.decay = 0.05;
+            particle.shrink = 0.95;
+            particle.color = this.colors.lilac;
+            particle.active = true;
             
-            this.particles.push({
-                x: x,
-                y: this.height / 2,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 2,
-                size: 3 + Math.random() * 4,
-                alpha: 1,
-                decay: 0.015,
-                shrink: 0.97,
-                color: color
-            });
+            if (!this.particles.includes(particle)) {
+                this.particles.push(particle);
+            }
         }
-    }
-
-    /**
-     * Position conversion utilities
-     */
-    positionToPixel(position) {
-        return (position / 100) * this.width;
-    }
-
-    pixelToPosition(pixel) {
-        return (pixel / this.width) * 100;
-    }
-
-    /**
-     * State update methods
-     */
-    updateSpectrum(spectrum) {
-        this.spectrum = spectrum;
-        this.clearGradientCache();
-        console.log('🌈 Spectrum updated in renderer:', spectrum);
-    }
-
-    /**
-     * Update target position - FIXED: Better handling
-     */
-    updateTargetPosition(position) {
-        const oldPosition = this.targetPosition;
-        this.targetPosition = position;
         
-        console.log(`🎯 Target position updated from ${oldPosition} to ${position}`);
-        
-        // Update visibility based on role
+        this.requestRender();
+    }
+
+    updateSpectrumX(spectrum) {
+        this.spectrumX = spectrum;
+        this.gradientCache.clear();
+        this.requestRender();
+    }
+
+    updateSpectrumY(spectrum) {
+        this.spectrumY = spectrum;
+        this.gradientCache.clear();
+        this.requestRender();
+    }
+
+    updateTargetCoordinate(coordinate) {
+        this.targetCoordinate = coordinate;
         this.updateTargetVisibility();
-        
-        // Animate target reveal if appropriate
-        if (this.showTarget && position !== null && position !== undefined && oldPosition !== position) {
-            console.log('✨ Animating target reveal');
-            this.animateTargetReveal();
-        }
+        this.requestRender();
     }
 
     updateGuesses(guesses) {
-        const oldGuesses = { ...this.guesses };
         this.guesses = guesses || {};
-        
-        // Check for new guesses and animate them
-        Object.entries(this.guesses).forEach(([playerId, position]) => {
-            if (!(playerId in oldGuesses)) {
-                console.log(`🎲 New guess from player ${playerId} at position ${position}`);
-                this.animateGuessPlacement(position);
-            }
-        });
+        this.requestRender();
     }
 
     setInteractionEnabled(enabled) {
         this.interactionEnabled = enabled;
-        console.log(`🖱️ Interaction ${enabled ? 'enabled' : 'disabled'}`);
         
         if (enabled) {
-            this.canvasContainer.style.pointerEvents = 'auto';
-            this.canvasContainer.style.cursor = 'crosshair';
+            this.gridContainer.classList.add('interactive');
         } else {
-            this.canvasContainer.style.pointerEvents = 'none';
-            this.canvasContainer.style.cursor = 'default';
+            this.gridContainer.classList.remove('interactive');
             this.isHovering = false;
-            this.hoverPosition = null;
+            this.hoverCoordinate = null;
         }
+        
+        this.requestRender();
     }
 
-    /**
-     * Set show target - FIXED: Better state management
-     */
     setShowTarget(show) {
-        const oldShowTarget = this.showTarget;
         this.showTarget = show;
-        
-        console.log(`👁️ Target visibility changed from ${oldShowTarget} to ${show}`);
-        
-        // Only animate if we're showing a valid target for the first time
-        if (show && !oldShowTarget && this.targetPosition !== null && this.targetPosition !== undefined) {
-            console.log(`✨ Showing target at position ${this.targetPosition}`);
-            this.animateTargetReveal();
-        }
+        this.requestRender();
     }
 
-    /**
-     * Handle phase change - FIXED: Clear state between rounds
-     */
-    handlePhaseChange(phase) {
-        console.log(`🎮 Handling phase change to: ${phase}`);
+    updateTargetVisibility() {
+        const isClueGiver = this.stateManager.isCurrentPlayerClueGiver();
+        const gamePhase = this.stateManager.getGameState().phase;
         
-        switch (phase) {
-            case 'giving-clue':
-                // Clear previous round data
+        this.showTarget = (isClueGiver && ['giving-clue', 'guessing'].includes(gamePhase)) || gamePhase === 'scoring';
+        this.requestRender();
+    }
+
+    handlePhaseChange(phase) {
+        const actions = {
+            'giving-clue': () => {
                 this.guesses = {};
                 this.previewGuess = null;
-                // Target visibility will be handled by state updates
-                break;
-                
-            case 'guessing':
+            },
+            'guessing': () => {
                 this.previewGuess = null;
-                break;
-                
-            case 'scoring':
-                this.animateScoreReveal();
-                break;
-                
-            case 'lobby':
-            case 'waiting':
-                // Clear all round data
-                this.clearRoundData();
-                break;
-        }
+            },
+            'lobby': () => this.clearRoundData(),
+            'waiting': () => this.clearRoundData()
+        };
+        
+        actions[phase]?.();
+        this.requestRender();
     }
 
-    /**
-     * Clear round data - NEW METHOD
-     */
     clearRoundData() {
-        console.log('🧹 Clearing round data');
-        this.targetPosition = null;
-        this.guesses = {};
-        this.previewGuess = null;
-        this.showTarget = false;
-        this.particles = [];
-    }
-
-    /**
-     * Animation methods
-     */
-    animateTargetReveal() {
-        if (this.targetPosition === null || this.targetPosition === undefined) return;
-        
-        const x = this.positionToPixel(this.targetPosition);
-        this.createCelebrationParticles(x, '#ef4444');
-    }
-
-    animateGuessPlacement(position) {
-        const x = this.positionToPixel(position);
-        this.createPlacementParticles(x);
-    }
-
-    animateScoreReveal() {
-        // Create celebration particles for all guesses
-        Object.values(this.guesses).forEach(position => {
-            const x = this.positionToPixel(position);
-            this.createCelebrationParticles(x);
+        Object.assign(this, {
+            targetCoordinate: null,
+            guesses: {},
+            previewGuess: null,
+            showTarget: false,
+            particles: []
         });
-        
-        // Create extra celebration for target
-        if (this.targetPosition !== null && this.targetPosition !== undefined) {
-            const x = this.positionToPixel(this.targetPosition);
-            setTimeout(() => {
-                this.createCelebrationParticles(x, '#ffd700');
-            }, 500);
-        }
+        this.gradientCache.clear();
+        this.requestRender();
     }
 
-    /**
-     * Cleanup resources
-     */
     destroy() {
-        // Stop render loop
         if (this.animationFrame) {
             cancelAnimationFrame(this.animationFrame);
         }
         
-        // Remove resize observer
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
-        } else {
-            window.removeEventListener('resize', this.handleResize);
         }
         
-        // Remove canvas
-        if (this.canvas && this.canvas.parentNode) {
+        clearTimeout(this.resizeTimeout);
+        
+        const events = ['pointerenter', 'pointerleave', 'pointermove', 'pointerdown', 'pointerup'];
+        events.forEach(event => this.canvas?.removeEventListener(event, this[`handle${event.charAt(0).toUpperCase() + event.slice(1)}`]));
+        
+        if (this.canvas?.parentNode) {
             this.canvas.parentNode.removeChild(this.canvas);
         }
         
-        // Clear state
-        this.canvas = null;
-        this.ctx = null;
-        this.animations = [];
-        this.particles = [];
-        this.gradientCache.clear();
-        this.clearRoundData();
+        Object.assign(this, {
+            canvas: null,
+            ctx: null,
+            particles: [],
+            particlePool: [],
+            gradientCache: new Map()
+        });
         
-        console.log('🧹 SpectrumRenderer destroyed');
+        this.clearRoundData();
     }
 }
