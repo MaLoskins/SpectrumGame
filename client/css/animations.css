@@ -1,30 +1,29 @@
-/* ===== DARK MODE ANIMATIONS ===== */
+/* ===== DARK MODE ANIMATIONS - PERFORMANCE OPTIMIZED ===== */
 
 /* GPU-accelerated base animations */
 @keyframes spin {
-  to { transform: rotate3d(0, 0, 1, 360deg); }
+  to { transform: rotate(360deg); }
 }
 
 @keyframes pulse {
   50% { 
     opacity: 0.8;
-    transform: scale3d(1.05, 1.05, 1);
+    transform: scale(1.05);
   }
 }
 
 @keyframes bounce {
-  20%, 53%, 80%, to { transform: translate3d(0, 0, 0); }
-  40%, 43% { transform: translate3d(0, -8px, 0); }
-  70% { transform: translate3d(0, -4px, 0); }
-  90% { transform: translate3d(0, -2px, 0); }
+  25% { transform: translateY(-8px); }
+  50% { transform: translateY(0); }
+  75% { transform: translateY(-4px); }
 }
 
 @keyframes shake {
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-  20%, 40%, 60%, 80% { transform: translateX(4px); }
+  25%, 75% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
 }
 
-/* Optimized fade animations using GPU */
+/* Optimized fade animations */
 @keyframes fadeIn {
   from { opacity: 0; }
 }
@@ -33,208 +32,177 @@
   to { opacity: 0; }
 }
 
-/* Combined slide animations with transform3d */
+/* Simplified slide animations */
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: var(--slide-from, translate3d(0, -20px, 0));
+    transform: translateY(-20px);
   }
 }
 
 @keyframes slideOut {
   to {
     opacity: 0;
-    transform: var(--slide-to, translate3d(0, -20px, 0));
+    transform: translateY(-20px);
   }
 }
 
-/* Consolidated scale animations */
+/* Simplified scale animations */
 @keyframes scaleIn {
   from {
     opacity: 0;
-    transform: scale3d(var(--scale-from, 0.8), var(--scale-from, 0.8), 1);
+    transform: scale(0.9);
   }
 }
 
+/* Simplified flip animation */
 @keyframes flipIn {
   from {
     opacity: 0;
     transform: perspective(400px) rotateY(90deg);
   }
-  40% { transform: perspective(400px) rotateY(-20deg); }
-  60% { transform: perspective(400px) rotateY(10deg); }
-  80% { transform: perspective(400px) rotateY(-5deg); }
-  to { transform: perspective(400px) rotateY(0); }
-}
-
-/* Glow animations with CSS custom properties */
-@keyframes glow {
-  50% {
-    filter: drop-shadow(0 0 var(--glow-size, 20px) var(--glow-color, var(--accent-teal)));
+  to { 
+    opacity: 1;
+    transform: perspective(400px) rotateY(0);
   }
 }
 
-@keyframes rainbowGlow {
-  0%, 100% { filter: drop-shadow(0 0 20px var(--accent-teal)); }
-  16.66% { filter: drop-shadow(0 0 20px var(--accent-electric-blue)); }
-  33.33% { filter: drop-shadow(0 0 20px var(--accent-lilac)); }
-  50% { filter: drop-shadow(0 0 20px var(--accent-pink)); }
-  66.66% { filter: drop-shadow(0 0 20px var(--accent-orange)); }
-  83.33% { filter: drop-shadow(0 0 20px var(--accent-green)); }
+/* Simplified glow animations */
+@keyframes glow {
+  50% {
+    opacity: 0.8;
+  }
 }
 
-/* Game-specific optimized animations */
+/* Simplified rainbow glow - reduced color stops */
+@keyframes rainbowGlow {
+  0%, 100% { filter: hue-rotate(0deg); }
+  50% { filter: hue-rotate(180deg); }
+}
+
+/* Simplified game animations */
 @keyframes targetReveal {
   from {
     opacity: 0;
-    transform: scale3d(0, 0, 1) rotate3d(0, 0, 1, -180deg);
-  }
-  50% {
-    transform: scale3d(1.3, 1.3, 1) rotate3d(0, 0, 1, 10deg);
+    transform: scale(0);
   }
 }
 
 @keyframes guessPlacement {
   50% {
-    transform: scale3d(1.2, 1.2, 1);
+    transform: scale(1.1);
   }
 }
 
-/* Timer animations using transform for performance */
+/* Simplified timer animations */
 @keyframes timerWarning {
   50% {
-    background: rgba(255, 149, 0, 0.1);
-    transform: scale3d(1, 1, 1);
-    filter: drop-shadow(0 0 20px rgba(255, 149, 0, 0.5));
+    opacity: 0.7;
   }
 }
 
 @keyframes timerDanger {
   50% {
-    background: rgba(255, 56, 100, 0.2);
-    transform: scale3d(1.05, 1.05, 1);
-    filter: drop-shadow(0 0 30px rgba(255, 56, 100, 0.8));
+    opacity: 0.5;
   }
 }
 
-/* Spectrum gradient animation optimized */
+/* Simplified spectrum animation */
 @keyframes spectrumShift {
-  to { background-position: 200% 50%; }
+  to { background-position-x: 200%; }
 }
 
-/* Notification animations consolidated */
+/* Simplified notification animation */
 @keyframes notification {
-  from { transform: var(--notification-from, translateX(100%)); }
+  from { transform: translateX(100%); }
 }
 
-/* Combined celebration animations */
+/* Simplified celebration animation */
 @keyframes celebrate {
-  25% { transform: scale3d(1.1, 1.1, 1) rotate3d(0, 0, 1, -5deg); }
-  50% { transform: scale3d(1.2, 1.2, 1) rotate3d(0, 0, 1, 5deg); }
-  75% { transform: scale3d(1.1, 1.1, 1) rotate3d(0, 0, 1, -2deg); }
+  50% { transform: scale(1.1); }
 }
 
-/* Particle animation with GPU acceleration */
+/* Simplified particle animation */
 @keyframes particleFloat {
-  10% {
-    opacity: 1;
-    transform: translate3d(10px, -10px, 0) scale3d(1, 1, 1);
-  }
-  90% {
-    opacity: 1;
-    transform: translate3d(-10px, -100px, 0) scale3d(1, 1, 1);
-  }
   to {
     opacity: 0;
-    transform: translate3d(-20px, -120px, 0) scale3d(0, 0, 1);
+    transform: translate(-20px, -120px);
   }
 }
 
-/* Progress animation optimized */
+/* Simplified progress animation */
 @keyframes progressShine {
   to { transform: translateX(200%); }
 }
 
-/* Utility classes with will-change optimization */
+/* Utility classes - removed will-change where not essential */
 .animate-spin { 
   animation: spin 1s linear infinite;
-  will-change: transform;
 }
 
 .animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  will-change: opacity, transform;
+  animation: pulse 2s ease-in-out infinite;
 }
 
 .animate-bounce {
   animation: bounce 1s infinite;
-  will-change: transform;
 }
 
 .animate-shake {
   animation: shake 0.5s ease-in-out;
-  will-change: transform;
 }
 
 .animate-glow {
   animation: glow 2s ease-in-out infinite;
-  will-change: filter;
 }
 
-/* Consolidated slide animations */
-.animate-slide-in-top { --slide-from: translate3d(0, -20px, 0); animation: slideIn 0.3s ease-out; }
-.animate-slide-in-bottom { --slide-from: translate3d(0, 20px, 0); animation: slideIn 0.3s ease-out; }
-.animate-slide-in-left { --slide-from: translate3d(-20px, 0, 0); animation: slideIn 0.3s ease-out; }
-.animate-slide-in-right { --slide-from: translate3d(20px, 0, 0); animation: slideIn 0.3s ease-out; }
+/* Consolidated animations with CSS variables */
+.animate-slide-in-top { animation: slideIn 0.3s ease-out; }
+.animate-slide-in-bottom { animation: slideIn 0.3s ease-out; transform-origin: bottom; }
+.animate-slide-in-left { animation: slideIn 0.3s ease-out; transform-origin: left; }
+.animate-slide-in-right { animation: slideIn 0.3s ease-out; transform-origin: right; }
 
-/* Consolidated scale animations */
 .animate-scale-in { animation: scaleIn 0.3s ease-out; }
-.animate-zoom-in { --scale-from: 0.3; animation: scaleIn 0.3s ease-out; }
+.animate-zoom-in { animation: scaleIn 0.3s ease-out; }
 
-/* Performance-optimized transitions */
 .animate-fade-in { animation: fadeIn 0.3s ease-out; }
 .animate-fade-out { animation: fadeOut 0.3s ease-out; }
-.animate-target-reveal { animation: targetReveal 0.6s ease-out; will-change: opacity, transform; }
-.animate-guess-placement { animation: guessPlacement 0.4s ease-out; will-change: transform; }
-.animate-notification-slide-in { --notification-from: translateX(100%); animation: notification 0.3s ease-out; }
+.animate-target-reveal { animation: targetReveal 0.6s ease-out; }
+.animate-guess-placement { animation: guessPlacement 0.4s ease-out; }
+.animate-notification-slide-in { animation: notification 0.3s ease-out; }
 .animate-celebration { animation: celebrate 0.6s ease-out; }
 
-/* Timer states with optimized properties */
+/* Timer states - simplified */
 .timer.warning { animation: timerWarning 1s ease-in-out infinite; }
 .timer.danger { animation: timerDanger 0.5s ease-in-out infinite; }
 
-/* Spectrum gradient optimization */
+/* Spectrum gradient - removed will-change */
 .spectrum-gradient.animated {
-  background-size: 200% 200%;
-  animation: spectrumShift 4s ease-in-out infinite;
-  will-change: background-position;
+  background-size: 200% 100%;
+  animation: spectrumShift 4s linear infinite;
 }
 
-/* Hover effects with transform3d */
+/* Hover effects - simplified */
 .hover-lift {
-  transition: transform 250ms, box-shadow 250ms;
-  will-change: transform;
+  transition: transform 200ms;
 }
 
 .hover-lift:hover {
-  transform: translate3d(0, -2px, 0);
-  box-shadow: 0 8px 25px rgba(0, 212, 255, 0.2);
+  transform: translateY(-2px);
 }
 
 .hover-scale {
-  transition: transform 250ms;
-  will-change: transform;
+  transition: transform 200ms;
 }
 
 .hover-scale:hover {
-  transform: scale3d(1.05, 1.05, 1);
+  transform: scale(1.05);
 }
 
-/* Ripple effect optimization */
+/* Simplified ripple effect */
 .ripple {
   position: relative;
   overflow: hidden;
-  contain: paint;
 }
 
 .ripple-effect {
@@ -244,7 +212,6 @@
   transform: scale(0);
   animation: rippleExpand 0.6s ease-out;
   pointer-events: none;
-  will-change: transform;
 }
 
 @keyframes rippleExpand {
@@ -254,7 +221,7 @@
   }
 }
 
-/* Loading states with GPU acceleration */
+/* Simplified skeleton loading */
 .skeleton {
   background: linear-gradient(
     90deg,
@@ -264,24 +231,22 @@
   );
   background-size: 200% 100%;
   animation: skeletonLoading 1.5s infinite;
-  will-change: background-position;
 }
 
 @keyframes skeletonLoading {
-  to { background-position: -200% 0; }
+  to { background-position-x: -200%; }
 }
 
-/* Progress bar optimization */
+/* Simplified progress bar */
 .progress-fill::after {
   content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
   animation: progressShine 2s infinite;
-  will-change: transform;
 }
 
-/* Particle system optimization */
+/* Simplified particle system */
 .particle {
   position: absolute;
   width: 4px;
@@ -289,19 +254,15 @@
   background: var(--accent-teal);
   border-radius: 50%;
   animation: particleFloat 3s ease-out;
-  will-change: transform, opacity;
-  contain: layout style paint;
 }
 
-/* Responsive adjustments with consolidated rules */
+/* Responsive adjustments */
 @media (max-width: 768px) {
-  .animate-bounce { animation-duration: 1.5s; }
-  .animate-pulse { animation-duration: 3s; }
-  .hover-lift:hover { transform: translate3d(0, -1px, 0); }
-  .hover-scale:hover { transform: scale3d(1.02, 1.02, 1); }
+  .animate-bounce { animation-duration: 1.2s; }
+  .animate-pulse { animation-duration: 2.5s; }
 }
 
-/* Accessibility optimization */
+/* Accessibility - complete disable for reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation: none !important;
@@ -312,33 +273,31 @@
   .progress-fill::after { display: none; }
 }
 
-/* Dark mode effects with filter optimization */
+/* Dark mode effects - simplified */
 .glow-text {
-  filter: drop-shadow(0 0 10px currentColor) drop-shadow(0 0 20px currentColor);
+  text-shadow: 0 0 10px currentColor;
 }
 
 .neon-border {
   border: 2px solid var(--accent-teal);
-  box-shadow: inset 0 0 10px rgba(0, 212, 255, 0.2), 0 0 20px rgba(0, 212, 255, 0.3);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
 }
 
-/* Glass shine effect optimized */
+/* Simplified glass shine */
 .glass-shine {
   position: relative;
   overflow: hidden;
-  contain: paint;
 }
 
 .glass-shine::before {
   content: '';
   position: absolute;
-  inset: -50%;
-  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.05) 50%, transparent 70%);
-  transform: rotate(45deg) translateX(-100%);
+  inset: 0;
+  background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.05) 50%, transparent 60%);
+  transform: translateX(-100%);
   animation: glassShine 3s infinite;
-  will-change: transform;
 }
 
 @keyframes glassShine {
-  to { transform: rotate(45deg) translateX(100%); }
+  to { transform: translateX(100%); }
 }

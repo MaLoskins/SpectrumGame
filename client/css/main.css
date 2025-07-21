@@ -93,8 +93,8 @@
   /* Layout */
   --header-height: 60px;
   --footer-min-height: 120px;
-  --sidebar-width: 280px;
-  --sidebar-width-sm: 240px;
+  --sidebar-width-right: 500px;
+  --sidebar-width-left: 600px;
 }
 
 /* Base reset with modern approach */
@@ -394,7 +394,7 @@ input.error {
 /* Main game area with modern Grid */
 .game-main {
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr var(--sidebar-width);
+  grid-template-columns: var(--sidebar-width-left) 1fr var(--sidebar-width-right);
   overflow: hidden;
   min-height: 0;
   contain: layout style;
@@ -409,7 +409,7 @@ input.error {
   contain: layout style;
 }
 
-.game-sidebar-left { padding-inline-end: 0; }
+.game-sidebar-left { padding-inline-end: 0;}
 .game-sidebar-right { padding-inline-start: 0; }
 
 .game-center {
