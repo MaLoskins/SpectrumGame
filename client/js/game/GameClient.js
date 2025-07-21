@@ -201,33 +201,32 @@ export class GameClient {
     }
 
     handleRoomCreated(data) {
-        if (this.debugMode) console.log('🏠 Room created:', data);
-        
-        this.currentRoomId = data.roomId;
-        this.playerId = data.playerId;
-        
-        this.stateManager.setLoading(false);
-        this.stateManager.setConnected(data.playerId, data.roomCode);
-        this.stateManager.updatePlayers(data.players);
-        this.stateManager.setRoomInfo(data.room || {
-            code: data.roomCode,
-            hostId: data.playerId,
-            playerCount: data.players.length,
-            maxPlayers: 4,
-            canStart: data.players.length >= 2,
-            settings: {}
-        });
-        this.stateManager.setCurrentView('game');
-        this.stateManager.setGamePhase('lobby');
-        
-        if (this.debugMode) {
+            if (this.debugMode) console.log('🏠 Room created:', data);
+            
+            this.currentRoomId = data.roomId;
+            this.playerId = data.playerId;
+            
+            this.stateManager.setLoading(false);
+            this.stateManager.setConnected(data.playerId, data.roomCode);
+            this.stateManager.updatePlayers(data.players);
+            this.stateManager.setRoomInfo(data.room || {
+                code: data.roomCode,
+                hostId: data.playerId,
+                playerCount: data.players.length,
+                maxPlayers: 4,
+                canStart: data.players.length >= 2,
+                settings: {}
+            });
+            this.stateManager.setCurrentView('game');
+            this.stateManager.setGamePhase('lobby');
+            
+            // Show room code notification
             this.stateManager.addNotification({
                 type: 'success',
-                message: `Room ${data.roomCode} created successfully!`,
-                duration: 3000
+                message: `Room ${data.roomCode} created! Share this code with your friends.`,
+                duration: 0 // Don't auto-hide this notification
             });
         }
-    }
 
     handleRoomJoined(data) {
         if (this.debugMode) console.log('🚪 Room joined:', data);

@@ -134,29 +134,56 @@ export class SpectrumRenderer {
     }
 
     updateCanvasSize() {
-        if (!this.canvas || !this.gridContainer) return;
-        
-        this.containerRect = this.gridContainer.getBoundingClientRect();
-        const width = this.containerRect.width;
-        const height = this.containerRect.height;
-        
-        this.canvasSize = { width, height };
-        
-        const pixelWidth = width * this.devicePixelRatio;
-        const pixelHeight = height * this.devicePixelRatio;
-        
-        this.canvas.width = pixelWidth;
-        this.canvas.height = pixelHeight;
-        
-        this.canvas.style.width = '100%';
-        this.canvas.style.height = '100%';
-        
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-        this.ctx.scale(this.devicePixelRatio, this.devicePixelRatio);
-        
-        // Clear cache on resize
-        this.gradientCache.clear();
-    }
+            if (!this.canvas || !this.gridContainer) return;
+            
+            this.containerRect = this.gridContainer.getBoundingClientRect();
+            const width = this.containerRect.width;
+            const height = this.containerRect.height;
+            
+            // Don't resize if dimensions haven't actually changed
+            if (this.canvasSize.width === width && this.canvasSize.height === height) {
+                return;
+            }
+            
+            this.canvasSize = { width, height };
+            
+            // Update device pixel ratio in case zoom changed
+            this.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+            
+            const pixelWidth = width * this.devicePixelRatio;
+            const pixelHeight = height * this.devicePixelRatio;
+            
+            // Store the current image data before resizing
+            let imageData = null;
+            try {
+                if (this.canvas.width > 0 && this.canvas.height > 0) {
+                    imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                }
+            } catch (e) {
+                // Context might be lost, that's okay
+            }
+            
+            this.canvas.width = pixelWidth;
+            this.canvas.height = pixelHeight;
+            
+            this.canvas.style.width = '100%';
+            this.canvas.style.height = '100%';
+            
+            // Re-establish context settings
+            this.ctx = this.canvas.getContext('2d', { 
+                alpha: false,
+                desynchronized: true
+            });
+            
+            this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+            this.ctx.scale(this.devicePixelRatio, this.devicePixelRatio);
+            
+            // Clear cache on resize
+            this.gradientCache.clear();
+            
+            // Force immediate re-render
+            this.render();
+        }
 
     handleResize = () => {
         this.updateCanvasSize();
