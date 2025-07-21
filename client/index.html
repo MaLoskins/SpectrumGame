@@ -133,7 +133,7 @@
             </header>
             
             <main class="game-main">
-                <!-- Left Panel: Players & Scores -->
+                <!-- Left Panel: Players, Scores & Game Controls -->
                 <aside class="game-sidebar game-sidebar-left">
                     <div class="player-list glass-panel" role="complementary" aria-label="Players and scores">
                         <h3>Players</h3>
@@ -144,10 +144,51 @@
                             <div id="scoreboard-container" class="scoreboard-container" role="list" aria-label="Player scores"></div>
                         </div>
                     </div>
-                    <div class="notification-panel glass-panel" role="complementary" aria-label="Notifications">
-                        <h3>Notifications</h3>
-                        <div id="players-container" class="players-container" role="list" aria-label="Connected players"></div>
-                        <!-- I WANT ALL NOTIFICATIONS TO BE MOVED HERE-->
+                    
+                    <!-- Enhanced Notification & Control Panel -->
+                    <div class="notification-panel glass-panel" role="complementary" aria-label="Game Controls & Notifications">
+                        <h3>Game Controls</h3>
+                        
+                        <!-- Game Control Container -->
+                        <div id="game-control-container" class="game-control-container">
+                            <!-- Notifications Container -->
+                            <div id="notifications-container" class="notifications-container"></div>
+                            
+                            <!-- Waiting Section -->
+                            <div id="waiting-section" class="control-section" role="status" aria-live="polite">
+                                <p id="waiting-message" class="waiting-message">Waiting for game to start...</p>
+                                <button id="start-game" class="btn btn-success hidden" aria-describedby="start-game-help">Start Game</button>
+                                <div id="start-game-help" class="sr-only">Start the game when all players are ready</div>
+                            </div>
+                            
+                            <!-- Clue Input Section -->
+                            <div id="clue-input-section" class="control-section hidden" role="group" aria-label="Clue giving">
+                                <label for="clue-input-field">Give a clue for the target position:</label>
+                                <div class="input-group">
+                                    <input type="text" id="clue-input-field" placeholder="Enter your clue..." maxlength="100" aria-required="true" aria-describedby="clue-input-help">
+                                    <button id="submit-clue" class="btn btn-primary" aria-describedby="submit-clue-help">Submit Clue</button>
+                                    <div id="clue-input-help" class="sr-only">Enter a helpful clue to guide other players to the target position (max 100 characters)</div>
+                                    <div id="submit-clue-help" class="sr-only">Submit your clue to other players</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Guess Input Section -->
+                            <div id="guess-input-section" class="control-section hidden" role="group" aria-label="Make your guess">
+                                <p class="control-hint">Click on the grid to place your guess!</p>
+                            </div>
+                            
+                            <!-- Results Section -->
+                            <div id="results-section" class="control-section hidden" role="region" aria-label="Round results">
+                                <div class="results-content">
+                                    <h4>Round Results</h4>
+                                    <div id="results-container" class="results-container" role="list" aria-label="Player results"></div>
+                                    <button id="next-round" class="btn btn-primary hidden" aria-describedby="next-round-help">Next Round</button>
+                                    <button id="view-final-scores" class="btn btn-success hidden" aria-describedby="final-scores-help">View Final Scores</button>
+                                    <div id="next-round-help" class="sr-only">Continue to the next round</div>
+                                    <div id="final-scores-help" class="sr-only">View the final game results and winner</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </aside>
                 
@@ -215,55 +256,6 @@
                     </div>
                 </aside>
             </main>
-            
-            <!-- Game Controls Footer Overlay -->
-            <footer class="game-controls-overlay" role="contentinfo" aria-label="Game controls">
-                <!-- Toggle Button -->
-                <button id="toggle-footer" class="footer-toggle-btn" aria-label="Toggle game controls" aria-expanded="false">
-                    <span class="toggle-icon">▲</span>
-                    <span class="toggle-label">Game Controls</span>
-                    <span id="footer-notification-badge" class="notification-badge hidden">!</span>
-                </button>
-                
-                <!-- Overlay Content -->
-                <div id="footer-content" class="footer-content glass-panel hidden">
-                    <div class="controls-container">
-                        <!-- Notifications Container -->
-                        <div id="notifications-container" class="notifications-container"></div>
-                        
-                        <div id="clue-input-section" class="control-section hidden" role="group" aria-label="Clue giving">
-                            <label for="clue-input-field">Give a clue for the target position:</label>
-                            <div class="input-group">
-                                <input type="text" id="clue-input-field" placeholder="Enter your clue..." maxlength="100" aria-required="true" aria-describedby="clue-input-help">
-                                <button id="submit-clue" class="btn btn-primary" aria-describedby="submit-clue-help">Submit Clue</button>
-                                <div id="clue-input-help" class="sr-only">Enter a helpful clue to guide other players to the target position (max 100 characters)</div>
-                                <div id="submit-clue-help" class="sr-only">Submit your clue to other players</div>
-                            </div>
-                        </div>
-                        
-                        <div id="guess-input-section" class="control-section hidden" role="group" aria-label="Make your guess">
-                            <p class="control-hint">Click on the grid to place your guess!</p>
-                        </div>
-                        
-                        <div id="waiting-section" class="control-section" role="status" aria-live="polite">
-                            <p id="waiting-message" class="waiting-message">Waiting for game to start...</p>
-                            <button id="start-game" class="btn btn-success hidden" aria-describedby="start-game-help">Start Game</button>
-                            <div id="start-game-help" class="sr-only">Start the game when all players are ready</div>
-                        </div>
-                        
-                        <div id="results-section" class="control-section hidden" role="region" aria-label="Round results">
-                            <div class="results-content">
-                                <h3>Round Results</h3>
-                                <div id="results-container" class="results-container" role="list" aria-label="Player results"></div>
-                                <button id="next-round" class="btn btn-primary hidden" aria-describedby="next-round-help">Next Round</button>
-                                <button id="view-final-scores" class="btn btn-success hidden" aria-describedby="final-scores-help">View Final Scores</button>
-                                <div id="next-round-help" class="sr-only">Continue to the next round</div>
-                                <div id="final-scores-help" class="sr-only">View the final game results and winner</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </footer>
         </div>
         
         <!-- Modal Overlay -->

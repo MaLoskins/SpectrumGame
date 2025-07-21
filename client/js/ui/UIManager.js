@@ -1,7 +1,7 @@
 /**
  * UI Manager - Coordinates all UI interactions and state updates
  * Handles DOM manipulation, screen transitions, form validation, and reactive updates
- * UPDATED: Dark mode styling integration
+ * UPDATED: Integrated game controls into notification panel
  */
 
 import { gameLogic } from '../game/GameLogic.js';
@@ -82,6 +82,8 @@ export class UIManager {
             chatInput: '#chat-input',
             sendChatBtn: '#send-chat', 
             toggleChatBtn: '#toggle-chat',
+            // Game control elements in notification panel
+            gameControlContainer: '#game-control-container',
             clueInputSection: '#clue-input-section',
             guessInputSection: '#guess-input-section',
             waitingSection: '#waiting-section', 
@@ -100,10 +102,7 @@ export class UIManager {
             modalCancel: '#modal-cancel', 
             modalClose: '#modal-close',
             loadingIndicator: '#loading-indicator', 
-            notificationsContainer: '#notifications-container',
-            footerToggleBtn: '#toggle-footer',
-            footerContent: '#footer-content',
-            footerNotificationBadge: '#footer-notification-badge'
+            notificationsContainer: '#notifications-container'
         };
         
         // Single batch query
@@ -131,8 +130,6 @@ export class UIManager {
         this.elements.roomCodeInput?.addEventListener('input', () => this.validateRoomCode());
         this.elements.clueInput?.addEventListener('input', () => this.validateClue());
         this.elements.chatInput?.addEventListener('keypress', e => { if (e.key === 'Enter') this.handleSendChat(); });
-        
-        this.setupFooterEventListeners();
     }
 
     handleGlobalClick(e) {
@@ -199,70 +196,6 @@ export class UIManager {
         
         // Execute all queued updates
         updates.forEach(fn => fn());
-    }
-
-    setupFooterEventListeners() {
-        // Toggle footer button
-        this.elements.footerToggleBtn?.addEventListener('click', () => this.toggleFooter());
-        
-        // Keyboard shortcut to toggle footer (F key)
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'f' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
-                e.preventDefault();
-                this.toggleFooter();
-            }
-            
-            // Close footer on Escape
-            if (e.key === 'Escape' && this.isFooterOpen()) {
-                this.closeFooter();
-            }
-        });
-    }
-
-    toggleFooter() {
-        const isOpen = !this.elements.footerContent.classList.contains('hidden');
-        
-        if (isOpen) {
-            this.closeFooter();
-        } else {
-            this.openFooter();
-        }
-    }
-
-    openFooter() {
-        this.elements.footerContent.classList.remove('hidden');
-        this.elements.footerToggleBtn.classList.add('active');
-        this.elements.footerToggleBtn.setAttribute('aria-expanded', 'true');
-        this.elements.footerBackdrop.classList.add('active');
-        
-        // Clear notification badge
-        this.clearFooterNotificationBadge();
-        
-        // Focus on first interactive element in footer
-        requestAnimationFrame(() => {
-            const firstButton = this.elements.footerContent.querySelector('button:not([disabled])');
-            const firstInput = this.elements.footerContent.querySelector('input:not([disabled])');
-            (firstInput || firstButton)?.focus();
-        });
-    }
-
-    closeFooter() {
-        this.elements.footerContent.classList.add('hidden');
-        this.elements.footerToggleBtn.classList.remove('active');
-        this.elements.footerToggleBtn.setAttribute('aria-expanded', 'false');
-        this.elements.footerBackdrop.classList.remove('active');
-    }
-
-    isFooterOpen() {
-        return !this.elements.footerContent.classList.contains('hidden');
-    }
-
-    showFooterNotificationBadge() {
-        this.elements.footerNotificationBadge?.classList.remove('hidden');
-    }
-
-    clearFooterNotificationBadge() {
-        this.elements.footerNotificationBadge?.classList.add('hidden');
     }
 
     initializeUI() {
@@ -381,7 +314,7 @@ export class UIManager {
             Enter: () => {
                 const activeElement = document.activeElement;
                 if ([this.elements.playerNameInput, this.elements.roomCodeInput].includes(activeElement)) {
-this.handleConfirmAction();
+                    this.handleConfirmAction();
                 } else if (activeElement === this.elements.clueInput) {
                     this.handleSubmitClue();
                 }
@@ -418,15 +351,12 @@ this.handleConfirmAction();
         
         this.hideAllControlSections();
         
-        // Auto-open footer for important phases
-        const autoOpenPhases = ['giving-clue', 'results'];
-        const shouldAutoOpen = autoOpenPhases.includes(phase) && 
-                            (phase === 'giving-clue' ? isClueGiver : true);
-        
-        if (shouldAutoOpen && !this.isFooterOpen()) {
-            this.openFooter();
-            this.showFooterNotificationBadge();
-        }
+        // Scroll notification panel to show relevant content
+        const scrollToControl = () => {
+            if (this.elements.gameControlContainer) {
+                this.elements.gameControlContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        };
         
         // Use requestAnimationFrame for DOM updates
         requestAnimationFrame(() => {
@@ -444,6 +374,11 @@ this.handleConfirmAction();
             
             this.updateSpectrumInteraction(phase, isClueGiver);
             this.updateTimerVisibility(phase);
+            
+            // Scroll to show relevant control section
+            if (['giving-clue', 'results', 'finished'].includes(phase)) {
+                setTimeout(scrollToControl, 300);
+            }
         });
     }
 
@@ -492,6 +427,9 @@ this.handleConfirmAction();
                 }
                 
                 requestAnimationFrame(() => this.elements.clueInput?.focus());
+                
+                // Add notification badge
+                this.showNotification('Your turn to give a clue!', 'info', 5000);
             } else {
                 console.error('❌ Clue input section element not found!');
             }
@@ -508,18 +446,8 @@ this.handleConfirmAction();
         if (!isClueGiver) {
             this.elements.guessInputSection.classList.remove('hidden');
             
-            if (this.elements.submitGuessBtn) {
-                this.elements.submitGuessBtn.disabled = false;
-                this.elements.submitGuessBtn.classList.remove('disabled');
-            }
-            
-            if (this.elements.guessSlider) {
-                this.elements.guessSlider.value = 50;
-                this.elements.guessValue.textContent = '50';
-                this.elements.guessSlider.disabled = false;
-            }
-            
-            requestAnimationFrame(() => this.elements.guessSlider?.focus());
+            // Add notification
+            this.showNotification('Click on the grid to place your guess!', 'info', 5000);
         } else {
             this.elements.waitingSection.classList.remove('hidden');
             this.elements.waitingMessage.textContent = 'Players are guessing...';
@@ -553,10 +481,8 @@ this.handleConfirmAction();
         this.elements.resultsSection.classList.remove('hidden');
         this.updateResultsDisplay(gameState);
         
-        // Ensure footer is open to show results
-        if (!this.isFooterOpen()) {
-            this.openFooter();
-        }
+        // Add notification
+        this.showNotification('Round complete! Check the results below.', 'success', 5000);
         
         const showButton = gameState.currentRound < gameState.totalRounds 
             ? this.elements.nextRoundBtn 
@@ -577,6 +503,9 @@ this.handleConfirmAction();
         
         this.updateFinalResultsDisplay(gameState);
         this.elements.viewFinalScoresBtn?.focus();
+        
+        // Add celebration notification
+        this.showNotification('🎉 Game finished! Check the final scores!', 'success', 0);
     }
 
     handleDefaultPhase() {
@@ -586,12 +515,12 @@ this.handleConfirmAction();
     }
 
     updateSpectrumInteraction(phase, isClueGiver) {
-        const spectrumLine = this.elements.spectrumLine;
-        if (!spectrumLine) return;
+        const spectrumWrapper = document.getElementById('spectrum-grid');
+        if (!spectrumWrapper) return;
         
         const interactive = phase === 'guessing' && !isClueGiver;
-        spectrumLine.classList.toggle('interactive', interactive);
-        spectrumLine.classList.toggle('disabled', !interactive);
+        spectrumWrapper.classList.toggle('interactive', interactive);
+        spectrumWrapper.classList.toggle('disabled', !interactive);
     }
 
     updateTimerVisibility(phase) {
@@ -617,25 +546,25 @@ this.handleConfirmAction();
         const summary = document.createElement('div');
         summary.className = 'round-summary';
         summary.innerHTML = `
-            <h4>Round ${gameState.currentRound} Results</h4>
-            <p>Target was at: <strong>${gameState.targetPosition}%</strong></p>
+            <p>Target was at: <strong>(${gameState.targetCoordinate?.x || 0}, ${gameState.targetCoordinate?.y || 0})</strong></p>
         `;
         fragment.appendChild(summary);
         
         if (gameState.guesses && gameState.roundScores) {
-            Object.entries(gameState.guesses).forEach(([playerId, guess]) => {
+            Object.entries(gameState.guesses).forEach(([playerId, coordinate]) => {
                 const player = this.stateManager.getPlayer(playerId);
                 const score = gameState.roundScores[playerId] || 0;
-                const distance = Math.abs(guess - gameState.targetPosition);
+                const distance = gameState.targetCoordinate ? 
+                    Math.round(gameLogic.calculateDistance(coordinate, gameState.targetCoordinate) * 10) / 10 : 0;
                 
-                fragment.appendChild(this.createPlayerResultElement(player, guess, score, distance));
+                fragment.appendChild(this.createPlayerResultElement(player, coordinate, score, distance));
             });
         }
         
         if (gameState.bonusAwarded) {
             const bonus = document.createElement('div');
             bonus.className = 'bonus-indicator animate-success-celebration';
-            bonus.innerHTML = '🎉 <strong>Bonus Round!</strong> All players guessed within 10%!';
+            bonus.innerHTML = '🎉 <strong>Bonus Round!</strong> All players guessed within 10 units!';
             fragment.appendChild(bonus);
         }
         
@@ -659,7 +588,7 @@ this.handleConfirmAction();
         `;
     }
 
-    createPlayerResultElement(player, guess, score, distance) {
+    createPlayerResultElement(player, coordinate, score, distance) {
         const div = document.createElement('div');
         div.className = 'player-result';
         
@@ -672,7 +601,7 @@ this.handleConfirmAction();
                 <span class="player-score">+${score} points</span>
             </div>
             <div class="player-result-details">
-                <span class="guess-position">Guessed: ${guess}%</span>
+                <span class="guess-position">Guessed: (${coordinate?.x || 0}, ${coordinate?.y || 0})</span>
                 <span class="guess-distance">Distance: ${distance}</span>
             </div>
         `;
@@ -892,7 +821,7 @@ this.handleConfirmAction();
     }
 
     handleResize = () => {
-        if (this.elements.spectrumCanvas) window.dispatchEvent(new Event('resize'));
+        if (window.dispatchEvent) window.dispatchEvent(new Event('resize'));
         if (this.activeModal) this.repositionModal();
         if (this.elements.chatMessages) this.scrollChatToBottom();
     }
@@ -977,14 +906,7 @@ this.handleConfirmAction();
     }
 
     showNotification(message, type = 'info', duration = 5000) {
-        if (!this.debugMode && type !== 'error') return;
-        
         this.stateManager.addNotification({ message, type, duration });
-        
-        // Show badge if footer is closed
-        if (!this.isFooterOpen()) {
-            this.showFooterNotificationBadge();
-        }
     }
 
     updateNotifications(notifications) {

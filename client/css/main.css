@@ -92,9 +92,8 @@
   
   /* Layout */
   --header-height: 60px;
-  --footer-min-height: 120px;
-  --sidebar-width-right: 500px;
-  --sidebar-width-left: 600px;
+  --sidebar-width-right: 400px;
+  --sidebar-width-left: 550px;
 }
 
 /* Base reset with modern approach */
@@ -398,7 +397,6 @@ input.error {
   overflow: hidden;
   min-height: 0;
   contain: layout style;
-  padding-bottom: var(--space-3xl);
 }
 
 .game-sidebar {
@@ -407,10 +405,16 @@ input.error {
   flex-direction: column;
   gap: var(--space-lg);
   contain: layout style;
+  overflow-y: auto;
 }
 
-.game-sidebar-left { padding-inline-end: 0;}
-.game-sidebar-right { padding-inline-start: 0; }
+.game-sidebar-left { 
+  padding-inline-end: 0;
+}
+
+.game-sidebar-right { 
+  padding-inline-start: 0; 
+}
 
 .game-center {
   padding: var(--space-lg);
@@ -461,28 +465,63 @@ input.error {
 
 /* Responsive with consolidated media queries */
 @media (max-width: 1400px) {
+  :root {
+    --sidebar-width-left: 300px;
+    --sidebar-width-right: 350px;
+  }
   .game-center { padding: var(--space-md); }
 }
 
 @media (max-width: 1200px) {
-  .game-main { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+  .game-main { 
+    grid-template-columns: 1fr; 
+    grid-template-rows: auto 1fr auto; 
+  }
   .game-sidebar { 
     grid-column: 1; 
     padding: var(--space-md); 
     flex-direction: row; 
     height: auto; 
-    max-height: 250px; 
+    max-height: 250px;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
-  .game-sidebar > * { flex: 1; }
-  .game-center { padding: var(--space-md); min-height: 400px; }
+  .game-sidebar > * { 
+    flex: 1; 
+    min-width: 300px;
+  }
+  .game-center { 
+    padding: var(--space-md); 
+    min-height: 400px; 
+  }
 }
 
 @media (max-width: 768px) {
-  :root { --header-height: auto; --footer-min-height: auto; }
-  .header-content { flex-direction: column; padding: var(--space-md); gap: var(--space-sm); }
-  .room-info { flex-direction: column; gap: var(--space-sm); }
-  .game-sidebar { flex-direction: column; }
-  .game-center { padding: var(--space-sm); min-height: 350px; }
+  :root { 
+    --header-height: auto; 
+  }
+  .header-content { 
+    flex-direction: column; 
+    padding: var(--space-md); 
+    gap: var(--space-sm); 
+  }
+  .room-info { 
+    flex-direction: column; 
+    gap: var(--space-sm); 
+  }
+  .game-sidebar { 
+    flex-direction: column;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .game-sidebar > * {
+    min-width: unset;
+  }
+  .game-center { 
+    padding: var(--space-sm); 
+    min-height: 350px; 
+  }
 }
 
 @media (max-width: 480px) {
