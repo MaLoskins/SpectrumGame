@@ -813,6 +813,14 @@ export class UIManager {
         viewElement.classList.add('animate-fade-in');
         
         this.currentView = view;
+        
+        // Update room code display when switching to game view
+        if (view === 'game') {
+            const connectionState = this.stateManager.getConnectionState();
+            if (connectionState.roomCode && this.elements.currentRoomCode) {
+                this.elements.currentRoomCode.textContent = connectionState.roomCode;
+            }
+        }
     }
 
     showLobby() {

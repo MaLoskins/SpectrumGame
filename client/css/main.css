@@ -147,6 +147,34 @@ body::before {
   contain: size layout style;
 }
 
+/* Room code styling for better visibility */
+.room-code {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--accent-teal);
+  background: rgba(0, 212, 255, 0.1);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+#current-room-code {
+  font-family: var(--font-family-mono);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+  transition: all var(--transition-fast);
+}
+
+#current-room-code:hover {
+  color: var(--accent-electric-blue);
+  text-shadow: 0 0 15px rgba(0, 212, 255, 0.8);
+  transform: scale(1.05);
+}
+
+
 /* Typography optimization */
 h1, h2, h3, h4, h5, h6 {
   font-weight: var(--font-weight-semibold);
