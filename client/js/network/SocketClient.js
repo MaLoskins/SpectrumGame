@@ -47,7 +47,15 @@ export class SocketClient {
             this.isConnecting = true;
             this.stateManager.updateConnectionState({ status: 'connecting' });
             
-            this.socket = io(this.getServerUrl(), this.connectionOptions);
+            const serverUrl = this.getServerUrl();
+            console.log('🔌 Server URL:', serverUrl);
+            
+            this.socket = io(serverUrl, {
+                ...this.connectionOptions,
+                // Ensure both transports are available
+                transports: ['websocket', 'polling']
+            });
+            
             this.setupSocketEventHandlers();
             await this.waitForConnection();
         } catch (error) {
@@ -59,9 +67,14 @@ export class SocketClient {
     }
 
     getServerUrl() {
-        return ['localhost', '127.0.0.1'].includes(window.location.hostname) 
-            ? `http://localhost:${window.location.port}` 
-            : window.location.origin;
+        // In development, connect to localhost
+        if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+            return 'http://localhost:3000';
+        }
+        
+        // In production (Railway), use the current origin
+        // This works because Railway serves both the static files and socket.io from the same domain
+        return window.location.origin;
     }
 
     setupSocketEventHandlers() {
