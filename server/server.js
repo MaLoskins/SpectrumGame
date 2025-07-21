@@ -23,7 +23,8 @@ const { SocketHandler } = require('./network/SocketHandler');
 class SpectrumServer {
     constructor() {
         Object.assign(this, {
-            port: process.env.PORT || 3000,
+            // Railway provides PORT via environment variable
+            port: process.env.PORT || process.env.RAILWAY_TCP_PROXY_PORT || 3000,
             isDevelopment: process.env.NODE_ENV !== 'production',
             app: express(),
             roomManager: null,
@@ -39,7 +40,9 @@ class SpectrumServer {
                 methods: ["GET", "POST"]
             },
             pingTimeout: 60000,
-            pingInterval: 25000
+            pingInterval: 25000,
+            // Important for Railway/production
+            transports: ['websocket', 'polling']
         });
     }
 
