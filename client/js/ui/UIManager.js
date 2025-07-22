@@ -829,10 +829,10 @@ export class UIManager {
     }
 
     handleResize = () => {
-        if (window.dispatchEvent) window.dispatchEvent(new Event('resize'));
-        if (this.activeModal) this.repositionModal();
-        if (this.elements.chatMessages) this.scrollChatToBottom();
-    }
+            // Don't dispatch a new resize event - this causes an infinite loop!
+            if (this.activeModal) this.repositionModal();
+            if (this.elements.chatMessages) this.scrollChatToBottom();
+        }
 
     repositionModal() {
         if (!this.activeModal || !this.elements.modalOverlay) return;
