@@ -396,6 +396,7 @@
   max-height: 400px;
   padding: var(--space-lg);
   contain: layout style;
+  overflow: hidden;
 }
 
 .player-list h3 {
@@ -414,8 +415,9 @@
   gap: var(--space-sm);
   margin-block-end: var(--space-lg);
   overflow-y: auto;
-  flex: 1;
-  min-height: 0;
+  flex: 1 1 auto;
+  min-height: 100px;
+  max-height: 200px;
   padding: var(--space-sm);
   background: rgba(255, 255, 255, 0.02);
   border-radius: var(--radius-lg);
@@ -429,7 +431,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
   background: var(--glass-bg);
   backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
@@ -438,6 +440,8 @@
   position: relative;
   overflow: hidden;
   contain: layout style;
+  flex-shrink: 0;
+  min-height: 48px;
 }
 
 .player-item::before {
@@ -464,6 +468,67 @@
 .player-item.current-player::before {
   background: var(--accent-teal);
   filter: drop-shadow(0 0 10px var(--accent-teal));
+}
+
+/* Add after the player list styles (around line 430) */
+.scoreboard {
+  margin-block-start: auto;
+  padding-block-start: var(--space-md);
+  border-block-start: 1px solid var(--glass-border);
+}
+
+.scoreboard h4 {
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  margin-block-end: var(--space-md);
+  text-align: center;
+}
+
+.scoreboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 150px;
+  overflow-y: auto;
+  padding: var(--space-sm);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-lg);
+}
+
+.score-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  transition: all 150ms;
+}
+
+.score-item:hover {
+  background: var(--hover-bg);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+.score-item.leader {
+  background: rgba(0, 212, 255, 0.1);
+  border-color: var(--accent-teal);
+}
+
+.score-player {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.score-value {
+  font-weight: var(--font-weight-bold);
+  color: var(--accent-green);
+  font-family: var(--font-family-mono);
+  min-width: 60px;
+  text-align: right;
 }
 
 /* Player avatar with gradient optimization */
@@ -783,7 +848,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  padding: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-lg);
   background: var(--glass-bg);
   backdrop-filter: blur(10px);
@@ -792,6 +857,8 @@
   max-width: 85%;
   animation: slideIn 0.3s ease-out;
   contain: layout style paint;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .chat-message.system {
@@ -807,6 +874,45 @@
   background: rgba(0, 212, 255, 0.1);
   border-color: var(--accent-teal);
   align-self: flex-end;
+}
+
+/* Message header styles */
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  font-size: var(--font-size-sm);
+  margin-block-end: var(--space-xs);
+}
+
+.message-sender {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.message-time {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.message-content {
+  color: var(--text-secondary);
+  line-height: var(--line-height-normal);
+}
+
+/* Update chat input container */
+.chat-input-container {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-block-start: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.chat-input-container input {
+  flex: 1;
+  min-width: 0;
 }
 
 /* Modal optimization */
@@ -831,6 +937,66 @@
   z-index: var(--z-modal);
   animation: slideIn 0.3s ease-out;
   contain: layout style;
+}
+
+/* Add after modal styles (around line 850) */
+.modal-body {
+  padding: var(--space-xl);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Final scores specific styles */
+.final-scores-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.game-summary {
+  text-align: center;
+  padding: var(--space-lg);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-lg);
+  margin-block-end: var(--space-lg);
+}
+
+.game-summary h3 {
+  color: var(--accent-teal);
+  font-size: var(--font-size-2xl);
+  margin-block-end: var(--space-md);
+}
+
+.player-result.best-guess {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(183, 148, 244, 0.1));
+  border: 2px solid var(--accent-teal);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.player-result-name {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.player-result-score {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--accent-green);
+  font-family: var(--font-family-mono);
+}
+
+.player-result-distance {
+  font-size: var(--font-size-base);
+  color: var(--accent-teal);
+  font-weight: var(--font-weight-semibold);
 }
 
 /* Responsive optimization with container queries */

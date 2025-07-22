@@ -241,6 +241,7 @@ export class SpectrumRenderer {
         }
     }
 
+
     render2DGradient() {
         const { width, height } = this.canvasSize;
         this.ctx.save();
@@ -249,14 +250,24 @@ export class SpectrumRenderer {
             this.ctx.fillStyle = this.colors.glassBg;
             this.ctx.fillRect(0, 0, width, height);
         } else {
-            // Simplified gradient without caching
+            // Use actual spectrum gradient colors
             const gradientX = this.ctx.createLinearGradient(0, 0, width, 0);
-            gradientX.addColorStop(0, this.colors.teal + '40');
-            gradientX.addColorStop(1, this.colors.lilac + '40');
+            if (this.spectrumX.gradient) {
+                gradientX.addColorStop(0, this.spectrumX.gradient.start + '40');
+                if (this.spectrumX.gradient.middle) {
+                    gradientX.addColorStop(0.5, this.spectrumX.gradient.middle + '40');
+                }
+                gradientX.addColorStop(1, this.spectrumX.gradient.end + '40');
+            }
             
             const gradientY = this.ctx.createLinearGradient(0, height, 0, 0);
-            gradientY.addColorStop(0, this.colors.electricBlue + '40');
-            gradientY.addColorStop(1, this.colors.green + '40');
+            if (this.spectrumY.gradient) {
+                gradientY.addColorStop(0, this.spectrumY.gradient.start + '40');
+                if (this.spectrumY.gradient.middle) {
+                    gradientY.addColorStop(0.5, this.spectrumY.gradient.middle + '40');
+                }
+                gradientY.addColorStop(1, this.spectrumY.gradient.end + '40');
+            }
             
             this.ctx.fillStyle = gradientX;
             this.ctx.fillRect(0, 0, width, height);
@@ -270,7 +281,6 @@ export class SpectrumRenderer {
 
         this.ctx.restore();
     }
-
     renderGridLines() {
         const { width, height } = this.canvasSize;
         this.ctx.save();

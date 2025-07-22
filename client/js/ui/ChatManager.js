@@ -182,15 +182,8 @@ export class ChatManager {
         const currentPlayer = this.stateManager.getCurrentPlayer();
         if (!currentPlayer) return;
         
-        this.stateManager.addChatMessage({
-            id: Date.now() + Math.random(),
-            content,
-            playerId: currentPlayer.id,
-            playerName: currentPlayer.name,
-            timestamp: Date.now(),
-            type: 'message'
-        });
-        
+        // Don't add the message locally - let the server broadcast handle it
+        // Just emit the event
         this.stateManager.emit('ui:send-chat', { message: content });
     }
 

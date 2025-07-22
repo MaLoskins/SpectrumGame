@@ -893,6 +893,7 @@ export class UIManager {
         }))();
     }
 
+    // Update the generateFinalScoresHTML method (around line 1219)
     generateFinalScoresHTML(scores) {
         if (!scores) return '<p>No scores available</p>';
         
@@ -904,13 +905,15 @@ export class UIManager {
             }))
             .sort((a, b) => b.score - a.score);
         
-        return rankings.map((player, index) => `
+        return `<div class="final-scores-container">` + rankings.map((player, index) => `
             <div class="player-result ${index === 0 ? 'best-guess' : ''}">
-                <div class="player-result-name">${player.name}</div>
-                <div class="player-result-score">${gameLogic.formatScore(player.score)}</div>
+                <div class="player-result-header">
+                    <div class="player-result-name">${player.name}</div>
+                    <div class="player-result-score">${gameLogic.formatScore(player.score)}</div>
+                </div>
                 <div class="player-result-distance">${index === 0 ? '🏆 Winner!' : `#${index + 1}`}</div>
             </div>
-        `).join('');
+        `).join('') + '</div>';
     }
 
     showNotification(message, type = 'info', duration = 5000) {
