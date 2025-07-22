@@ -23,7 +23,6 @@ const { SocketHandler } = require('./network/SocketHandler');
 class SpectrumServer {
     constructor() {
         Object.assign(this, {
-            // Railway provides PORT via environment variable
             port: process.env.PORT || process.env.RAILWAY_TCP_PROXY_PORT || 3000,
             isDevelopment: process.env.NODE_ENV !== 'production',
             app: express(),
@@ -41,7 +40,6 @@ class SpectrumServer {
             },
             pingTimeout: 60000,
             pingInterval: 25000,
-            // Important for Railway/production
             transports: ['websocket', 'polling']
         });
     }
@@ -50,8 +48,8 @@ class SpectrumServer {
         try {
             console.log('🚀 Initializing Spectrum Server...');
             await this.loadSpectrums();
-            this.initializeGameManagers();
-            this.configureMiddleware();
+            this.initializeManagers();
+            this.setupMiddleware();
             this.setupRoutes();
             this.setupSocketIO();
             console.log('✅ Server initialized successfully');
@@ -68,19 +66,18 @@ class SpectrumServer {
             );
             console.log(`📊 Loaded ${this.spectrums.spectrums.length} spectrum configurations`);
         } catch (error) {
-            console.error('❌ Failed to load spectrums:', error);
             throw new Error('Could not load spectrum configurations');
         }
     }
 
-    initializeGameManagers() {
+    initializeManagers() {
         this.roomManager = new RoomManager();
         this.gameManager = new GameManager(this.spectrums);
         this.socketHandler = new SocketHandler(this.io, this.roomManager, this.gameManager);
         console.log('🎮 Game managers initialized');
     }
 
-    configureMiddleware() {
+    setupMiddleware() {
         const securityHeaders = (req, res, next) => {
             res.set({
                 'X-Content-Type-Options': 'nosniff',
@@ -109,27 +106,24 @@ class SpectrumServer {
     }
 
     setupRoutes() {
+        const getStats = () => ({
+            activeRooms: this.roomManager?.getActiveRoomCount() || 0,
+            connectedPlayers: this.socketHandler?.getConnectedPlayerCount() || 0,
+            totalSpectrums: this.spectrums?.spectrums.length || 0
+        });
+        
         this.app.get('/health', (req, res) => res.json({
             status: 'healthy',
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
             memory: process.memoryUsage(),
-            activeRooms: this.roomManager?.getActiveRoomCount() || 0,
-            connectedPlayers: this.socketHandler?.getConnectedPlayerCount() || 0,
+            ...getStats(),
             version: '1.0.0'
         }));
         
-        this.app.get('/api/spectrums', (req, res) => 
-            res.json({ categories: this.spectrums?.categories || {} }));
-        
-        this.app.get('/api/stats', (req, res) => res.json({
-            activeRooms: this.roomManager?.getActiveRoomCount() || 0,
-            connectedPlayers: this.socketHandler?.getConnectedPlayerCount() || 0,
-            totalSpectrums: this.spectrums?.spectrums.length || 0
-        }));
-        
-        this.app.get('*', (req, res) => 
-            res.sendFile(path.join(__dirname, '..', 'client', 'index.html')));
+        this.app.get('/api/spectrums', (req, res) => res.json({ categories: this.spectrums?.categories || {} }));
+        this.app.get('/api/stats', (req, res) => res.json(getStats()));
+        this.app.get('*', (req, res) => res.sendFile(path.join(__dirname, '..', 'client', 'index.html')));
         
         console.log('🛣️ Routes configured');
     }
@@ -204,16 +198,14 @@ class SpectrumServer {
         });
     }
 
-    getStats() {
-        return {
-            uptime: process.uptime(),
-            memory: process.memoryUsage(),
-            activeRooms: this.roomManager?.getActiveRoomCount() || 0,
-            connectedPlayers: this.socketHandler?.getConnectedPlayerCount() || 0,
-            port: this.port,
-            environment: this.isDevelopment ? 'development' : 'production'
-        };
-    }
+    getStats = () => ({
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        activeRooms: this.roomManager?.getActiveRoomCount() || 0,
+        connectedPlayers: this.socketHandler?.getConnectedPlayerCount() || 0,
+        port: this.port,
+        environment: this.isDevelopment ? 'development' : 'production'
+    });
 }
 
 if (require.main === module) {

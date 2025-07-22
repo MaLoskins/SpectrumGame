@@ -20,11 +20,11 @@ class GameManager {
             MAX_ROUNDS: 10,
             MIN_PLAYERS: 2,
             MAX_PLAYERS: 6,
-            BONUS_THRESHOLD: 10, // Distance threshold for bonus
+            BONUS_THRESHOLD: 10,
             BONUS_POINTS: 50,
             RESULTS_VIEWING_TIME: 7000,
             BETWEEN_ROUNDS_DELAY: 3000,
-            MAX_DISTANCE: Math.sqrt(100 * 100 + 100 * 100), // ~141.4
+            MAX_DISTANCE: Math.sqrt(20000), // ~141.4
             gameTimers: new Map()
         });
         console.log('🎮 GameManager initialized');
@@ -38,18 +38,13 @@ class GameManager {
             room.currentRound++;
             this.selectClueGiver(room);
             
-            // Select two different spectrums for X and Y axes
             const { spectrumX, spectrumY } = this.selectSpectrums(room);
-            room.spectrumX = spectrumX;
-            room.spectrumY = spectrumY;
-            
-            // Generate 2D target coordinate
-            room.targetCoordinate = {
-                x: Math.floor(Math.random() * 81) + 10, // 10-90
-                y: Math.floor(Math.random() * 81) + 10  // 10-90
-            };
-            
             Object.assign(room, {
+                spectrumX, spectrumY,
+                targetCoordinate: { 
+                    x: Math.floor(Math.random() * 81) + 10, 
+                    y: Math.floor(Math.random() * 81) + 10 
+                },
                 clue: null,
                 guesses: new Map(),
                 roundStartTime: Date.now(),
@@ -57,7 +52,9 @@ class GameManager {
                 roundScores: new Map()
             });
             
-            const roundData = {
+            this.startRoundTimer(room);
+            
+            return {
                 roundNumber: room.currentRound,
                 clueGiverId: room.clueGiverId,
                 spectrumX: room.spectrumX,
@@ -65,9 +62,6 @@ class GameManager {
                 targetCoordinate: room.targetCoordinate,
                 duration: this.ROUND_DURATION
             };
-            
-            this.startRoundTimer(room);
-            return roundData;
         } catch (error) {
             console.error('❌ Error starting round:', error);
             throw error;
@@ -92,14 +86,11 @@ class GameManager {
             return this.selectSpectrums(room);
         }
         
-        // Select first spectrum
         const spectrumX = available[Math.floor(Math.random() * available.length)];
-        // Select second spectrum, ensuring it's different
-        const remainingSpectrums = available.filter(s => s.id !== spectrumX.id);
-        const spectrumY = remainingSpectrums[Math.floor(Math.random() * remainingSpectrums.length)];
+        const spectrumY = available.filter(s => s.id !== spectrumX.id)[Math.floor(Math.random() * (available.length - 1))];
         
         room.usedSpectrums.push(spectrumX.id, spectrumY.id);
-        console.log(`🌈 Selected spectrums: X-axis: ${spectrumX.name}, Y-axis: ${spectrumY.name}`);
+        console.log(`🌈 Selected spectrums: X: ${spectrumX.name}, Y: ${spectrumY.name}`);
         
         return { spectrumX, spectrumY };
     }
@@ -155,7 +146,10 @@ class GameManager {
             room.phase = 'guessing';
             console.log(`💡 Clue submitted for room ${room.code}: "${clue}"`);
             
-            return { clue: room.clue, clueGiverId: room.clueGiverId };
+            return { 
+                clue: room.clue, 
+                clueGiverId: room.clueGiverId || playerId  // Ensure clueGiverId is always included
+            };
         } catch (error) {
             console.error('❌ Error submitting clue:', error);
             throw error;
@@ -213,31 +207,13 @@ class GameManager {
             
             room.io?.to(room.id).emit('game:round-end', roundResults);
             
-            if (room.currentRound >= this.MAX_ROUNDS) {
-                this.gameTimers.set(`${room.id}_gameEnd`, 
-                    setTimeout(() => this.endGame(room), this.RESULTS_VIEWING_TIME));
-            } else {
-                this.gameTimers.set(`${room.id}_transition`, setTimeout(() => {
-                    room.phase = 'waiting';
-                    room.io?.to(room.id).emit('game:phase-change', { 
-                        phase: 'waiting',
-                        message: 'Preparing next round...'
-                    });
-                    
-                    this.gameTimers.set(`${room.id}_nextRound`, setTimeout(() => {
-                        const nextRoundData = this.startRound(room);
-                        if (room.io && room.socketHandler) {
-                            room.players.forEach((player, playerId) => {
-                                const socket = room.socketHandler.getPlayerSocket(playerId);
-                                socket?.emit('game:round-start', {
-                                    ...nextRoundData,
-                                    targetCoordinate: playerId === room.clueGiverId ? room.targetCoordinate : null
-                                });
-                            });
-                        }
-                    }, this.BETWEEN_ROUNDS_DELAY));
-                }, this.RESULTS_VIEWING_TIME));
-            }
+            const nextAction = room.currentRound >= this.MAX_ROUNDS 
+                ? () => this.endGame(room)
+                : () => this.prepareNextRound(room);
+            
+            const delay = room.currentRound >= this.MAX_ROUNDS ? this.RESULTS_VIEWING_TIME : this.RESULTS_VIEWING_TIME;
+            this.gameTimers.set(`${room.id}_${room.currentRound >= this.MAX_ROUNDS ? 'gameEnd' : 'transition'}`, 
+                setTimeout(nextAction, delay));
             
             return roundResults;
         } catch (error) {
@@ -248,12 +224,28 @@ class GameManager {
         }
     }
 
-    calculateDistance(guess, target) {
-        return Math.sqrt(
-            Math.pow(guess.x - target.x, 2) + 
-            Math.pow(guess.y - target.y, 2)
-        );
+    prepareNextRound(room) {
+        room.phase = 'waiting';
+        room.io?.to(room.id).emit('game:phase-change', { 
+            phase: 'waiting',
+            message: 'Preparing next round...'
+        });
+        
+        this.gameTimers.set(`${room.id}_nextRound`, setTimeout(() => {
+            const nextRoundData = this.startRound(room);
+            if (room.io && room.socketHandler) {
+                room.players.forEach((player, playerId) => {
+                    const socket = room.socketHandler.getPlayerSocket(playerId);
+                    socket?.emit('game:round-start', {
+                        ...nextRoundData,
+                        targetCoordinate: playerId === room.clueGiverId ? room.targetCoordinate : null
+                    });
+                });
+            }
+        }, this.BETWEEN_ROUNDS_DELAY));
     }
+
+    calculateDistance = (guess, target) => Math.hypot(guess.x - target.x, guess.y - target.y);
 
     calculateRoundScores(room) {
         const roundScores = new Map();
@@ -262,9 +254,7 @@ class GameManager {
         
         guesses.forEach(([playerId, guess]) => {
             const distance = this.calculateDistance(guess, room.targetCoordinate);
-            // Normalize score: closer = higher score
-            const normalizedDistance = distance / this.MAX_DISTANCE;
-            const score = Math.max(0, Math.round(100 * (1 - normalizedDistance)));
+            const score = Math.max(0, Math.round(100 * (1 - distance / this.MAX_DISTANCE)));
             roundScores.set(playerId, score);
             
             if (distance < bestDistance) {
@@ -278,16 +268,12 @@ class GameManager {
             const allWithinBonus = guesses.every(([, guess]) => 
                 this.calculateDistance(guess, room.targetCoordinate) <= this.BONUS_THRESHOLD
             );
-            const bonus = allWithinBonus ? this.BONUS_POINTS : 0;
-            roundScores.set(room.clueGiverId, Math.round(avgScore) + bonus);
+            roundScores.set(room.clueGiverId, Math.round(avgScore) + (allWithinBonus ? this.BONUS_POINTS : 0));
             
             return {
                 roundScores,
                 bonusAwarded: allWithinBonus,
-                bestGuess: bestPlayerId ? { 
-                    playerId: bestPlayerId, 
-                    distance: Math.round(bestDistance * 10) / 10 
-                } : null
+                bestGuess: bestPlayerId ? { playerId: bestPlayerId, distance: Math.round(bestDistance * 10) / 10 } : null
             };
         }
         
@@ -295,11 +281,9 @@ class GameManager {
         return { roundScores, bonusAwarded: false, bestGuess: null };
     }
 
-    getTotalScores(room) {
-        return Object.fromEntries(
-            Array.from(room.players.entries()).map(([id, player]) => [id, player.score || 0])
-        );
-    }
+    getTotalScores = room => Object.fromEntries(
+        Array.from(room.players.entries()).map(([id, player]) => [id, player.score || 0])
+    );
 
     endGame(room) {
         try {
@@ -349,24 +333,19 @@ class GameManager {
         return { valid: true };
     }
 
-    canStartGame(room) {
-        const count = room.players.size;
-        return count >= this.MIN_PLAYERS && count <= this.MAX_PLAYERS;
-    }
+    canStartGame = room => room.players.size >= this.MIN_PLAYERS && room.players.size <= this.MAX_PLAYERS;
 
-    getGameConfig() {
-        return {
-            ROUND_DURATION: this.ROUND_DURATION,
-            MAX_ROUNDS: this.MAX_ROUNDS,
-            MIN_PLAYERS: this.MIN_PLAYERS,
-            MAX_PLAYERS: this.MAX_PLAYERS,
-            BONUS_THRESHOLD: this.BONUS_THRESHOLD,
-            BONUS_POINTS: this.BONUS_POINTS,
-            RESULTS_VIEWING_TIME: this.RESULTS_VIEWING_TIME,
-            BETWEEN_ROUNDS_DELAY: this.BETWEEN_ROUNDS_DELAY,
-            MAX_DISTANCE: this.MAX_DISTANCE
-        };
-    }
+    getGameConfig = () => ({
+        ROUND_DURATION: this.ROUND_DURATION,
+        MAX_ROUNDS: this.MAX_ROUNDS,
+        MIN_PLAYERS: this.MIN_PLAYERS,
+        MAX_PLAYERS: this.MAX_PLAYERS,
+        BONUS_THRESHOLD: this.BONUS_THRESHOLD,
+        BONUS_POINTS: this.BONUS_POINTS,
+        RESULTS_VIEWING_TIME: this.RESULTS_VIEWING_TIME,
+        BETWEEN_ROUNDS_DELAY: this.BETWEEN_ROUNDS_DELAY,
+        MAX_DISTANCE: this.MAX_DISTANCE
+    });
 
     cleanup() {
         this.gameTimers.forEach((timer, key) => {

@@ -50,12 +50,7 @@ export class SocketClient {
             const serverUrl = this.getServerUrl();
             console.log('🔌 Server URL:', serverUrl);
             
-            this.socket = io(serverUrl, {
-                ...this.connectionOptions,
-                // Ensure both transports are available
-                transports: ['websocket', 'polling']
-            });
-            
+            this.socket = io(serverUrl, this.connectionOptions);
             this.setupSocketEventHandlers();
             await this.waitForConnection();
         } catch (error) {
@@ -67,39 +62,31 @@ export class SocketClient {
     }
 
     getServerUrl() {
-        // In development, connect to localhost
-        if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
-            return 'http://localhost:3000';
-        }
-        
-        // In production (Railway), use the current origin
-        // This works because Railway serves both the static files and socket.io from the same domain
-        return window.location.origin;
+        return ['localhost', '127.0.0.1'].includes(window.location.hostname) 
+            ? 'http://localhost:3000' 
+            : window.location.origin;
     }
 
     setupSocketEventHandlers() {
         if (!this.socket) return;
         
-        const connectionHandlers = {
-            connect: this.handleConnect,
-            disconnect: this.handleDisconnect,
-            connect_error: this.handleConnectError,
-            reconnect: this.handleReconnect,
-            reconnect_error: this.handleReconnectError
+        const handlers = {
+            connect: () => this.handleConnectionChange(true),
+            disconnect: reason => this.handleConnectionChange(false, reason),
+            connect_error: this.handleConnectionError,
+            reconnect: () => this.handleConnectionChange(true),
+            reconnect_error: this.handleConnectionError
         };
         
-        Object.entries(connectionHandlers).forEach(([event, handler]) => 
+        Object.entries(handlers).forEach(([event, handler]) => 
             this.socket.on(event, handler.bind(this)));
         
-        const gameEvents = [
-            'room:created', 'room:joined', 'room:player-joined', 'room:player-left',
-            'room:host-changed', 'game:state-update', 'game:round-start', 'game:clue-submitted',
-            'game:guess-submitted', 'game:round-end', 'game:finished', 'chat:message',
-            'timer:update', 'error', 'game:phase-change'
-        ];
-        
-        gameEvents.forEach(event => 
-            this.socket.on(event, data => this.emitToListeners(event, data)));
+        // Game events - forward to listeners
+        ['room:created', 'room:joined', 'room:player-joined', 'room:player-left',
+         'room:host-changed', 'game:state-update', 'game:round-start', 'game:clue-submitted',
+         'game:guess-submitted', 'game:round-end', 'game:finished', 'chat:message',
+         'timer:update', 'error', 'game:phase-change'
+        ].forEach(event => this.socket.on(event, data => this.emitToListeners(event, data)));
         
         this.socket.on('pong', timestamp => this.emitToListeners('latency', Date.now() - timestamp));
     }
@@ -107,46 +94,38 @@ export class SocketClient {
     waitForConnection() {
         return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => reject(new Error('Connection timeout')), this.connectionOptions.timeout);
-            
             const cleanup = () => clearTimeout(timeout);
+            
             this.socket.once('connect', () => { cleanup(); resolve(); });
             this.socket.once('connect_error', error => { cleanup(); reject(error); });
         });
     }
 
-    handleConnect() {
-        console.log('✅ Connected to server');
-        Object.assign(this, { connected: true, reconnectAttempts: 0, reconnectDelay: 1000 });
-        this.stateManager.updateConnectionState({ status: 'connected', error: null });
-        this.emitToListeners('connected');
+    handleConnectionChange(connected, reason = null) {
+        console.log(`${connected ? '✅' : '🔌'} ${connected ? 'Connected to' : 'Disconnected from'} server${reason ? `: ${reason}` : ''}`);
+        
+        this.connected = connected;
+        this.stateManager.updateConnectionState({ 
+            status: connected ? 'connected' : 'disconnected',
+            error: connected ? null : undefined
+        });
+        
+        this.emitToListeners(connected ? 'connected' : 'disconnected', reason);
+        
+        if (!connected) {
+            this.reconnectAttempts = 0;
+            this.reconnectDelay = 1000;
+            reason !== 'io client disconnect' && this.scheduleReconnect();
+        }
     }
 
-    handleDisconnect(reason) {
-        console.log('🔌 Disconnected from server:', reason);
-        this.connected = false;
-        this.stateManager.updateConnectionState({ status: 'disconnected' });
-        this.emitToListeners('disconnected', reason);
-        if (reason !== 'io client disconnect') this.scheduleReconnect();
-    }
-
-    handleConnectError(error) {
+    handleConnectionError = error => {
         console.error('❌ Connection error:', error);
-        this.handleConnectionError(error);
-    }
-
-    handleReconnect() {
-        console.log('🔄 Reconnected to server');
-        this.handleConnect();
-    }
-
-    handleReconnectError(error) {
-        console.error('❌ Reconnection error:', error);
-        this.handleConnectionError(error);
-    }
-
-    handleConnectionError(error) {
         Object.assign(this, { connected: false, isConnecting: false });
-        this.stateManager.updateConnectionState({ status: 'error', error: error.message || 'Connection failed' });
+        this.stateManager.updateConnectionState({ 
+            status: 'error', 
+            error: error.message || 'Connection failed' 
+        });
         this.emitToListeners('connection-error', error);
         this.scheduleReconnect();
     }
@@ -188,7 +167,10 @@ export class SocketClient {
     emit(event, data = null) {
         if (!this.connected || !this.socket) {
             console.warn(`Cannot emit ${event}: not connected`);
-            return false;
+            // Don't change connection state for game events if we're already connected
+            if (!['game:', 'chat:'].some(prefix => event.startsWith(prefix))) {
+                return false;
+            }
         }
         
         try {
@@ -197,46 +179,41 @@ export class SocketClient {
             return true;
         } catch (error) {
             console.error(`Failed to emit ${event}:`, error);
+            // Only trigger reconnection for critical connection errors
+            if (error.message?.includes('transport') || error.message?.includes('disconnected')) {
+                this.handleConnectionError(error);
+            }
             return false;
         }
     }
 
     on(event, callback) {
-        if (!this.eventListeners.has(event)) this.eventListeners.set(event, new Set());
-        this.eventListeners.get(event).add(callback);
+        (this.eventListeners.get(event) || this.eventListeners.set(event, new Set()).get(event)).add(callback);
     }
 
-    off(event, callback) {
-        this.eventListeners.get(event)?.delete(callback);
-    }
+    off(event, callback) { this.eventListeners.get(event)?.delete(callback); }
 
     emitToListeners(event, data = null) {
         this.eventListeners.get(event)?.forEach(callback => {
-            try { callback(data); } 
-            catch (error) { console.error(`Error in event listener for ${event}:`, error); }
+            try { callback(data); } catch (error) { console.error(`Error in event listener for ${event}:`, error); }
         });
     }
 
-    removeAllListeners() { this.eventListeners.clear(); }
+    removeAllListeners = () => this.eventListeners.clear();
     isConnected = () => this.connected && this.socket?.connected;
-    getConnectionStatus = () => 
-        this.connected ? 'connected' : 
-        this.isConnecting ? 'connecting' : 
-        this.reconnectAttempts > 0 ? 'reconnecting' : 'disconnected';
+    getConnectionStatus = () => this.connected ? 'connected' : this.isConnecting ? 'connecting' : this.reconnectAttempts > 0 ? 'reconnecting' : 'disconnected';
     getSocketId = () => this.socket?.id || null;
     getLatency = () => this.socket?.ping || null;
     ping = () => this.connected && this.socket && this.socket.emit('ping', Date.now());
 
-    getDebugInfo() {
-        return {
-            connected: this.connected,
-            connecting: this.isConnecting,
-            socketId: this.getSocketId(),
-            reconnectAttempts: this.reconnectAttempts,
-            latency: this.getLatency(),
-            transport: this.socket?.io?.engine?.transport?.name || null
-        };
-    }
+    getDebugInfo = () => ({
+        connected: this.connected,
+        connecting: this.isConnecting,
+        socketId: this.getSocketId(),
+        reconnectAttempts: this.reconnectAttempts,
+        latency: this.getLatency(),
+        transport: this.socket?.io?.engine?.transport?.name || null
+    });
 
     destroy() {
         this.removeAllListeners();

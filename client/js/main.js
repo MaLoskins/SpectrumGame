@@ -198,14 +198,14 @@ class SpectrumApp {
         });
         this.reportError(event.reason);
     }
-
+    
     handleKeyboardShortcuts = event => {
         if (['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
         
         const shortcuts = {
             Escape: () => this.modules.stateManager?.hideModal(),
             Enter: () => event.ctrlKey || event.metaKey ? this.handleFormSubmit() : null,
-            c: () => (event.ctrlKey || event.metaKey) && this.handleChatToggle(event),
+            c: () => (event.ctrlKey || event.metaKey) && this.handleChatToggle(),
             h: () => (event.ctrlKey || event.metaKey) && this.showHelp(event),
             r: () => (event.ctrlKey || event.metaKey) && this.handleReconnect(event),
             d: () => (event.ctrlKey || event.metaKey) && event.shiftKey && this.toggleDebugMode(event)
@@ -213,14 +213,12 @@ class SpectrumApp {
         
         shortcuts[event.key]?.();
     }
-
     handleFormSubmit() {
         const submitButton = document.activeElement?.form?.querySelector('button[type="submit"]');
         submitButton?.click();
     }
 
-    handleChatToggle(event) {
-        event.preventDefault();
+    handleChatToggle() {
         const gameState = this.modules.stateManager?.getGameState();
         if (gameState?.phase !== 'lobby') this.modules.chatManager?.toggleChat();
     }

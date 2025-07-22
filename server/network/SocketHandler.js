@@ -14,10 +14,14 @@
 
 class SocketHandler {
     constructor(io, roomManager, gameManager) {
-        Object.assign(this, { io, roomManager, gameManager });
-        this.connectedPlayers = new Map();
-        this.socketPlayers = new Map();
-        this.debugMode = true;
+        Object.assign(this, { 
+            io, 
+            roomManager, 
+            gameManager,
+            connectedPlayers: new Map(),
+            socketPlayers: new Map(),
+            debugMode: true
+        });
         console.log('🔌 SocketHandler initialized');
     }
 
@@ -30,22 +34,19 @@ class SocketHandler {
 
     setupSocketEventHandlers(socket) {
         const handlers = {
-            'room:create': 'CreateRoom',
-            'room:join': 'JoinRoom',
-            'game:start': 'StartGame',
-            'game:submit-clue': 'SubmitClue',
-            'game:submit-guess': 'SubmitGuess',
-            'chat:send': 'ChatMessage',
-            'player:disconnect': 'PlayerLeave',
-            'ping': (s, ts) => s.emit('pong', ts),
-            'game:request-state': 'StateRequest'
+            'room:create': data => this.handleCreateRoom(socket, data),
+            'room:join': data => this.handleJoinRoom(socket, data),
+            'game:start': data => this.handleStartGame(socket, data),
+            'game:submit-clue': data => this.handleSubmitClue(socket, data),
+            'game:submit-guess': data => this.handleSubmitGuess(socket, data),
+            'chat:send': data => this.handleChatMessage(socket, data),
+            'player:disconnect': data => this.handlePlayerLeave(socket, data),
+            'ping': ts => socket.emit('pong', ts),
+            'game:request-state': data => this.handleStateRequest(socket, data)
         };
         
-        Object.entries(handlers).forEach(([event, handler]) => {
-            socket.on(event, typeof handler === 'string' 
-                ? data => this[`handle${handler}`](socket, data) 
-                : data => handler(socket, data));
-        });
+        Object.entries(handlers).forEach(([event, handler]) => 
+            socket.on(event, handler));
         
         socket.on('disconnect', reason => this.handleDisconnection(socket, reason));
     }
@@ -57,8 +58,8 @@ class SocketHandler {
             
             const playerId = this.generatePlayerId();
             const result = this.roomManager.createRoom(playerId, playerName, settings);
-            const room = this.roomManager.getRoomByCode(result.code);
-            room.io = this.io;
+            const room = this.roomManager.getRoomByCode(result.code); // Get actual room object
+            this.setupRoom(room, this.io);
             
             socket.join(room.id);
             this.trackPlayer(socket, playerId, playerName, result.code, room.id);
@@ -86,11 +87,12 @@ class SocketHandler {
             const playerId = this.generatePlayerId();
             const roomInfo = this.roomManager.joinRoom(roomCode, playerId, playerName);
             const room = this.roomManager.getRoomByCode(roomCode);
-            room.io = this.io;
+            this.setupRoom(room, this.io);
             
             socket.join(room.id);
             this.trackPlayer(socket, playerId, playerName, roomCode, room.id);
             
+            // Send joined confirmation to the joining player
             socket.emit('room:joined', {
                 roomId: room.id,
                 roomCode,
@@ -100,11 +102,13 @@ class SocketHandler {
                 gameState: roomInfo.gameState
             });
             
+            // Broadcast to all OTHER clients in the room (including the host)
             socket.to(room.id).emit('room:player-joined', {
                 player: roomInfo.players.find(p => p.id === playerId)
             });
             
             console.log(`✅ ${playerName} joined room ${roomCode} successfully`);
+            console.log(`📢 Broadcasting player-joined to room ${room.id}`);
         } catch (error) {
             this.handleError(socket, 'ROOM_JOIN_FAILED', error);
         }
@@ -113,7 +117,7 @@ class SocketHandler {
     async handleStartGame(socket) {
         try {
             const { room, playerId } = this.getPlayerRoom(socket);
-            room.socketHandler = this;
+            this.setupRoom(room, this);
             
             const player = room.players.get(playerId);
             if (!player?.isHost) throw new Error('Only the host can start the game');
@@ -123,17 +127,7 @@ class SocketHandler {
             room.phase = 'active';
             const roundData = this.gameManager.startRound(room);
             
-            room.players.forEach((player, pid) => {
-                const playerSocket = this.getPlayerSocket(pid);
-                if (playerSocket) {
-                    const isClueGiver = pid === room.clueGiverId;
-                    playerSocket.emit('game:round-start', {
-                        ...roundData,
-                        targetCoordinate: isClueGiver ? room.targetCoordinate : null
-                    });
-                }
-            });
-            
+            this.broadcastRoundStart(room, roundData);
             console.log(`✅ Game started in room ${room.code}`);
         } catch (error) {
             this.handleError(socket, 'GAME_START_FAILED', error);
@@ -151,8 +145,8 @@ class SocketHandler {
                     currentRound: room.currentRound,
                     totalRounds: room.totalRounds || 10,
                     clueGiverId: room.clueGiverId,
-                    spectrumX: room.spectrumX,      // Updated for 2D
-                    spectrumY: room.spectrumY,      // Updated for 2D
+                    spectrumX: room.spectrumX,
+                    spectrumY: room.spectrumY,
                     clue: room.clue,
                     timeRemaining: this.calculateTimeRemaining(room),
                     targetCoordinate: playerId === room.clueGiverId ? room.targetCoordinate : null
@@ -218,7 +212,7 @@ class SocketHandler {
 
     async handlePlayerLeave(socket) {
         const playerId = this.socketPlayers.get(socket.id);
-        if (playerId) this.removePlayer(playerId, socket);
+        playerId && this.removePlayer(playerId, socket);
     }
 
     handleDisconnection(socket, reason) {
@@ -230,13 +224,11 @@ class SocketHandler {
             if (playerData) {
                 this.roomManager.updatePlayerConnection(playerId, false);
                 const room = this.roomManager.getRoomByCode(playerData.roomCode);
-                if (room) {
-                    this.io.to(room.id).emit('room:player-left', {
-                        playerId,
-                        playerName: playerData.playerName,
-                        isDisconnected: true
-                    });
-                }
+                room && this.io.to(room.id).emit('room:player-left', {
+                    playerId,
+                    playerName: playerData.playerName,
+                    isDisconnected: true
+                });
             }
             this.connectedPlayers.delete(playerId);
             this.socketPlayers.delete(socket.id);
@@ -245,37 +237,51 @@ class SocketHandler {
 
     removePlayer(playerId, socket) {
         const playerData = this.connectedPlayers.get(playerId);
-        if (playerData) {
-            try {
-                const result = this.roomManager.leaveRoom(playerId);
-                console.log(`🚪 Player ${playerData.playerName} left room ${playerData.roomCode}`);
-                socket.leave(playerData.roomId);
+        if (!playerData) return;
+        
+        try {
+            const result = this.roomManager.leaveRoom(playerId);
+            console.log(`🚪 Player ${playerData.playerName} left room ${playerData.roomCode}`);
+            socket.leave(playerData.roomId);
+            
+            if (!result.roomDeleted) {
+                this.io.to(playerData.roomId).emit('room:player-left', {
+                    playerId,
+                    playerName: playerData.playerName
+                });
                 
-                if (!result.roomDeleted) {
-                    this.io.to(playerData.roomId).emit('room:player-left', {
-                        playerId,
-                        playerName: playerData.playerName
-                    });
-                    
-                    if (result.newHost) {
-                        this.io.to(playerData.roomId).emit('room:host-changed', {
-                            newHostId: result.newHost.id,
-                            newHostName: result.newHost.name
-                        });
-                    }
-                }
-            } catch (error) {
-                console.error('❌ Error removing player:', error);
+                result.newHost && this.io.to(playerData.roomId).emit('room:host-changed', {
+                    newHostId: result.newHost.id,
+                    newHostName: result.newHost.name
+                });
             }
+        } catch (error) {
+            console.error('❌ Error removing player:', error);
         }
+        
         this.connectedPlayers.delete(playerId);
         this.socketPlayers.delete(socket.id);
     }
 
+    // Helper methods
+    setupRoom(room, handler) {
+        room.io = this.io;
+        room.socketHandler = handler;
+    }
+
+    broadcastRoundStart(room, roundData) {
+        room.players.forEach((player, pid) => {
+            const playerSocket = this.getPlayerSocket(pid);
+            playerSocket?.emit('game:round-start', {
+                ...roundData,
+                targetCoordinate: pid === room.clueGiverId ? room.targetCoordinate : null
+            });
+        });
+    }
+
     calculateTimeRemaining(room) {
         if (!room.roundStartTime) return 0;
-        const remaining = Math.max(0, this.gameManager.ROUND_DURATION * 1000 - (Date.now() - room.roundStartTime));
-        return Math.ceil(remaining / 1000);
+        return Math.max(0, Math.ceil((this.gameManager.ROUND_DURATION * 1000 - (Date.now() - room.roundStartTime)) / 1000));
     }
 
     getPlayerSocket(playerId) {
@@ -302,10 +308,9 @@ class SocketHandler {
         this.socketPlayers.set(socket.id, playerId);
     }
 
-    generatePlayerId() {
-        return `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    }
+    generatePlayerId = () => `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+    // Validation methods
     validatePlayerName(name) {
         if (!name?.trim()) throw new Error('Player name is required');
         const trimmed = name.trim();
@@ -320,8 +325,7 @@ class SocketHandler {
 
     validateChatMessage(message) {
         if (!message?.trim()) throw new Error('Message cannot be empty');
-        const trimmed = message.trim();
-        if (trimmed.length > 200) throw new Error('Message must be 200 characters or less');
+        if (message.trim().length > 200) throw new Error('Message must be 200 characters or less');
     }
 
     handleError(socket, code, error) {
@@ -329,47 +333,23 @@ class SocketHandler {
         socket.emit('error', { code, message: error.message });
     }
 
-    broadcastRoundEnd(room, results) {
-        console.log(`📊 Broadcasting round end for room ${room.code}`);
-        this.io.to(room.id).emit('game:round-end', results);
-    }
+    // Broadcast methods
+    broadcastRoundEnd = (room, results) => this.io.to(room.id).emit('game:round-end', results);
+    broadcastGameEnd = (room, results) => this.io.to(room.id).emit('game:finished', results);
+    broadcastTimerUpdate = (room, timeRemaining) => 
+        (timeRemaining % 5 === 0 || timeRemaining <= 10 || timeRemaining === 30) && 
+        this.io.to(room.id).emit('timer:update', { timeRemaining, phase: room.phase });
 
-    broadcastGameEnd(room, results) {
-        console.log(`🎉 Broadcasting game end for room ${room.code}`);
-        this.io.to(room.id).emit('game:finished', results);
-    }
+    // Stats and utility
+    getConnectedPlayerCount = () => this.connectedPlayers.size;
+    getConnectionStats = () => ({
+        connectedPlayers: this.connectedPlayers.size,
+        activeSockets: this.io.sockets.sockets.size,
+        rooms: this.roomManager.getActiveRoomCount()
+    });
 
-    broadcastTimerUpdate(room, timeRemaining) {
-        if (timeRemaining % 5 === 0 || timeRemaining <= 10 || timeRemaining === 30) {
-            if (this.debugMode && timeRemaining <= 10) {
-                console.log(`⏰ Timer update for room ${room.code}: ${timeRemaining}s`);
-            }
-            this.io.to(room.id).emit('timer:update', { timeRemaining, phase: room.phase });
-        }
-    }
-
-    getConnectedPlayerCount() { return this.connectedPlayers.size; }
-    
-    getConnectionStats() {
-        return {
-            connectedPlayers: this.connectedPlayers.size,
-            activeSockets: this.io.sockets.sockets.size,
-            rooms: this.roomManager.getActiveRoomCount()
-        };
-    }
-
-    logError(error, context, metadata = {}) {
-        const errorLog = {
-            timestamp: new Date().toISOString(),
-            context,
-            error: { message: error.message, code: error.code, stack: error.stack },
-            metadata
-        };
-        console.error('🚨 Error Log:', JSON.stringify(errorLog, null, 2));
-    }
-
-    broadcast(event, data) { this.io.emit(event, data); }
-    broadcastToRoom(roomId, event, data) { this.io.to(roomId).emit(event, data); }
+    broadcast = (event, data) => this.io.emit(event, data);
+    broadcastToRoom = (roomId, event, data) => this.io.to(roomId).emit(event, data);
 
     cleanup() {
         this.connectedPlayers.clear();
