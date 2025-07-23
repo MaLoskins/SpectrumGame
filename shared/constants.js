@@ -23,7 +23,7 @@ const GAME_RULES = {
   
   // Round settings
   ROUND_DURATION: 120, // seconds
-  MAX_ROUNDS: 15,
+  MAX_ROUNDS: 10,
   RESULTS_VIEWING_TIME: 7000, // ms
   BETWEEN_ROUNDS_DELAY: 3000, // ms
   

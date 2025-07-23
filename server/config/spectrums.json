@@ -121,7 +121,7 @@
       "id": "danger-level",
       "name": "Danger Level",
       "leftLabel": "Completely Safe",
-      "rightLabel": "Extremely Dangerous",
+      "rightLabel": "Extreme Danger",
       "gradient": {
         "start": "#4CAF50",
         "middle": "#FF9800",
@@ -768,32 +768,6 @@
       "difficulty": "easy"
     },
     {
-      "id": "ikea-difficulty",
-      "name": "IKEA Assembly Difficulty",
-      "leftLabel": "Child's Play",
-      "rightLabel": "Relationship Destroyer",
-      "gradient": {
-        "start": "#81C784",
-        "middle": "#FFB74D",
-        "end": "#D32F2F"
-      },
-      "category": "humor",
-      "difficulty": "medium"
-    },
-    {
-      "id": "pet-judgment",
-      "name": "How Much Your Cat Judges You",
-      "leftLabel": "Mild Disappointment",
-      "rightLabel": "Complete Disgust",
-      "gradient": {
-        "start": "#B39DDB",
-        "middle": "#7E57C2",
-        "end": "#4A148C"
-      },
-      "category": "humor",
-      "difficulty": "easy"
-    },
-    {
       "id": "sock-mystery",
       "name": "Likelihood of Finding Matching Sock",
       "leftLabel": "Definitely in Drawer",
@@ -821,9 +795,9 @@
     },
     {
       "id": "procrastination-level",
-      "name": "Procrastination Level",
+      "name": "Procrastination",
       "leftLabel": "I'll Do It Now",
-      "rightLabel": "Due Yesterday? Perfect Time to Start",
+      "rightLabel": "Due Yesterday?",
       "gradient": {
         "start": "#66BB6A",
         "middle": "#FFCA28",
@@ -859,19 +833,6 @@
       "difficulty": "easy"
     },
     {
-      "id": "phone-battery-anxiety",
-      "name": "Phone Battery Panic Level",
-      "leftLabel": "90% is Fine",
-      "rightLabel": "99% WHERE'S MY CHARGER?!",
-      "gradient": {
-        "start": "#4CAF50",
-        "middle": "#FFC107",
-        "end": "#F44336"
-      },
-      "category": "humor",
-      "difficulty": "easy"
-    },
-    {
       "id": "food-photo-necessity",
       "name": "Need to Photograph Food",
       "leftLabel": "Just Eat It",
@@ -885,22 +846,9 @@
       "difficulty": "medium"
     },
     {
-      "id": "password-complexity",
-      "name": "Password Ridiculousness",
-      "leftLabel": "password123",
-      "rightLabel": "Jk$9mN!qX#2@pL&7zR*4",
-      "gradient": {
-        "start": "#EF5350",
-        "middle": "#AB47BC",
-        "end": "#1976D2"
-      },
-      "category": "humor",
-      "difficulty": "easy"
-    },
-    {
       "id": "shower-temperature",
-      "name": "Shower Temperature Preference",
-      "leftLabel": "Arctic Expedition",
+      "name": "Shower Temperature",
+      "leftLabel": "Iceblock Dispenser",
       "rightLabel": "Surface of the Sun",
       "gradient": {
         "start": "#42A5F5",
@@ -963,32 +911,6 @@
       "difficulty": "easy"
     },
     {
-      "id": "parallel-parking",
-      "name": "Parallel Parking Skill",
-      "leftLabel": "One Smooth Motion",
-      "rightLabel": "47 Attempts, Still Crooked",
-      "gradient": {
-        "start": "#2E7D32",
-        "middle": "#FFC107",
-        "end": "#B71C1C"
-      },
-      "category": "humor",
-      "difficulty": "medium"
-    },
-    {
-      "id": "plant-survival",
-      "name": "Plant Parent Success Rate",
-      "leftLabel": "Green Thumb Guru",
-      "rightLabel": "Cactus Assassin",
-      "gradient": {
-        "start": "#43A047",
-        "middle": "#FFB300",
-        "end": "#5D4037"
-      },
-      "category": "humor",
-      "difficulty": "easy"
-    },
-    {
       "id": "online-shopping-regret",
       "name": "3AM Purchase Regret Level",
       "leftLabel": "Best Decision Ever",
@@ -1002,21 +924,8 @@
       "difficulty": "medium"
     },
     {
-      "id": "email-draft-time",
-      "name": "Time Spent Writing 'Simple' Email",
-      "leftLabel": "2 Minutes",
-      "rightLabel": "3 Hours + Thesaurus",
-      "gradient": {
-        "start": "#81C784",
-        "middle": "#FFD54F",
-        "end": "#7B1FA2"
-      },
-      "category": "humor",
-      "difficulty": "medium"
-    },
-    {
       "id": "googling-symptoms",
-      "name": "WebMD Diagnosis Severity",
+      "name": "Diagnosis Severity",
       "leftLabel": "Common Cold",
       "rightLabel": "Rare Tropical Disease",
       "gradient": {
