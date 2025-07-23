@@ -1,6 +1,7 @@
 /**
  * Spectrum Renderer - Interactive 2D spectrum grid visualization
  * OPTIMIZED: Reduced computational overhead while maintaining functionality
+ * FIXED: Canvas centering issues at different viewport sizes
  * 
  * @class SpectrumRenderer
  * @description Handles the rendering of the 2D spectrum grid, player guesses, target positions,
@@ -105,6 +106,11 @@ export class SpectrumRenderer {
             desynchronized: true // Reduce latency
         });
         
+        // Ensure canvas fills its container
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
+        this.canvas.style.display = 'block';
+        
         this.gridContainer.appendChild(this.canvas);
         this.updateCanvasSize();
     }
@@ -169,6 +175,7 @@ export class SpectrumRenderer {
 
     /**
      * Update canvas size and handle DPR changes
+     * FIXED: Properly handle container sizing at all viewport sizes
      * @private
      */
     updateCanvasSize() {
@@ -176,6 +183,13 @@ export class SpectrumRenderer {
         
         const rect = this.gridContainer.getBoundingClientRect();
         const {width, height} = rect;
+        
+        // Ensure we have valid dimensions
+        if (width <= 0 || height <= 0) {
+            // Defer update if container isn't properly sized yet
+            requestAnimationFrame(() => this.updateCanvasSize());
+            return;
+        }
         
         // Always check DPR to handle zoom changes
         const currentDPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -189,17 +203,13 @@ export class SpectrumRenderer {
         this.canvasSize = {width, height};
         this.devicePixelRatio = currentDPR;
         
-        // Scale both physical and CSS sizes
-        const scale = (canvas, ctx, w, h) => {
-            canvas.width = w * this.devicePixelRatio;
-            canvas.height = h * this.devicePixelRatio;
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.scale(this.devicePixelRatio, this.devicePixelRatio);
-        };
+        // Set canvas resolution
+        this.canvas.width = width * this.devicePixelRatio;
+        this.canvas.height = height * this.devicePixelRatio;
         
-        scale(this.canvas, this.ctx, width, height);
+        // Reset transform and apply DPR scaling
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.scale(this.devicePixelRatio, this.devicePixelRatio);
         
         this.markDirty();
         this.render();

@@ -4,32 +4,33 @@
 .spectrum-area {
   display: grid;
   grid-template-rows: auto 1fr;
-  gap: var(--space-md);
+  gap: clamp(0.5rem, 2vw, 1rem);
   height: 100%;
-  padding: var(--space-lg);
+  padding: clamp(0.5rem, 2vw, 1.5rem);
   position: relative;
   contain: layout style;
-  overflow: auto;
-  padding-bottom: var(--space-lg);
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* Spectrum header optimized */
 .spectrum-header {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
+  display: flex;
   align-items: center;
-  min-height: 48px;
+  justify-content: center;
+  min-height: 3rem;
   gap: var(--space-md);
+  position: relative;
 }
 
 .clue-text {
-  font-size: var(--font-size-lg);
+  font-size: clamp(0.875rem, 2vw, 1.125rem);
   font-weight: var(--font-weight-semibold);
   color: var(--accent-lilac);
   background: linear-gradient(135deg, rgba(183, 148, 244, 0.1), rgba(183, 148, 244, 0.05));
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  padding: var(--space-md) var(--space-xl);
+  padding: clamp(0.5rem, 1.5vw, 1rem) clamp(1rem, 2vw, 1.5rem);
   border-radius: var(--radius-xl);
   border: 1px solid rgba(183, 148, 244, 0.3);
   box-shadow: 0 4px 20px rgba(183, 148, 244, 0.15);
@@ -40,50 +41,53 @@
   position: relative;
   animation: slideIn 0.3s ease-out;
   contain: layout style;
-  grid-column: 3;
-  justify-self: end;
+  text-align: center;
 }
 
 .clue-text::before {
   content: '💡';
-  font-size: var(--font-size-xl);
+  font-size: clamp(1rem, 2vw, 1.25rem);
   filter: drop-shadow(0 0 10px rgba(183, 148, 244, 0.5));
 }
 
-/* Spectrum display with CSS Grid */
+/* Spectrum display with CSS Grid - FIXED CENTERING */
 .spectrum-display {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  position: relative;
 }
 
-/* Main container that holds everything */
+@media (max-width: 2200px) {
+  .spectrum-display {
+    padding: 0 clamp(3rem, 7vw, 5rem);
+  }
+}
+
+/* Main container that holds everything - FIXED SIZING */
 .spectrum-grid-container {
     position: relative;
     width: min(100%, 700px);
+    max-width: calc(100% - 2rem); /* Account for axis labels */
     aspect-ratio: 1;
     container-type: size;
     container-name: spectrum;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-/* Axis labels - sizing controlled by JavaScript */
-.axis-label-container {
-  display: grid;
-  place-items: center;
-  /* Padding will be set by JavaScript */
-  min-width: 0;
-  min-height: 0;
-}
-
-/* Axis Labels - Positioned absolutely and sized with container queries */
+/* Axis Labels - FIXED OVERFLOW */
 .axis-label {
     position: absolute;
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 5;
+    pointer-events: none;
 }
 
 .axis-label span {
@@ -91,56 +95,68 @@
     color: var(--text-secondary);
     background: var(--glass-bg);
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
-    white-space: nowrap;
     transition: all 250ms;
-    font-size: clamp(0.625rem, 2.5cqi, 1rem);
-    padding: clamp(0.125rem, 1cqi, 0.5rem) clamp(0.25rem, 2cqi, 1rem);
+    font-size: clamp(0.5rem, 2cqi, 0.875rem);
+    padding: clamp(0.125rem, 0.8cqi, 0.375rem) clamp(0.25rem, 1.5cqi, 0.75rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.2;
 }
 
-.axis-label span:hover {
-    color: var(--text-primary);
-    border-color: rgba(0, 212, 255, 0.3);
-    transform: scale(1.05);
-}
-
-/* Position each axis label */
+/* Position each axis label - IMPROVED POSITIONING */
 .axis-label.top {
-    top: -2%;
+    top: -5%;
     left: 50%;
     transform: translate(-50%, -100%);
 }
 
 .axis-label.bottom {
-    bottom: -2%;
+    bottom: -5%;
     left: 50%;
     transform: translate(-50%, 100%);
 }
 
 .axis-label.left {
-    left: -2%;
+    left: -5%;
     top: 50%;
     transform: translate(-100%, -50%);
+    max-width: 90px;
+    min-height: 60px;
+}
+
+.axis-label.left span {
+    white-space: normal;
+    word-break: break-word;
+    hyphens: auto;
+    max-width: 100%;
 }
 
 .axis-label.right {
-    right: -2%;
+    right: -5%;
     top: 50%;
     transform: translate(100%, -50%);
+    max-width: 90px;
+    min-height: 60px;
 }
 
-/* Main spectrum grid area */
-.spectrum-main-row {
-  aspect-ratio: 1;
-  position: relative;
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: var(--space-sm);
+.axis-label.right span {
+    white-space: normal;
+    word-break: break-word;
+    hyphens: auto;
+    max-width: 100%;
 }
 
-/* Canvas wrapper - takes full space of container */
+.axis-label.top span,
+.axis-label.bottom span {
+    white-space: nowrap;
+}
+
+/* Canvas wrapper - FIXED CENTERING */
 .spectrum-canvas-wrapper {
     position: absolute;
     inset: 0;
@@ -154,7 +170,6 @@
     transition: all 250ms;
     cursor: crosshair;
 }
-
 
 .spectrum-canvas {
     width: 100%;
@@ -178,23 +193,21 @@
   background: linear-gradient(135deg, rgba(0, 212, 255, 0.05), rgba(183, 148, 244, 0.05));
 }
 
-/* Axis Names - Overlay style with semi-transparent text */
+/* Axis Names - IMPROVED RESPONSIVE SIZING */
 .axis-name {
     position: absolute;
     font-weight: var(--font-weight-bold);
-    color: rgba(224, 230, 240, 0.4); /* Semi-transparent text */
+    color: rgba(224, 230, 240, 0.4);
     text-transform: uppercase;
     letter-spacing: 0.2em;
-    font-size: clamp(0.875rem, 3cqi, 1.5rem);
-    /* Remove all background and border styling */
+    font-size: clamp(0.625rem, 3cqi, 1.25rem);
     background: none;
     border: none;
     box-shadow: none;
     backdrop-filter: none;
     padding: 0;
     z-index: 10;
-    pointer-events: none; /* Ensure it doesn't interfere with canvas interaction */
-    /* Add subtle text shadow for better readability */
+    pointer-events: none;
     text-shadow: 
         0 0 10px rgba(0, 0, 0, 0.8),
         0 0 20px rgba(0, 0, 0, 0.6),
@@ -221,203 +234,41 @@
     text-align: center;
 }
 
-/* Hover effect - slightly increase opacity */
+/* Hover effect */
 .spectrum-grid-container:hover .axis-name {
     color: rgba(224, 230, 240, 0.6);
 }
 
-/* Container query adjustments for responsive sizing */
-@container spectrum (max-width: 500px) {
-    .axis-name {
-        font-size: clamp(0.75rem, 3.5cqi, 1.25rem);
-        letter-spacing: 0.15em;
-    }
-    
-    .axis-name.x-axis {
-        bottom: 8%;
-    }
-    
-    .axis-name.y-axis {
-        left: 8%;
-    }
-}
-
-@container spectrum (max-width: 350px) {
-    .axis-name {
-        font-size: clamp(0.625rem, 4cqi, 1rem);
-        letter-spacing: 0.1em;
-    }
-    
-    .axis-name.x-axis {
-        bottom: 5%;
-    }
-    
-    .axis-name.y-axis {
-        left: 5%;
-    }
-}
-
-/* Media queries fallback for browsers without container query support */
-@supports not (container-type: size) {
-    .axis-name {
-        font-size: clamp(0.875rem, 2.5vw, 1.5rem);
-    }
-    
-    @media (max-width: 768px) {
-        .axis-name {
-            font-size: 1rem;
-            letter-spacing: 0.15em;
-        }
-        
-        .axis-name.x-axis {
-            bottom: 8%;
-        }
-        
-        .axis-name.y-axis {
-            left: 8%;
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .axis-name {
-            font-size: 0.75rem;
-            letter-spacing: 0.1em;
-        }
-        
-        .axis-name.x-axis {
-            bottom: 5%;
-        }
-        
-        .axis-name.y-axis {
-            left: 5%;
-        }
-    }
-}
-
-/* Optional: Add a subtle animation when the spectrum loads */
-@keyframes axisNameFadeIn {
-    from {
-        opacity: 0;
-        filter: blur(10px);
-    }
-    to {
-        opacity: 1;
-        filter: blur(0);
-    }
-}
-
-.axis-name {
-    animation: axisNameFadeIn 1s ease-out 0.5s backwards;
-}
-
-/* Alternative style: Gradient text effect (optional) */
-.axis-name.gradient-text {
-    background: linear-gradient(
-        135deg, 
-        rgba(0, 212, 255, 0.6), 
-        rgba(183, 148, 244, 0.6)
-    );
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    color: transparent;
-    text-shadow: none; /* Remove text shadow for gradient effect */
-    filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.8));
-}
-
-/* Container query breakpoints for fine-tuned control */
-@container spectrum (max-width: 500px) {
-    .axis-label span {
-        font-size: clamp(0.5rem, 3cqi, 0.75rem);
-        padding: clamp(0.0625rem, 1cqi, 0.25rem) clamp(0.125rem, 2cqi, 0.5rem);
-    }
-    
-    .axis-name {
-        font-size: clamp(0.4375rem, 2.5cqi, 0.625rem);
-        padding: clamp(0.0625rem, 1cqi, 0.25rem) clamp(0.125rem, 1.5cqi, 0.5rem);
-    }
-}
-
-@container spectrum (max-width: 350px) {
-    .axis-label span {
-        font-size: 0.5rem;
-        padding: 0.0625rem 0.125rem;
-    }
-    
-    .axis-name {
-        font-size: 0.4375rem;
-        padding: 0.0625rem 0.125rem;
-        letter-spacing: 0.05em;
-    }
-}
-
-/* Media queries for browsers without container query support */
-@supports not (container-type: size) {
-    .axis-label span {
-        font-size: clamp(0.625rem, 2vw, 1rem);
-        padding: clamp(0.125rem, 0.5vw, 0.5rem) clamp(0.25rem, 1vw, 1rem);
-    }
-    
-    .axis-name {
-        font-size: clamp(0.5rem, 1.5vw, 0.875rem);
-        padding: clamp(0.125rem, 0.4vw, 0.375rem) clamp(0.25rem, 0.8vw, 0.75rem);
-    }
-    
-    @media (max-width: 768px) {
-        .axis-label span {
-            font-size: 0.625rem;
-            padding: 0.125rem 0.25rem;
-        }
-        
-        .axis-name {
-            font-size: 0.5rem;
-            padding: 0.125rem 0.25rem;
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .axis-label span {
-            font-size: 0.5rem;
-            padding: 0.0625rem 0.125rem;
-        }
-        
-        .axis-name {
-            font-size: 0.4375rem;
-            padding: 0.0625rem 0.125rem;
-        }
-    }
-}
-
-/* Player list with modern layout */
+/* Player list with modern layout - FIXED HEIGHT */
 .player-list {
   display: flex;
   flex-direction: column;
   height: 100%;
-  max-height: 400px;
-  padding: var(--space-lg);
+  max-height: 100%;
+  padding: clamp(0.75rem, 2vw, 1.5rem);
   contain: layout style;
   overflow: hidden;
 }
 
 .player-list h3 {
   color: var(--text-primary);
-  font-size: var(--font-size-lg);
+  font-size: clamp(0.875rem, 2vw, 1.125rem);
   font-weight: var(--font-weight-semibold);
-  margin-block-end: var(--space-lg);
+  margin-block-end: clamp(0.5rem, 1.5vw, 1rem);
   text-align: center;
-  padding-block-end: var(--space-md);
+  padding-block-end: var(--space-sm);
   border-block-end: 1px solid var(--glass-border);
+  flex-shrink: 0;
 }
 
 .players-container {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
-  margin-block-end: var(--space-lg);
+  gap: clamp(0.25rem, 0.5vw, 0.5rem);
+  margin-block-end: var(--space-md);
   overflow-y: auto;
   flex: 1 1 auto;
-  min-height: 100px;
-  max-height: 200px;
+  min-height: 0;
   padding: var(--space-sm);
   background: rgba(255, 255, 255, 0.02);
   border-radius: var(--radius-lg);
@@ -430,8 +281,8 @@
 .player-item {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-sm) var(--space-md);
+  gap: clamp(0.5rem, 1vw, 1rem);
+  padding: clamp(0.25rem, 0.75vw, 0.5rem) clamp(0.5rem, 1vw, 1rem);
   background: var(--glass-bg);
   backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
@@ -441,7 +292,7 @@
   overflow: hidden;
   contain: layout style;
   flex-shrink: 0;
-  min-height: 48px;
+  min-height: 2.5rem;
 }
 
 .player-item::before {
@@ -470,18 +321,19 @@
   filter: drop-shadow(0 0 10px var(--accent-teal));
 }
 
-/* Add after the player list styles (around line 430) */
+/* Scoreboard - RESPONSIVE SIZING */
 .scoreboard {
   margin-block-start: auto;
   padding-block-start: var(--space-md);
   border-block-start: 1px solid var(--glass-border);
+  flex-shrink: 0;
 }
 
 .scoreboard h4 {
   color: var(--text-primary);
-  font-size: var(--font-size-base);
+  font-size: clamp(0.75rem, 1.5vw, 1rem);
   font-weight: var(--font-weight-semibold);
-  margin-block-end: var(--space-md);
+  margin-block-end: clamp(0.5rem, 1vw, 1rem);
   text-align: center;
 }
 
@@ -489,7 +341,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  max-height: 150px;
+  max-height: clamp(100px, 20vh, 150px);
   overflow-y: auto;
   padding: var(--space-sm);
   background: rgba(255, 255, 255, 0.02);
@@ -500,11 +352,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-xs) var(--space-sm);
+  padding: clamp(0.125rem, 0.5vw, 0.25rem) clamp(0.25rem, 0.75vw, 0.5rem);
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   transition: all 150ms;
+  font-size: clamp(0.625rem, 1.5vw, 0.875rem);
 }
 
 .score-item:hover {
@@ -527,22 +380,23 @@
   font-weight: var(--font-weight-bold);
   color: var(--accent-green);
   font-family: var(--font-family-mono);
-  min-width: 60px;
+  min-width: 3rem;
   text-align: right;
 }
 
 /* Player avatar with gradient optimization */
 .player-avatar {
-  width: 36px;
-  height: 36px;
+  width: clamp(1.75rem, 4vw, 2.25rem);
+  height: clamp(1.75rem, 4vw, 2.25rem);
   border-radius: 50%;
   display: grid;
   place-items: center;
   font-weight: var(--font-weight-bold);
   color: var(--primary-bg);
-  font-size: var(--font-size-sm);
+  font-size: clamp(0.625rem, 1.5vw, 0.875rem);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   contain: strict;
+  flex-shrink: 0;
 }
 
 .player-avatar.player-1 { background: linear-gradient(135deg, var(--accent-teal), var(--accent-electric-blue)); }
@@ -550,38 +404,37 @@
 .player-avatar.player-3 { background: linear-gradient(135deg, var(--accent-orange), #ff7a00); }
 .player-avatar.player-4 { background: linear-gradient(135deg, var(--accent-lilac), var(--accent-pink)); }
 
-
-/* Enhanced Notification Panel */
+/* Enhanced Notification Panel - FIXED OVERFLOW */
 .notification-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
-  max-height: 600px;
-  padding: var(--space-lg);
+  max-height: 100%;
+  padding: clamp(0.75rem, 2vw, 1.5rem);
   contain: layout style;
   overflow: hidden;
 }
 
 .notification-panel h3 {
   color: var(--text-primary);
-  font-size: var(--font-size-lg);
+  font-size: clamp(0.875rem, 2vw, 1.125rem);
   font-weight: var(--font-weight-semibold);
-  margin-block-end: var(--space-md);
+  margin-block-end: clamp(0.5rem, 1vw, 1rem);
   text-align: center;
-  padding-block-end: var(--space-md);
+  padding-block-end: var(--space-sm);
   border-block-end: 1px solid var(--glass-border);
   flex-shrink: 0;
 }
 
-/* Game Control Container */
+/* Game Control Container - FIXED OVERFLOW */
 .game-control-container {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: clamp(0.5rem, 1vw, 1rem);
   overflow-y: auto;
   flex: 1;
   min-height: 0;
-  padding: var(--space-md);
+  padding: clamp(0.5rem, 1vw, 1rem);
   background: rgba(255, 255, 255, 0.02);
   border-radius: var(--radius-lg);
   scrollbar-width: thin;
@@ -601,7 +454,7 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
+  padding: clamp(0.25rem, 0.75vw, 0.5rem) clamp(0.5rem, 1vw, 1rem);
   background: var(--glass-bg);
   backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
@@ -609,6 +462,7 @@
   animation: slideIn 0.3s ease-out;
   position: relative;
   overflow: hidden;
+  font-size: clamp(0.625rem, 1.5vw, 0.875rem);
 }
 
 .notification::before {
@@ -625,7 +479,7 @@
 .notification.error::before { background: var(--accent-red); }
 
 .notification-icon {
-  font-size: var(--font-size-lg);
+  font-size: clamp(0.875rem, 2vw, 1.125rem);
   flex-shrink: 0;
 }
 
@@ -638,7 +492,7 @@
 
 .notification-message {
   color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: clamp(0.625rem, 1.5vw, 0.875rem);
   line-height: var(--line-height-normal);
 }
 
@@ -647,14 +501,15 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: var(--font-size-lg);
+  font-size: clamp(0.875rem, 2vw, 1.125rem);
   padding: 0;
-  width: 24px;
-  height: 24px;
+  width: 1.5rem;
+  height: 1.5rem;
   display: grid;
   place-items: center;
   border-radius: var(--radius-sm);
   transition: all 150ms;
+  flex-shrink: 0;
 }
 
 .notification-close:hover {
@@ -662,12 +517,12 @@
   color: var(--text-primary);
 }
 
-/* Control Sections */
+/* Control Sections - IMPROVED RESPONSIVE */
 .control-section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-lg);
+  gap: clamp(0.5rem, 1vw, 1rem);
+  padding: clamp(0.75rem, 1.5vw, 1.5rem);
   background: var(--glass-bg);
   backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
@@ -681,14 +536,14 @@
 
 .control-section h4 {
   color: var(--text-primary);
-  font-size: var(--font-size-base);
+  font-size: clamp(0.75rem, 1.5vw, 1rem);
   font-weight: var(--font-weight-semibold);
   margin-block-end: var(--space-sm);
 }
 
 .control-section label {
   color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: clamp(0.625rem, 1.5vw, 0.875rem);
   font-weight: var(--font-weight-medium);
   margin-block-end: var(--space-sm);
 }
@@ -697,10 +552,12 @@
   display: flex;
   gap: var(--space-sm);
   align-items: stretch;
+  flex-wrap: wrap;
 }
 
 .input-group input {
-  flex: 1;
+  flex: 1 1 200px;
+  min-width: 0;
 }
 
 .input-group button {
@@ -709,9 +566,9 @@
 
 .control-hint {
   color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: clamp(0.625rem, 1.5vw, 0.875rem);
   text-align: center;
-  padding: var(--space-md);
+  padding: clamp(0.5rem, 1vw, 1rem);
   background: rgba(0, 212, 255, 0.05);
   border-radius: var(--radius-lg);
   border: 1px solid rgba(0, 212, 255, 0.2);
@@ -720,7 +577,7 @@
 .waiting-message {
   text-align: center;
   color: var(--text-secondary);
-  font-size: var(--font-size-base);
+  font-size: clamp(0.75rem, 1.5vw, 1rem);
   padding: var(--space-lg);
 }
 
@@ -732,22 +589,23 @@
 .results-content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: clamp(0.5rem, 1vw, 1rem);
 }
 
 .round-summary {
   text-align: center;
   color: var(--text-secondary);
-  padding: var(--space-md);
+  padding: clamp(0.5rem, 1vw, 1rem);
   background: rgba(255, 255, 255, 0.02);
   border-radius: var(--radius-lg);
+  font-size: clamp(0.625rem, 1.5vw, 0.875rem);
 }
 
 .results-container {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  max-height: 300px;
+  max-height: clamp(200px, 40vh, 300px);
   overflow-y: auto;
   padding-right: var(--space-sm);
 }
@@ -757,8 +615,9 @@
   backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-md);
+  padding: clamp(0.5rem, 1vw, 1rem);
   transition: all 150ms;
+  font-size: clamp(0.625rem, 1.5vw, 0.875rem);
 }
 
 .player-result:hover {
@@ -782,6 +641,8 @@
   justify-content: space-between;
   align-items: center;
   margin-block-end: var(--space-sm);
+  gap: var(--space-sm);
+  flex-wrap: wrap;
 }
 
 .player-result-name {
@@ -797,50 +658,76 @@
 .player-result-details {
   display: flex;
   justify-content: space-between;
-  font-size: var(--font-size-sm);
+  font-size: clamp(0.5rem, 1.25vw, 0.75rem);
   color: var(--text-secondary);
+  gap: var(--space-sm);
+  flex-wrap: wrap;
 }
 
 .bonus-indicator {
   text-align: center;
-  padding: var(--space-md);
+  padding: clamp(0.5rem, 1vw, 1rem);
   background: linear-gradient(135deg, rgba(0, 245, 147, 0.1), rgba(0, 212, 255, 0.1));
   border: 1px solid rgba(0, 245, 147, 0.3);
   border-radius: var(--radius-lg);
   color: var(--accent-green);
   font-weight: var(--font-weight-semibold);
   animation: celebrate 0.6s ease-out;
+  font-size: clamp(0.75rem, 1.5vw, 1rem);
 }
 
-/* Chat panel with CSS Grid */
+/* Chat panel with CSS Grid - FIXED FOR ALL VIEWPORTS */
 .chat-panel {
   display: grid;
   grid-template-rows: auto 1fr auto;
   height: 100%;
   contain: size layout style;
-  max-height: 600px;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .chat-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-md) var(--space-lg);
+  padding: clamp(0.5rem, 1vw, 1rem) clamp(0.75rem, 1.5vw, 1.5rem);
   border-block-end: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.02);
 }
 
+.chat-header h3 {
+  font-size: clamp(0.875rem, 2vw, 1.125rem);
+  margin: 0;
+}
+
+.toggle-chat {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: clamp(1rem, 2vw, 1.5rem);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  transition: all 150ms;
+}
+
+.toggle-chat:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
 .chat-messages {
   overflow-y: auto;
-  padding: var(--space-lg);
+  padding: clamp(0.5rem, 1vw, 1rem);
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: clamp(0.5rem, 1vw, 1rem);
   scroll-behavior: smooth;
   background: rgba(255, 255, 255, 0.01);
   scrollbar-width: thin;
   scrollbar-color: var(--accent-teal) var(--glass-bg);
   contain: size layout style paint;
+  min-height: 0;
 }
 
 /* Chat message optimization */
@@ -848,7 +735,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-md);
+  padding: clamp(0.375rem, 0.75vw, 0.5rem) clamp(0.5rem, 1vw, 1rem);
   border-radius: var(--radius-lg);
   background: var(--glass-bg);
   backdrop-filter: blur(10px);
@@ -859,6 +746,7 @@
   contain: layout style paint;
   word-wrap: break-word;
   word-break: break-word;
+  font-size: clamp(0.625rem, 1.5vw, 0.875rem);
 }
 
 .chat-message.system {
@@ -882,7 +770,7 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-md);
-  font-size: var(--font-size-sm);
+  font-size: clamp(0.5rem, 1.25vw, 0.75rem);
   margin-block-end: var(--space-xs);
 }
 
@@ -892,7 +780,7 @@
 }
 
 .message-time {
-  font-size: var(--font-size-xs);
+  font-size: clamp(0.5rem, 1vw, 0.625rem);
   color: var(--text-muted);
 }
 
@@ -905,7 +793,7 @@
 .chat-input-container {
   display: flex;
   gap: var(--space-sm);
-  padding: var(--space-md) var(--space-lg);
+  padding: clamp(0.5rem, 1vw, 1rem) clamp(0.75rem, 1.5vw, 1.5rem);
   border-block-start: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.02);
 }
@@ -913,6 +801,11 @@
 .chat-input-container input {
   flex: 1;
   min-width: 0;
+  font-size: clamp(0.75rem, 1.5vw, 1rem);
+}
+
+.chat-input-container button {
+  font-size: clamp(0.625rem, 1.5vw, 0.875rem);
 }
 
 /* Modal optimization */
@@ -929,7 +822,7 @@
 }
 
 .modal {
-  max-width: 500px;
+  max-width: min(500px, 90vw);
   width: 100%;
   max-height: 80vh;
   overflow: hidden;
@@ -939,9 +832,19 @@
   contain: layout style;
 }
 
-/* Add after modal styles (around line 850) */
+.modal-header {
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border-block-end: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.modal-header h3 {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  margin: 0;
+}
+
 .modal-body {
-  padding: var(--space-xl);
+  padding: clamp(1rem, 3vw, 2rem);
   max-height: 60vh;
   overflow-y: auto;
 }
@@ -950,6 +853,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+}
+
+.modal-footer {
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border-block-start: 1px solid var(--glass-border);
+  display: flex;
+  gap: var(--space-md);
+  justify-content: flex-end;
 }
 
 /* Final scores specific styles */
@@ -969,7 +880,7 @@
 
 .game-summary h3 {
   color: var(--accent-teal);
-  font-size: var(--font-size-2xl);
+  font-size: clamp(1.25rem, 3vw, 2rem);
   margin-block-end: var(--space-md);
 }
 
@@ -981,20 +892,20 @@
 }
 
 .player-result-name {
-  font-size: var(--font-size-lg);
+  font-size: clamp(0.875rem, 2vw, 1.125rem);
   font-weight: var(--font-weight-bold);
   color: var(--text-primary);
 }
 
 .player-result-score {
-  font-size: var(--font-size-xl);
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
   font-weight: var(--font-weight-bold);
   color: var(--accent-green);
   font-family: var(--font-family-mono);
 }
 
 .player-result-distance {
-  font-size: var(--font-size-base);
+  font-size: clamp(0.75rem, 1.5vw, 1rem);
   color: var(--accent-teal);
   font-weight: var(--font-weight-semibold);
 }
@@ -1002,83 +913,51 @@
 /* Responsive optimization with container queries */
 /* Medium screens */
 @media (max-width: 1200px) {
-  .spectrum-display {
-    max-width: min(500px, 90vw);
+  /* Adjust component spacing */
+  .spectrum-area {
+    padding: var(--space-md);
+    gap: var(--space-sm);
   }
   
+  .player-list,
   .notification-panel {
-    max-height: 400px;
+    padding: var(--space-md);
   }
   
-  .player-list {
-    max-height: 300px;
+  /* Compact player items */
+  .player-item {
+    min-height: 2rem;
+  }
+  
+  .player-avatar {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+  
+  /* Ensure chat stays visible */
+  .chat-panel {
+    min-height: 150px;
   }
 }
 
 /* Small screens */
 @media (max-width: 768px) {
-  .spectrum-area {
-    padding: clamp(var(--space-sm), 3vw, var(--space-md));
-    gap: clamp(var(--space-sm), 2vw, var(--space-md));
-  }
-  .spectrum-display {
-    max-width: 100%;
-    gap: clamp(2px, 1vw, var(--space-sm));
-  }
-  .spectrum-canvas-wrapper {
-    border-width: 1px;
-    border-radius: var(--radius-lg);
-  }
-  .player-list, .chat-panel, .notification-panel {
-    max-height: clamp(250px, 40vh, 300px);
-    padding: clamp(var(--space-sm), 3vw, var(--space-md));
-  }
-  .chat-message {
-    max-width: 95%;
-    padding: clamp(var(--space-xs), 2vw, var(--space-sm));
-  }
-  .results-container {
-    max-height: 200px;
-  }
-  
-  .game-control-container {
-    padding: var(--space-sm);
-  }
-  
-  .control-section {
-    padding: var(--space-md);
-  }
-}
-
-/* Extra small screens */
-@media (max-width: 480px) {
+  /* Ultra-compact components */
   .spectrum-area {
     padding: var(--space-sm);
-    gap: var(--space-sm);
-  }
-  .spectrum-display {
-    gap: 4px;
-  }
-  .clue-text {
-    font-size: clamp(0.875rem, 4vw, var(--font-size-lg));
-    padding: var(--space-sm) var(--space-md);
-    max-width: 95%;
+    gap: var(--space-xs);
   }
   
-  .notification-panel h3,
-  .player-list h3 {
-    font-size: var(--font-size-base);
-    padding: var(--space-sm);
-    margin-block-end: var(--space-sm);
+  /* Hide axis names on very small screens */
+  .axis-name {
+    opacity: 0.2;
+    font-size: 0.5rem;
   }
   
-  .game-control-container {
-    gap: var(--space-sm);
-  }
-  
+  /* Compact controls */
   .control-section {
     padding: var(--space-sm);
-    gap: var(--space-sm);
+    gap: var(--space-xs);
   }
   
   .input-group {
@@ -1088,12 +967,82 @@
   .input-group button {
     width: 100%;
   }
+  
+  /* Compact chat */
+  .chat-message {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--font-size-xs);
+  }
+  
+  /* Ensure spectrum grid stays centered */
+  .spectrum-grid-container {
+    max-width: calc(100% - 1rem);
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  /* Minimize all spacing */
+  .spectrum-area {
+    padding: 0.25rem;
+  }
+  
+  .spectrum-header {
+    min-height: 2rem;
+  }
+  
+  .clue-text {
+    font-size: var(--font-size-xs);
+    padding: var(--space-xs) var(--space-sm);
+  }
+  
+  /* Hide less important elements */
+  .axis-name {
+    display: none;
+  }
+  
+  /* Ultra-compact player list */
+  .player-item {
+    padding: 0.25rem 0.5rem;
+  }
+  
+  .player-avatar {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 0.5rem;
+  }
+  
+  /* Compact scoreboard */
+  .scoreboard-container {
+    max-height: 80px;
+  }
+  
+  .score-item {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.625rem;
+  }
 }
 
 /* Container queries for modern browsers */
-@container (max-width: 400px) {
-  .spectrum-display {
-    gap: 2px;
+@container spectrum (max-width: 400px) {
+  .axis-label span {
+    font-size: 0.5rem;
+    padding: 0.0625rem 0.125rem;
+  }
+  
+  .axis-name {
+    font-size: 0.5rem;
+    opacity: 0.3;
+  }
+}
+
+@container spectrum (max-width: 300px) {
+  .axis-label {
+    display: none;
+  }
+  
+  .axis-name {
+    display: none;
   }
 }
 
@@ -1122,5 +1071,17 @@
   .control-section * {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* Dark mode specific enhancements */
+@media (prefers-color-scheme: dark) {
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  
+  .player-item:hover,
+  .score-item:hover {
+    background: rgba(255, 255, 255, 0.06);
   }
 }
