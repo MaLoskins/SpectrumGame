@@ -740,8 +740,8 @@
       },
       "category": "abstract",
       "difficulty": "medium"
-    }
-        {
+    },
+    {
       "id": "dad-joke-quality",
       "name": "Dad Joke Quality",
       "leftLabel": "So Bad It's Good",
