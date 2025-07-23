@@ -886,7 +886,7 @@
     },
     {
       "id": "midnight-snack",
-      "name": "Midnight Snack Shame Level",
+      "name": "Midnight Snack",
       "leftLabel": "Single Grape",
       "rightLabel": "Entire Leftover Pizza + Ice Cream",
       "gradient": {
@@ -899,9 +899,9 @@
     },
     {
       "id": "online-shopping-regret",
-      "name": "3AM Purchase Regret Level",
+      "name": "Purchase Regret",
       "leftLabel": "Best Decision Ever",
-      "rightLabel": "Why Do I Own 50 Rubber Ducks?",
+      "rightLabel": "Cyber Truck",
       "gradient": {
         "start": "#66BB6A",
         "middle": "#FFCA28",
@@ -964,10 +964,10 @@
       "difficulty": "easy"
     },
     {
-      "id": "autocorrect-betrayal",
-      "name": "Autocorrect Betrayal Level",
+      "id": "acquaintance-level",
+      "name": "Acquaintance Level",
       "leftLabel": "Helpful Assistant",
-      "rightLabel": "Ruins Your Life Daily",
+      "rightLabel": "Ruins Your Life",
       "gradient": {
         "start": "#66BB6A",
         "middle": "#FFB74D",

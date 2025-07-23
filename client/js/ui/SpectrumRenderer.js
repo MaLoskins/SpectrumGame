@@ -612,6 +612,9 @@ export class SpectrumRenderer {
     renderParticles() {
         this.ctx.save();
         
+        // Use additive blending for glow effect
+        this.ctx.globalCompositeOperation = 'screen';
+        
         for (let i = 0; i < this.particles.length; i++) {
             const p = this.particles[i];
             
@@ -621,28 +624,37 @@ export class SpectrumRenderer {
             let alpha = 1;
             if (p.life < 10) {
                 alpha = p.life / 10;
-            } else if (p.life > 50) {
-                alpha = (60 - p.life) / 10;
+            } else if (p.life > 40) {
+                alpha = (50 - p.life) / 10;
             }
             
-            this.ctx.globalAlpha = alpha * 0.8;
-            
-            // Draw glow
-            const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3);
-            gradient.addColorStop(0, p.color + '40');
-            gradient.addColorStop(0.5, p.color + '20');
-            gradient.addColorStop(1, p.color + '00');
+            // Draw glow first with lower alpha
+            this.ctx.globalAlpha = alpha * 0.3;
+            const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 4);
+            gradient.addColorStop(0, p.color);
+            gradient.addColorStop(0.3, p.color);
+            gradient.addColorStop(1, 'transparent');
             
             this.ctx.fillStyle = gradient;
             this.ctx.beginPath();
-            this.ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
+            this.ctx.arc(p.x, p.y, p.size * 4, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Draw core
+            // Draw bright core
             this.ctx.globalAlpha = alpha;
             this.ctx.fillStyle = p.color;
+            this.ctx.shadowBlur = 10;
+            this.ctx.shadowColor = p.color;
             this.ctx.beginPath();
             this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Draw inner bright spot
+            this.ctx.globalAlpha = alpha;
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.shadowBlur = 0;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x - p.size * 0.3, p.y - p.size * 0.3, p.size * 0.3, 0, Math.PI * 2);
             this.ctx.fill();
         }
         
@@ -662,20 +674,23 @@ export class SpectrumRenderer {
             p.y += p.vy;
             
             // Apply gravity and friction
-            p.vy += 0.2;
-            p.vx *= 0.98;
-            p.vy *= 0.98;
+            p.vy += 0.15; // Reduced gravity
+            p.vx *= 0.97; // Less friction
+            p.vy *= 0.97;
             
             // Update life
             p.life--;
             
-            // Update size
+            // Update size for sparkle effect
             if (p.type === 'sparkle') {
                 p.size = p.baseSize * (0.5 + Math.sin(p.life * 0.2) * 0.5);
             }
             
-            // Remove dead particles
-            if (p.life <= 0 || p.y > this.canvasSize.height + 50) {
+            // Remove dead particles or ones that are way off screen
+            if (p.life <= 0 || 
+                p.y > this.canvasSize.height + 100 ||
+                p.x < -100 || 
+                p.x > this.canvasSize.width + 100) {
                 this.particles.splice(i, 1);
             }
         }
@@ -686,45 +701,48 @@ export class SpectrumRenderer {
      * @private
      */
     createPlacementParticles(x, y) {
-        const particleCount = 12;
+        console.log(`Creating particles at (${x}, ${y})`); // Debug log
+        
+        const particleCount = 15; // More particles
         
         for (let i = 0; i < particleCount; i++) {
-            const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
-            const speed = 2 + Math.random() * 3;
-            const size = 2 + Math.random() * 3;
+            const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.3;
+            const speed = 3 + Math.random() * 4; // Faster
+            const size = 3 + Math.random() * 3; // Bigger
             
             this.particles.push({
                 x,
                 y,
                 vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 3,
+                vy: Math.sin(angle) * speed - 4, // More upward velocity
                 size,
                 baseSize: size,
-                life: 60,
+                life: 20, // Shorter life
                 color: this.particleColors[Math.floor(Math.random() * this.particleColors.length)],
                 type: Math.random() < 0.3 ? 'sparkle' : 'normal'
             });
         }
         
-        // Add some sparkles
-        for (let i = 0; i < 5; i++) {
+        // Add some extra bright sparkles
+        for (let i = 0; i < 8; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const speed = 4 + Math.random() * 2;
+            const speed = 5 + Math.random() * 3;
             
             this.particles.push({
-                x: x + (Math.random() - 0.5) * 20,
-                y: y + (Math.random() - 0.5) * 20,
+                x: x + (Math.random() - 0.5) * 10,
+                y: y + (Math.random() - 0.5) * 10,
                 vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 2,
-                size: 1.5,
-                baseSize: 1.5,
-                life: 40,
+                vy: Math.sin(angle) * speed - 3,
+                size: 2,
+                baseSize: 2,
+                life: 15,
                 color: '#ffffff',
                 type: 'sparkle'
             });
         }
         
-        console.log('Created particles:', this.particles.length); // Debug log
+        console.log('Total particles:', this.particles.length); // Debug log
+        this.markDirty(); // Force full redraw
         this.requestRender();
     }
 
@@ -802,6 +820,8 @@ export class SpectrumRenderer {
      * @private
      */
     handleGuessPlacement(coordinate) {
+        console.log('handleGuessPlacement called with coordinate:', coordinate); // Debug
+        
         const roundedCoordinate = {
             x: Math.round(coordinate.x),
             y: Math.round(coordinate.y)
@@ -809,6 +829,10 @@ export class SpectrumRenderer {
         
         this.previewGuess = roundedCoordinate;
         const pos = this.coordToCanvas(roundedCoordinate);
+        
+        console.log('Canvas position for particles:', pos); // Debug
+        
+        // Create particles at the click position
         this.createPlacementParticles(pos.x, pos.y);
         
         const playerId = this.stateManager.state.connection.playerId;
