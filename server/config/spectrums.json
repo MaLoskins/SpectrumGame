@@ -768,19 +768,6 @@
       "difficulty": "easy"
     },
     {
-      "id": "sock-mystery",
-      "name": "Likelihood of Finding Matching Sock",
-      "leftLabel": "Definitely in Drawer",
-      "rightLabel": "In Another Dimension",
-      "gradient": {
-        "start": "#4FC3F7",
-        "middle": "#AB47BC",
-        "end": "#6A1B9A"
-      },
-      "category": "humor",
-      "difficulty": "easy"
-    },
-    {
       "id": "pizza-acceptability",
       "name": "Acceptable Time to Eat Pizza",
       "leftLabel": "Only at Parties",
@@ -808,7 +795,7 @@
     },
     {
       "id": "social-battery",
-      "name": "Social Battery Level",
+      "name": "Social Battery",
       "leftLabel": "Ready to Party",
       "rightLabel": "Hide Under Blanket Forever",
       "gradient": {
@@ -821,9 +808,9 @@
     },
     {
       "id": "snooze-button-usage",
-      "name": "Snooze Button Addiction",
+      "name": "Sleepiness",
       "leftLabel": "Wake Up Immediately",
-      "rightLabel": "17 Alarms Set 5 Minutes Apart",
+      "rightLabel": "Miss Work",
       "gradient": {
         "start": "#81C784",
         "middle": "#FFB74D",
@@ -834,9 +821,9 @@
     },
     {
       "id": "food-photo-necessity",
-      "name": "Need to Photograph Food",
-      "leftLabel": "Just Eat It",
-      "rightLabel": "45 Angles, 3 Filters, 2 Apps",
+      "name": "Photography",
+      "leftLabel": "Photo of everything",
+      "rightLabel": "Doesn't have a phone",
       "gradient": {
         "start": "#B0BEC5",
         "middle": "#F48FB1",
@@ -873,9 +860,9 @@
     },
     {
       "id": "avocado-ripeness",
-      "name": "Avocado Ripeness Window",
-      "leftLabel": "Rock Hard",
-      "rightLabel": "Brown Mush (You Blinked)",
+      "name": "Ripeness",
+      "leftLabel": "Ripe",
+      "rightLabel": "Literal Mold",
       "gradient": {
         "start": "#8BC34A",
         "middle": "#689F38",
@@ -886,7 +873,7 @@
     },
     {
       "id": "zoom-background",
-      "name": "Zoom Background Chaos",
+      "name": "Zoom Background",
       "leftLabel": "Pristine Office",
       "rightLabel": "Laundry Mountain Paradise",
       "gradient": {
@@ -938,9 +925,9 @@
     },
     {
       "id": "fridge-check-frequency",
-      "name": "Fridge Checking Frequency",
+      "name": "Checking Fridge",
       "leftLabel": "Once When Hungry",
-      "rightLabel": "Every 5 Minutes Hoping Food Appears",
+      "rightLabel": " Appears",
       "gradient": {
         "start": "#4FC3F7",
         "middle": "#FFD54F",
@@ -950,8 +937,22 @@
       "difficulty": "easy"
     },
     {
+      "id": "tall-short",
+      "name": "Height Perception",
+      "leftLabel": "Shorter than a Mouse",
+      "rightLabel": "Taller than a Skyscraper",
+      "gradient": {
+        "start": "#90A4AE",
+        "middle": "#FFB74D",
+        "end": "#FF5722"
+      },
+      "category": "physical",
+      "difficulty": "easy"
+    },
+  
+    {
       "id": "meeting-usefulness",
-      "name": "Meeting Productivity",
+      "name": "Productivity",
       "leftLabel": "Actually Productive",
       "rightLabel": "Could've Been an Email",
       "gradient": {
@@ -992,7 +993,7 @@
 
     {
       "id": "grass-touching",
-      "name": "Online vs Outdoor Life",
+      "name": "Online vs Outdoor",
       "leftLabel": "Discord Mod Energy",
       "rightLabel": "Actively Touching Grass",
       "gradient": {

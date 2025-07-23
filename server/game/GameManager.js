@@ -10,6 +10,7 @@
  * - Validates player actions
  *
  * UPDATED: 2D grid mechanics with X/Y coordinates
+ * UPDATED: Added center exclusion zone for target generation
  * ================================= */
 
 const { GAME_RULES, SCORING, VALIDATION } = require('../../shared/constants.js');
@@ -29,9 +30,54 @@ class GameManager {
             RESULTS_VIEWING_TIME: 7000,
             BETWEEN_ROUNDS_DELAY: 3000,
             MAX_DISTANCE: GAME_RULES.MAX_DISTANCE,
+            CENTER_EXCLUSION_RADIUS: 20, // 20% radius from center
             gameTimers: new Map()
         });
         console.log('🎮 GameManager initialized');
+    }
+
+    /**
+     * Generate a target coordinate that respects the center exclusion zone
+     * @returns {Object} Target coordinate {x, y}
+     * @private
+     */
+    generateTargetCoordinate() {
+        const centerX = 50;
+        const centerY = 50;
+        const margin = 5; // Keep at least 5 units from edges
+        
+        let x, y, distance;
+        let attempts = 0;
+        const maxAttempts = 1000; // Prevent infinite loop
+        
+        // Keep generating until we get a coordinate outside the exclusion zone
+        do {
+            x = Math.floor(Math.random() * (100 - 2 * margin + 1)) + margin;
+            y = Math.floor(Math.random() * (100 - 2 * margin + 1)) + margin;
+            
+            // Calculate distance from center
+            distance = Math.sqrt(
+                Math.pow(x - centerX, 2) + 
+                Math.pow(y - centerY, 2)
+            );
+            
+            attempts++;
+            if (attempts > maxAttempts) {
+                console.error('❌ Failed to generate valid target coordinate after', maxAttempts, 'attempts');
+                // Fallback to a guaranteed valid position
+                const angle = Math.random() * Math.PI * 2;
+                const radius = this.CENTER_EXCLUSION_RADIUS + 10; // Place it just outside the exclusion zone
+                x = Math.round(centerX + Math.cos(angle) * radius);
+                y = Math.round(centerY + Math.sin(angle) * radius);
+                // Clamp to valid range
+                x = Math.max(margin, Math.min(100 - margin, x));
+                y = Math.max(margin, Math.min(100 - margin, y));
+                break;
+            }
+        } while (distance <= this.CENTER_EXCLUSION_RADIUS);
+        
+        console.log(`🎯 Generated target at (${x}, ${y}), distance from center: ${distance.toFixed(1)}`);
+        return { x, y };
     }
 
     startRound(room) {
@@ -45,10 +91,7 @@ class GameManager {
             const { spectrumX, spectrumY } = this.selectSpectrums(room);
             Object.assign(room, {
                 spectrumX, spectrumY,
-                targetCoordinate: { 
-                    x: Math.floor(Math.random() * 81) + 10, 
-                    y: Math.floor(Math.random() * 81) + 10 
-                },
+                targetCoordinate: this.generateTargetCoordinate(), // Use new method
                 clue: null,
                 guesses: new Map(),
                 roundStartTime: Date.now(),
@@ -386,7 +429,8 @@ class GameManager {
         BONUS_POINTS: this.BONUS_POINTS,
         RESULTS_VIEWING_TIME: this.RESULTS_VIEWING_TIME,
         BETWEEN_ROUNDS_DELAY: this.BETWEEN_ROUNDS_DELAY,
-        MAX_DISTANCE: this.MAX_DISTANCE
+        MAX_DISTANCE: this.MAX_DISTANCE,
+        CENTER_EXCLUSION_RADIUS: this.CENTER_EXCLUSION_RADIUS
     });
 
     cleanup() {

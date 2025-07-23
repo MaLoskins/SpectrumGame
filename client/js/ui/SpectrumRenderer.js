@@ -1,11 +1,10 @@
 /**
  * Spectrum Renderer - Interactive 2D spectrum grid visualization
- * OPTIMIZED: Reduced computational overhead while maintaining functionality
- * FIXED: Canvas centering issues at different viewport sizes
+ * ENHANCED: High-performance particle system with advanced visual effects
  * 
  * @class SpectrumRenderer
  * @description Handles the rendering of the 2D spectrum grid, player guesses, target positions,
- * and interactive elements. Implements optimized partial rendering with dirty region tracking.
+ * and interactive elements. Features an optimized particle system with dynamic effects.
  */
 
 import { gameLogic } from '../game/GameLogic.js';
@@ -21,7 +20,7 @@ export class SpectrumRenderer {
             canvas: null,
             ctx: null,
             gridContainer: null,
-            devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2), // Cap at 2 for performance
+            devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
             spectrumX: null,
             spectrumY: null,
             targetCoordinate: null,
@@ -29,7 +28,11 @@ export class SpectrumRenderer {
             showTarget: false,
             interactionEnabled: false,
             animationFrame: null,
+            
+            // Enhanced particle system
             particles: [],
+            particleColors: ['#00d4ff', '#b794f4', '#0096ff', '#ff006e', '#00f593', '#ff9500'],
+            
             isHovering: false,
             hoverCoordinate: null,
             isDragging: false,
@@ -45,14 +48,12 @@ export class SpectrumRenderer {
                 targetCoordinate: null,
                 showTarget: false
             },
-            renderThrottleTime: 33, // ~30fps
+            renderThrottleTime: 16, // 60fps
             lastRenderTime: 0,
             renderRequested: false,
-            maxParticles: 50,
-            particlePoolSize: 100,
-            particlePool: [],
             lastInteractionTime: 0,
             interactionThrottle: 50,
+            centerExclusionRadius: 20,
             colors: {
                 teal: '#00d4ff',
                 lilac: '#b794f4',
@@ -66,15 +67,11 @@ export class SpectrumRenderer {
                 textPrimary: '#e0e6f0',
                 textSecondary: '#a8b2c7',
                 gridLine: 'rgba(255, 255, 255, 0.1)',
-                gridLineMajor: 'rgba(255, 255, 255, 0.2)'
+                gridLineMajor: 'rgba(255, 255, 255, 0.2)',
+                exclusionZone: 'rgba(0, 0, 0, 0.3)',
+                exclusionBorder: 'rgba(255, 255, 255, 0.15)'
             }
         });
-        
-        // Pre-create particle pool for performance
-        this.particlePool = Array(this.particlePoolSize).fill().map(() => ({
-            x: 0, y: 0, vx: 0, vy: 0, size: 0, alpha: 0, decay: 0,
-            shrink: 0, color: '', active: false
-        }));
     }
 
     /**
@@ -92,7 +89,7 @@ export class SpectrumRenderer {
     }
 
     /**
-     * Set up the canvas element and context
+     * Set up the main canvas element and context
      * @private
      */
     setupCanvas() {
@@ -102,11 +99,10 @@ export class SpectrumRenderer {
         this.canvas = document.createElement('canvas');
         this.canvas.className = 'spectrum-canvas';
         this.ctx = this.canvas.getContext('2d', { 
-            alpha: false, // No transparency for better performance
-            desynchronized: true // Reduce latency
+            alpha: false,
+            desynchronized: true
         });
         
-        // Ensure canvas fills its container
         this.canvas.style.width = '100%';
         this.canvas.style.height = '100%';
         this.canvas.style.display = 'block';
@@ -120,15 +116,12 @@ export class SpectrumRenderer {
      * @private
      */
     setupEventListeners() {
-        // Resize observer for responsive canvas
         this.resizeObserver = new ResizeObserver(() => {
             clearTimeout(this.resizeTimeout);
             this.resizeTimeout = setTimeout(() => this.handleResize(), 250);
         });
         this.resizeObserver.observe(this.gridContainer);
         
-        // IMPORTANT: Monitor DPR changes to handle browser zoom
-        // This fixes the issue where elements weren't scaling properly with zoom
         let lastDPR = window.devicePixelRatio;
         const checkDPR = () => {
             if (window.devicePixelRatio !== lastDPR) {
@@ -140,7 +133,6 @@ export class SpectrumRenderer {
         
         window.addEventListener('resize', this.handleResize);
         
-        // Pointer events for interaction
         const events = {
             pointerenter: this.handlePointerEnter,
             pointerleave: this.handlePointerLeave,
@@ -175,7 +167,6 @@ export class SpectrumRenderer {
 
     /**
      * Update canvas size and handle DPR changes
-     * FIXED: Properly handle container sizing at all viewport sizes
      * @private
      */
     updateCanvasSize() {
@@ -184,17 +175,13 @@ export class SpectrumRenderer {
         const rect = this.gridContainer.getBoundingClientRect();
         const {width, height} = rect;
         
-        // Ensure we have valid dimensions
         if (width <= 0 || height <= 0) {
-            // Defer update if container isn't properly sized yet
             requestAnimationFrame(() => this.updateCanvasSize());
             return;
         }
         
-        // Always check DPR to handle zoom changes
         const currentDPR = Math.min(window.devicePixelRatio || 1, 2);
         
-        // Only update if something changed
         if (this.canvasSize.width === width && 
             this.canvasSize.height === height && 
             this.devicePixelRatio === currentDPR) return;
@@ -203,11 +190,9 @@ export class SpectrumRenderer {
         this.canvasSize = {width, height};
         this.devicePixelRatio = currentDPR;
         
-        // Set canvas resolution
+        // Update main canvas
         this.canvas.width = width * this.devicePixelRatio;
         this.canvas.height = height * this.devicePixelRatio;
-        
-        // Reset transform and apply DPR scaling
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.scale(this.devicePixelRatio, this.devicePixelRatio);
         
@@ -236,12 +221,21 @@ export class SpectrumRenderer {
                 this.markDirty();
                 this.render();
                 isFirstRender = false;
-            } else if (this.renderRequested && timestamp - this.lastRenderTime >= this.renderThrottleTime) {
-                if (!this.dirtyRegions.length) this.checkStateChanges();
-                if (this.dirtyRegions.length) this.render();
-                this.lastRenderTime = timestamp;
-                this.renderRequested = false;
+            } else {
+                // Always update particles if any exist
+                if (this.particles.length > 0) {
+                    this.updateParticles();
+                    this.requestRender();
+                }
+                
+                if (this.renderRequested && timestamp - this.lastRenderTime >= this.renderThrottleTime) {
+                    if (!this.dirtyRegions.length) this.checkStateChanges();
+                    if (this.dirtyRegions.length || this.particles.length > 0) this.render();
+                    this.lastRenderTime = timestamp;
+                    this.renderRequested = false;
+                }
             }
+            
             this.animationFrame = requestAnimationFrame(renderFrame);
         };
         this.animationFrame = requestAnimationFrame(renderFrame);
@@ -254,13 +248,9 @@ export class SpectrumRenderer {
     requestRender() {
         this.renderRequested = true;
     }
-    
+
     /**
      * Mark a specific region as needing redraw
-     * @param {number} x - X coordinate
-     * @param {number} y - Y coordinate
-     * @param {number} width - Region width
-     * @param {number} height - Region height
      * @private
      */
     markRegionDirty(x, y, width, height) {
@@ -272,7 +262,7 @@ export class SpectrumRenderer {
         });
         this.requestRender();
     }
-    
+
     /**
      * Mark the entire canvas as needing redraw
      * @public
@@ -285,14 +275,12 @@ export class SpectrumRenderer {
         }];
         this.requestRender();
     }
-    
+
     /**
      * Check for state changes and mark dirty regions
      * @private
      */
     checkStateChanges() {
-        // IMPORTANT: Force full redraw when hovering to prevent artifacts
-        // This fixes the semi-transparent square issue during hover
         if (this.isHovering && this.interactionEnabled && this.hoverCoordinate) {
             this.markDirty();
             return;
@@ -316,138 +304,52 @@ export class SpectrumRenderer {
             });
         };
         
-        // Ensure target is always marked if visible
         if (this.shouldRenderTarget() && this.targetCoordinate) {
             markCoords([this.targetCoordinate], 20);
         }
         
-        // Check for guess changes
         if (JSON.stringify(Object.keys(state.guesses)) !== JSON.stringify(Object.keys(this.lastRenderState.guesses))) {
             markCoords(Object.values(this.lastRenderState.guesses));
             markCoords(Object.values(state.guesses));
         }
         
-        // Check for other state changes
         ['targetCoordinate', 'hoverCoordinate', 'previewGuess'].forEach(key => {
             if (JSON.stringify(state[key]) !== JSON.stringify(this.lastRenderState[key])) {
                 markCoords([state[key], this.lastRenderState[key]], key === 'targetCoordinate' ? 20 : 15);
             }
         });
         
-        // Check particles
-        if (this.particles.length || this.lastRenderState.particles.length) {
-            [...this.particles, ...this.lastRenderState.particles]
-                .filter(p => p.active)
-                .forEach(p => this.markRegionDirty(p.x - p.size, p.y - p.size, p.size * 2, p.size * 2));
-        }
-        
         this.lastRenderState = JSON.parse(JSON.stringify(state));
     }
 
     /**
-     * Main render method with dirty region optimization
+     * Main render method
      * @private
      */
     render() {
-        if (!this.ctx || !this.canvasSize.width || !this.canvasSize.height || !this.dirtyRegions.length) return;
+        if (!this.ctx || !this.canvasSize.width || !this.canvasSize.height) return;
         
         const {width, height} = this.canvasSize;
         
-        // Merge overlapping regions for efficiency
-        this.mergeOverlappingRegions();
+        // Always do full redraw for simplicity with particle system
+        this.ctx.fillStyle = this.colors.darkBg;
+        this.ctx.fillRect(0, 0, width, height);
         
-        // Check if we should do a full redraw
-        const totalDirtyArea = this.dirtyRegions.reduce((sum, r) => sum + r.width * r.height, 0);
-        const isFullRedraw = totalDirtyArea > width * height * 0.6;
+        this.render2DGradient();
+        this.renderGridLines();
+        this.renderCenterExclusionZone();
         
-        if (isFullRedraw) {
-            this.dirtyRegions = [{x: 0, y: 0, width, height}];
-        }
+        if (this.shouldRenderTarget()) this.renderTarget();
+        this.renderGuesses();
+        if (this.isHovering && this.interactionEnabled && this.hoverCoordinate) this.renderHoverPreview();
+        if (this.previewGuess) this.renderPreviewGuess();
         
-        this.updateParticles();
-        
-        // Render function for all elements
-        const renderAll = () => {
-            this.ctx.fillStyle = this.colors.darkBg;
-            this.ctx.fillRect(0, 0, width, height);
-            this.render2DGradient();
-            this.renderGridLines();
-            if (this.particles.length) this.renderParticles();
-            if (this.shouldRenderTarget()) this.renderTarget();
-            this.renderGuesses();
-            if (this.isHovering && this.interactionEnabled && this.hoverCoordinate) this.renderHoverPreview();
-            if (this.previewGuess) this.renderPreviewGuess();
-        };
-        
-        // Full redraw or partial redraw
-        if (this.dirtyRegions.length === 1 && isFullRedraw) {
-            renderAll();
-        } else {
-            // Partial redraw for each dirty region
-            this.dirtyRegions.forEach(region => {
-                this.ctx.save();
-                this.ctx.fillStyle = this.colors.darkBg;
-                this.ctx.fillRect(region.x, region.y, region.width, region.height);
-                this.ctx.beginPath();
-                this.ctx.rect(region.x, region.y, region.width, region.height);
-                this.ctx.clip();
-                
-                this.render2DGradient();
-                this.renderGridLines();
-                
-                const inRegion = (x, y, radius) => 
-                    x + radius >= region.x && x - radius <= region.x + region.width &&
-                    y + radius >= region.y && y - radius <= region.y + region.height;
-                
-                if (this.particles.length) this.renderParticlesInRegion(region);
-                
-                if (this.shouldRenderTarget()) {
-                    const pos = this.coordToCanvas(this.targetCoordinate);
-                    if (inRegion(pos.x, pos.y, 15)) this.renderTarget();
-                }
-                
-                this.renderGuessesInRegion(region);
-                
-                if (this.isHovering && this.interactionEnabled && this.hoverCoordinate) {
-                    const pos = this.coordToCanvas(this.hoverCoordinate);
-                    if (inRegion(pos.x, pos.y, 10)) this.renderHoverPreview();
-                }
-                
-                if (this.previewGuess) {
-                    const pos = this.coordToCanvas(this.previewGuess);
-                    if (inRegion(pos.x, pos.y, 10)) this.renderPreviewGuess();
-                }
-                
-                this.ctx.restore();
-            });
+        // Render particles on top
+        if (this.particles.length > 0) {
+            this.renderParticles();
         }
         
         this.dirtyRegions = [];
-    }
-
-    /**
-     * Merge overlapping dirty regions to reduce draw calls
-     * @private
-     */
-    mergeOverlappingRegions() {
-        if (this.dirtyRegions.length <= 1) return;
-        
-        let i = 0;
-        while (i < this.dirtyRegions.length) {
-            let j = i + 1;
-            while (j < this.dirtyRegions.length) {
-                const r1 = this.dirtyRegions[i], r2 = this.dirtyRegions[j];
-                if (r1.x <= r2.x + r2.width && r1.x + r1.width >= r2.x &&
-                    r1.y <= r2.y + r2.height && r1.y + r1.height >= r2.y) {
-                    r1.x = Math.min(r1.x, r2.x);
-                    r1.y = Math.min(r1.y, r2.y);
-                    r1.width = Math.max(r1.x + r1.width, r2.x + r2.width) - r1.x;
-                    r1.height = Math.max(r1.y + r1.height, r2.y + r2.height) - r1.y;
-                    this.dirtyRegions.splice(j, 1);
-                } else j++;
-            }
-            i++;
-        }
     }
 
     /**
@@ -507,9 +409,63 @@ export class SpectrumRenderer {
     }
 
     /**
-     * Convert game coordinates (0-100) to canvas pixels
-     * @param {Object} coord - Game coordinate {x, y}
-     * @returns {Object} Canvas position {x, y}
+     * Render the center exclusion zone
+     * @private
+     */
+    renderCenterExclusionZone() {
+        const {width, height} = this.canvasSize;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radiusInPixels = (this.centerExclusionRadius / 100) * Math.min(width, height);
+        
+        this.ctx.save();
+        
+        const gradient = this.ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radiusInPixels);
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+        gradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.3)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
+        
+        this.ctx.fillStyle = gradient;
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, radiusInPixels, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        this.ctx.strokeStyle = this.colors.exclusionBorder;
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, radiusInPixels, 0, Math.PI * 2);
+        this.ctx.stroke();
+        
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([]);
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, radiusInPixels - 3, 0, Math.PI * 2);
+        this.ctx.stroke();
+        
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        this.ctx.font = `${Math.max(10, radiusInPixels / 10)}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText('NO TARGET ZONE', centerX, centerY);
+        
+        this.ctx.restore();
+    }
+
+    /**
+     * Check if a coordinate is within the center exclusion zone
+     * @private
+     */
+    isInExclusionZone(coord) {
+        const centerX = 50;
+        const centerY = 50;
+        const distance = Math.sqrt(Math.pow(coord.x - centerX, 2) + Math.pow(coord.y - centerY, 2));
+        return distance <= this.centerExclusionRadius;
+    }
+
+    /**
+     * Convert game coordinates to canvas pixels
      * @private
      */
     coordToCanvas(coord) {
@@ -520,10 +476,7 @@ export class SpectrumRenderer {
     }
 
     /**
-     * Convert canvas pixels to game coordinates (0-100)
-     * @param {number} x - Canvas X position
-     * @param {number} y - Canvas Y position
-     * @returns {Object} Game coordinate {x, y}
+     * Convert canvas pixels to game coordinates
      * @private
      */
     canvasToCoord(x, y) {
@@ -536,7 +489,6 @@ export class SpectrumRenderer {
 
     /**
      * Check if target should be rendered
-     * @returns {boolean}
      * @private
      */
     shouldRenderTarget() {
@@ -545,7 +497,7 @@ export class SpectrumRenderer {
             typeof this.targetCoordinate.y === 'number' && 
             this.showTarget;
     }
-    
+
     /**
      * Render the target marker
      * @private
@@ -555,7 +507,6 @@ export class SpectrumRenderer {
         
         this.ctx.save();
         
-        // Concentric circles for target
         [15, 10, 4].forEach((radius, i) => {
             this.ctx.fillStyle = i % 2 ? this.colors.darkBg : this.colors.red;
             this.ctx.beginPath();
@@ -568,7 +519,6 @@ export class SpectrumRenderer {
 
     /**
      * Render all player guesses
-     * IMPORTANT: Renders directly to main context to ensure proper grid locking
      * @private
      */
     renderGuesses() {
@@ -579,7 +529,6 @@ export class SpectrumRenderer {
             const player = players[playerId];
             if (!player || !coordinate) return;
             
-            // IMPORTANT: Round coordinates to ensure consistency with target
             const roundedCoord = {
                 x: Math.round(coordinate.x),
                 y: Math.round(coordinate.y)
@@ -591,43 +540,9 @@ export class SpectrumRenderer {
                 player.name.charAt(0).toUpperCase());
         });
     }
-    
-    /**
-     * Render guesses within a specific region
-     * @param {Object} region - Dirty region to render within
-     * @private
-     */
-    renderGuessesInRegion(region) {
-        const players = this.stateManager.getPlayers();
-        const playerColors = [this.colors.teal, this.colors.green, this.colors.orange, this.colors.lilac];
-        
-        Object.entries(this.guesses).forEach(([playerId, coordinate], index) => {
-            const player = players[playerId];
-            if (!player || !coordinate) return;
-            
-            const roundedCoord = {
-                x: Math.round(coordinate.x),
-                y: Math.round(coordinate.y)
-            };
-            
-            const pos = this.coordToCanvas(roundedCoord);
-            
-            if (pos.x + 12 >= region.x && pos.x - 12 <= region.x + region.width &&
-                pos.y + 12 >= region.y && pos.y - 12 <= region.y + region.height) {
-                this.renderGuessMarker(this.ctx, pos.x, pos.y,
-                    playerColors[index % playerColors.length],
-                    player.name.charAt(0).toUpperCase());
-            }
-        });
-    }
 
     /**
      * Render a single guess marker
-     * @param {CanvasRenderingContext2D} ctx - Canvas context
-     * @param {number} x - X position
-     * @param {number} y - Y position
-     * @param {string} color - Marker color
-     * @param {string} initial - Player initial
      * @private
      */
     renderGuessMarker(ctx, x, y, color, initial) {
@@ -653,12 +568,22 @@ export class SpectrumRenderer {
      */
     renderHoverPreview() {
         const pos = this.coordToCanvas(this.hoverCoordinate);
+        const inExclusionZone = this.isInExclusionZone(this.hoverCoordinate);
+        
         this.ctx.save();
-        this.ctx.globalAlpha = 0.6;
-        this.ctx.fillStyle = this.colors.lilac;
+        this.ctx.globalAlpha = inExclusionZone ? 0.3 : 0.6;
+        this.ctx.fillStyle = inExclusionZone ? this.colors.red : this.colors.lilac;
         this.ctx.beginPath();
         this.ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
         this.ctx.fill();
+        
+        if (inExclusionZone) {
+            this.ctx.strokeStyle = this.colors.red;
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([3, 3]);
+            this.ctx.stroke();
+        }
+        
         this.ctx.restore();
     }
 
@@ -681,68 +606,126 @@ export class SpectrumRenderer {
     }
 
     /**
-     * Render all particles
+     * Simplified particle rendering
      * @private
      */
     renderParticles() {
-        this.particles.forEach(p => {
-            if (p.alpha > 0) {
-                this.ctx.globalAlpha = p.alpha;
-                this.ctx.fillStyle = p.color;
-                this.ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
-            }
-        });
-        
-        this.ctx.globalAlpha = 1;
-    }
-
-    /**
-     * Render particles within a specific region
-     * @param {Object} region - Dirty region to render within
-     * @private
-     */
-    renderParticlesInRegion(region) {
-        this.particles.forEach(p => {
-            if (p.alpha > 0 && 
-                p.x + p.size/2 >= region.x && p.x - p.size/2 <= region.x + region.width &&
-                p.y + p.size/2 >= region.y && p.y - p.size/2 <= region.y + region.height) {
-                this.ctx.globalAlpha = p.alpha;
-                this.ctx.fillStyle = p.color;
-                this.ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
-            }
-        });
-        
-        this.ctx.globalAlpha = 1;
-    }
-
-    /**
-     * Update particle positions and states
-     * @private
-     */
-    updateParticles() {
-        let hasActive = false;
+        this.ctx.save();
         
         for (let i = 0; i < this.particles.length; i++) {
             const p = this.particles[i];
-            if (!p.active) continue;
             
-            this.markRegionDirty(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+            if (p.life <= 0) continue;
             
-            p.x += p.vx;
-            p.y += p.vy;
-            p.alpha -= p.decay;
-            p.size *= p.shrink;
-            
-            if (p.alpha <= 0 || p.size < 0.5) {
-                p.active = false;
-            } else {
-                hasActive = true;
-                this.markRegionDirty(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+            // Calculate alpha based on life
+            let alpha = 1;
+            if (p.life < 10) {
+                alpha = p.life / 10;
+            } else if (p.life > 50) {
+                alpha = (60 - p.life) / 10;
             }
+            
+            this.ctx.globalAlpha = alpha * 0.8;
+            
+            // Draw glow
+            const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3);
+            gradient.addColorStop(0, p.color + '40');
+            gradient.addColorStop(0.5, p.color + '20');
+            gradient.addColorStop(1, p.color + '00');
+            
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Draw core
+            this.ctx.globalAlpha = alpha;
+            this.ctx.fillStyle = p.color;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            this.ctx.fill();
         }
         
-        if (!hasActive && this.particles.length) this.particles = [];
-        if (hasActive) this.requestRender();
+        this.ctx.restore();
+    }
+
+    /**
+     * Update particle physics
+     * @private
+     */
+    updateParticles() {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            
+            // Update position
+            p.x += p.vx;
+            p.y += p.vy;
+            
+            // Apply gravity and friction
+            p.vy += 0.2;
+            p.vx *= 0.98;
+            p.vy *= 0.98;
+            
+            // Update life
+            p.life--;
+            
+            // Update size
+            if (p.type === 'sparkle') {
+                p.size = p.baseSize * (0.5 + Math.sin(p.life * 0.2) * 0.5);
+            }
+            
+            // Remove dead particles
+            if (p.life <= 0 || p.y > this.canvasSize.height + 50) {
+                this.particles.splice(i, 1);
+            }
+        }
+    }
+
+    /**
+     * Create particle burst at position
+     * @private
+     */
+    createPlacementParticles(x, y) {
+        const particleCount = 12;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
+            const speed = 2 + Math.random() * 3;
+            const size = 2 + Math.random() * 3;
+            
+            this.particles.push({
+                x,
+                y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 3,
+                size,
+                baseSize: size,
+                life: 60,
+                color: this.particleColors[Math.floor(Math.random() * this.particleColors.length)],
+                type: Math.random() < 0.3 ? 'sparkle' : 'normal'
+            });
+        }
+        
+        // Add some sparkles
+        for (let i = 0; i < 5; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 4 + Math.random() * 2;
+            
+            this.particles.push({
+                x: x + (Math.random() - 0.5) * 20,
+                y: y + (Math.random() - 0.5) * 20,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 2,
+                size: 1.5,
+                baseSize: 1.5,
+                life: 40,
+                color: '#ffffff',
+                type: 'sparkle'
+            });
+        }
+        
+        console.log('Created particles:', this.particles.length); // Debug log
+        this.requestRender();
     }
 
     /**
@@ -768,7 +751,6 @@ export class SpectrumRenderer {
 
     /**
      * Handle pointer move event with throttling
-     * @param {PointerEvent} e - Pointer event
      * @private
      */
     handlePointerMove = (e) => {
@@ -788,7 +770,6 @@ export class SpectrumRenderer {
 
     /**
      * Handle pointer down event
-     * @param {PointerEvent} e - Pointer event
      * @private
      */
     handlePointerDown = (e) => {
@@ -797,19 +778,27 @@ export class SpectrumRenderer {
 
     /**
      * Handle pointer up event
-     * @param {PointerEvent} e - Pointer event
      * @private
      */
     handlePointerUp = (e) => {
         if (!this.interactionEnabled || !this.isDragging || e.button !== 0) return;
         
         this.isDragging = false;
-        if (this.hoverCoordinate) this.handleGuessPlacement(this.hoverCoordinate);
+        if (this.hoverCoordinate) {
+            if (this.isInExclusionZone(this.hoverCoordinate)) {
+                this.stateManager.addNotification({
+                    type: 'warning',
+                    message: 'Cannot place guess in the center exclusion zone!',
+                    duration: 3000
+                });
+                return;
+            }
+            this.handleGuessPlacement(this.hoverCoordinate);
+        }
     }
 
     /**
      * Handle guess placement
-     * @param {Object} coordinate - Coordinate where guess was placed
      * @private
      */
     handleGuessPlacement(coordinate) {
@@ -822,8 +811,6 @@ export class SpectrumRenderer {
         const pos = this.coordToCanvas(roundedCoordinate);
         this.createPlacementParticles(pos.x, pos.y);
         
-        // IMPORTANT: Store guess locally immediately to ensure correct positioning
-        // This prevents mismatch between preview and actual guess position
         const playerId = this.stateManager.state.connection.playerId;
         if (playerId) {
             this.guesses[playerId] = roundedCoordinate;
@@ -834,41 +821,7 @@ export class SpectrumRenderer {
     }
 
     /**
-     * Create particle effects for guess placement
-     * @param {number} x - X position
-     * @param {number} y - Y position
-     * @private
-     */
-    createPlacementParticles(x, y) {
-        const count = Math.min(8, this.maxParticles - this.particles.length);
-        
-        for (let i = 0; i < count; i++) {
-            const particle = this.particlePool.find(p => !p.active) || this.particlePool[0];
-            const angle = (Math.PI * 2 * i) / count;
-            const speed = 2 + Math.random() * 2;
-            
-            Object.assign(particle, {
-                x, y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                size: 3,
-                alpha: 1,
-                decay: 0.05,
-                shrink: 0.95,
-                color: this.colors.lilac,
-                active: true
-            });
-            
-            if (!this.particles.includes(particle)) this.particles.push(particle);
-        }
-        
-        this.requestRender();
-    }
-
-    /**
      * Update spectrum data
-     * @param {string} axis - 'spectrumX' or 'spectrumY'
-     * @param {Object} spectrum - Spectrum data
      * @public
      */
     updateSpectrum(axis, spectrum) {
@@ -879,7 +832,6 @@ export class SpectrumRenderer {
 
     /**
      * Update target coordinate
-     * @param {Object} coordinate - Target coordinate
      * @public
      */
     updateTargetCoordinate(coordinate) {
@@ -890,11 +842,9 @@ export class SpectrumRenderer {
 
     /**
      * Update guesses from state
-     * @param {Object} guesses - Object mapping player IDs to coordinates
      * @public
      */
     updateGuesses(guesses) {
-        // Clear preview if our guess is confirmed
         const myPlayerId = this.stateManager.state.connection.playerId;
         if (myPlayerId && guesses?.[myPlayerId]) {
             this.previewGuess = null;
@@ -906,7 +856,6 @@ export class SpectrumRenderer {
 
     /**
      * Enable or disable interaction
-     * @param {boolean} enabled - Whether interaction is enabled
      * @public
      */
     setInteractionEnabled(enabled) {
@@ -921,7 +870,6 @@ export class SpectrumRenderer {
 
     /**
      * Set target visibility
-     * @param {boolean} show - Whether to show target
      * @public
      */
     setShowTarget(show) {
@@ -931,7 +879,6 @@ export class SpectrumRenderer {
 
     /**
      * Update target visibility based on game state
-     * IMPORTANT: Phase name must match exactly ('results' not 'scoring')
      * @private
      */
     updateTargetVisibility() {
@@ -943,7 +890,6 @@ export class SpectrumRenderer {
 
     /**
      * Handle game phase changes
-     * @param {string} phase - New game phase
      * @public
      */
     handlePhaseChange(phase) {
@@ -951,6 +897,7 @@ export class SpectrumRenderer {
             'giving-clue': () => { 
                 this.guesses = {}; 
                 this.previewGuess = null; 
+                this.particles = [];
             },
             'guessing': () => { 
                 this.previewGuess = null; 
@@ -982,6 +929,7 @@ export class SpectrumRenderer {
             showTarget: false,
             particles: []
         });
+        
         this.requestRender();
     }
 
@@ -1005,8 +953,7 @@ export class SpectrumRenderer {
         Object.assign(this, {
             canvas: null,
             ctx: null,
-            particles: [],
-            particlePool: []
+            particles: []
         });
         
         this.clearRoundData();
