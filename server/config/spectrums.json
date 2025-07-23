@@ -196,6 +196,19 @@
       "difficulty": "medium"
     },
     {
+      "id": "cleanliness",
+      "name": "Cleanliness Level",
+      "leftLabel": "Extremely Dirty",
+      "rightLabel": "Spotlessly Clean",
+      "gradient": {
+        "start": "#8D6E63",
+        "middle": "#FFC107",
+        "end": "#FFD700"
+      },
+      "category": "social",
+      "difficulty": "easy"
+    },
+    {
       "id": "wealth",
       "name": "Wealth Level",
       "leftLabel": "Dirt Poor",
