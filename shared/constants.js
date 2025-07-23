@@ -22,8 +22,8 @@ const GAME_RULES = {
   MAX_PLAYERS: 6,
   
   // Round settings
-  ROUND_DURATION: 180, // seconds
-  MAX_ROUNDS: 10,
+  ROUND_DURATION: 120, // seconds
+  MAX_ROUNDS: 15,
   RESULTS_VIEWING_TIME: 7000, // ms
   BETWEEN_ROUNDS_DELAY: 3000, // ms
   
