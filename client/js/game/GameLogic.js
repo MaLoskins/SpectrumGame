@@ -4,35 +4,55 @@
  * UPDATED: Support for 2D coordinate system
  */
 
+import { GAME_RULES, SCORING, VALIDATION } from '../../shared/constants.js';
+import { Validator } from '../../shared/validation.js';
+
 class GameLogic {
     constructor() {
         Object.assign(this, {
-            SPECTRUM_MIN: 0,
-            SPECTRUM_MAX: 100,
-            MAX_CLUE_LENGTH: 100,
-            MAX_PLAYER_NAME_LENGTH: 20,
-            ROUND_DURATION: 60,
-            BONUS_THRESHOLD: 10,
-            BONUS_POINTS: 50,
-            MIN_PLAYERS: 2,
-            MAX_PLAYERS: 4,
-            MAX_DISTANCE: Math.sqrt(20000) // ~141.4
+            SPECTRUM_MIN: GAME_RULES.SPECTRUM_MIN,
+            SPECTRUM_MAX: GAME_RULES.SPECTRUM_MAX,
+            MAX_CLUE_LENGTH: VALIDATION.MAX_CLUE_LENGTH,
+            MAX_PLAYER_NAME_LENGTH: VALIDATION.MAX_PLAYER_NAME_LENGTH,
+            ROUND_DURATION: GAME_RULES.ROUND_DURATION,
+            BONUS_THRESHOLD: SCORING.BONUS_THRESHOLD,
+            BONUS_POINTS: SCORING.BONUS_POINTS,
+            MIN_PLAYERS: GAME_RULES.MIN_PLAYERS,
+            MAX_PLAYERS: GAME_RULES.MAX_PLAYERS,
+            MAX_DISTANCE: GAME_RULES.MAX_DISTANCE
         });
     }
 
-    // Core calculations
+    /**
+     * Calculate Euclidean distance between two coordinates
+     * @param {Object} guess - Guess coordinate {x, y}
+     * @param {Object} target - Target coordinate {x, y}
+     * @returns {number} Euclidean distance
+     */
     calculateDistance = (guess, target) => Math.hypot(guess.x - target.x, guess.y - target.y);
     
+    /**
+     * Calculate score based on distance between guess and target
+     * @param {Object} guess - Guess coordinate {x, y}
+     * @param {Object} target - Target coordinate {x, y}
+     * @returns {Object} Score details including baseScore, distance, and distancePercentage
+     */
     calculateScore(guess, target) {
         const distance = this.calculateDistance(guess, target);
         const normalizedDistance = distance / this.MAX_DISTANCE;
-        return { 
-            baseScore: Math.max(0, Math.round(100 * (1 - normalizedDistance))), 
+        return {
+            baseScore: Math.max(0, Math.round(100 * (1 - normalizedDistance))),
             distance: Math.round(distance * 10) / 10,
-            distancePercentage: normalizedDistance 
+            distancePercentage: normalizedDistance
         };
     }
 
+    /**
+     * Calculate clue giver's score based on all guesses
+     * @param {Array} guesses - Array of guess coordinates
+     * @param {Object} target - Target coordinate {x, y}
+     * @returns {Object} Clue giver score details including score, averageScore, bonusAwarded, and bonusPoints
+     */
     calculateClueGiverScore(guesses, target) {
         if (!guesses?.length) return { score: 0, averageScore: 0, bonusAwarded: false, bonusPoints: 0 };
         
@@ -48,6 +68,12 @@ class GameLogic {
         };
     }
 
+    /**
+     * Find the best guess (closest to target) among all guesses
+     * @param {Object} guesses - Object mapping playerIds to guess coordinates
+     * @param {Object} target - Target coordinate {x, y}
+     * @returns {Object} Best guess details including playerId, guess, and distance
+     */
     getBestGuess(guesses, target) {
         const entries = Object.entries(guesses || {});
         return entries.reduce((best, [playerId, guess]) => {
@@ -57,39 +83,51 @@ class GameLogic {
     }
 
     // Validation methods
-    validateGuess = coord => coord && typeof coord.x === 'number' && typeof coord.y === 'number' &&
-        coord.x >= this.SPECTRUM_MIN && coord.x <= this.SPECTRUM_MAX &&
-        coord.y >= this.SPECTRUM_MIN && coord.y <= this.SPECTRUM_MAX;
+    validateGuess = coord => Validator.coordinate(coord, this.SPECTRUM_MIN, this.SPECTRUM_MAX).valid;
 
     validateInput(value, maxLength, pattern, emptyError, lengthError, formatError) {
-        const trimmed = value?.trim();
-        if (!trimmed) return { valid: false, error: emptyError };
-        if (trimmed.length > maxLength) return { valid: false, error: lengthError };
-        if (pattern && !pattern.test(trimmed)) return { valid: false, error: formatError };
-        return { valid: true, value: trimmed };
+        return Validator.input(value, maxLength, pattern, emptyError, lengthError, formatError);
     }
 
-    validateClue = clue => this.validateInput(clue, this.MAX_CLUE_LENGTH, /^[^\d]+$/, 
-        'Clue cannot be empty', `Clue must be ${this.MAX_CLUE_LENGTH} characters or less`, 'Clue cannot contain numbers');
+    validateClue = clue => Validator.clue(clue);
 
-    validatePlayerName = name => this.validateInput(name, this.MAX_PLAYER_NAME_LENGTH, /^[a-zA-Z0-9\s\-_]+$/,
-        'Name cannot be empty', `Name must be ${this.MAX_PLAYER_NAME_LENGTH} characters or less`, 
-        'Name can only contain letters, numbers, spaces, hyphens, and underscores');
+    validatePlayerName = name => Validator.playerName(name);
 
     validateRoomCode = code => {
-        const result = this.validateInput(code?.toUpperCase(), 6, /^[A-Z0-9]{4,6}$/, 
-            'Room code cannot be empty', '', 'Room code must be 4-6 characters (letters and numbers only)');
+        const result = Validator.roomCode(code);
         return result.valid ? { ...result, code: result.value } : result;
     };
 
-    // UI helpers
+    /**
+     * Format time remaining in MM:SS format
+     * @param {number} seconds - Time remaining in seconds
+     * @returns {string} Formatted time string
+     */
     formatTimeRemaining = seconds => seconds <= 0 ? '0:00' : `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
     
-    getTimeWarningLevel = (timeRemaining, totalTime) => 
+    /**
+     * Get warning level based on time remaining
+     * @param {number} timeRemaining - Time remaining in seconds
+     * @param {number} totalTime - Total time in seconds
+     * @returns {string} Warning level: 'danger', 'warning', or 'normal'
+     */
+    getTimeWarningLevel = (timeRemaining, totalTime) =>
         timeRemaining / totalTime <= 0.1 ? 'danger' : timeRemaining / totalTime <= 0.25 ? 'warning' : 'normal';
 
+    /**
+     * Calculate game progress percentage
+     * @param {number} currentRound - Current round number
+     * @param {number} totalRounds - Total number of rounds
+     * @returns {number} Progress percentage (0-100)
+     */
     calculateGameProgress = (currentRound, totalRounds) => Math.round((currentRound / totalRounds) * 100);
 
+    /**
+     * Get display text for current game phase
+     * @param {string} phase - Current game phase
+     * @param {boolean} isClueGiver - Whether current player is clue giver
+     * @returns {string} Display text for the phase
+     */
     getPhaseDisplayText(phase, isClueGiver = false) {
         const phases = {
             lobby: 'Waiting for players...',
@@ -102,42 +140,109 @@ class GameLogic {
         return phases[phase] || 'Loading...';
     }
 
-    // Coordinate helpers
+    /**
+     * Ensure coordinate values are within valid percentage range (0-100)
+     * @param {Object} coord - Coordinate to normalize {x, y}
+     * @returns {Object} Normalized coordinate {x, y}
+     */
     getCoordinatePercentage = coord => ({ x: Math.max(0, Math.min(100, coord.x)), y: Math.max(0, Math.min(100, coord.y)) });
+    
+    /**
+     * Convert percentage values to valid coordinates
+     * @param {number} xPercent - X percentage (0-100)
+     * @param {number} yPercent - Y percentage (0-100)
+     * @returns {Object} Coordinate {x, y}
+     */
     percentageToCoordinate = (xPercent, yPercent) => ({ x: Math.round(Math.max(0, Math.min(100, xPercent))), y: Math.round(Math.max(0, Math.min(100, yPercent))) });
-    generateRandomTarget = (margin = 5) => ({ 
+    
+    /**
+     * Generate a random target coordinate with margin from edges
+     * @param {number} margin - Margin from edges (default: 5)
+     * @returns {Object} Random coordinate {x, y}
+     */
+    generateRandomTarget = (margin = 5) => ({
         x: Math.floor(Math.random() * (this.SPECTRUM_MAX - 2 * margin + 1)) + margin,
         y: Math.floor(Math.random() * (this.SPECTRUM_MAX - 2 * margin + 1)) + margin
     });
 
-    // Game state helpers
+    /**
+     * Check if all players (except clue giver) have submitted guesses
+     * @param {Object} players - Object containing player data
+     * @param {string} clueGiverId - ID of the clue giver
+     * @returns {boolean} Whether all players have guessed
+     */
     allPlayersGuessed = (players, clueGiverId) => Object.values(players).filter(p => p.id !== clueGiverId).every(p => p.hasGuessed);
+    
+    /**
+     * Get player role text based on whether they are the clue giver
+     * @param {string} playerId - Player ID
+     * @param {string} clueGiverId - ID of the clue giver
+     * @returns {string} Role text: 'Clue Giver' or 'Guesser'
+     */
     getPlayerRoleText = (playerId, clueGiverId) => playerId === clueGiverId ? 'Clue Giver' : 'Guesser';
+    
+    /**
+     * Calculate player rankings based on scores
+     * @param {Object} players - Object containing player data
+     * @returns {Array} Sorted array of players with rank property added
+     */
     calculateRankings = players => Object.values(players).sort((a, b) => (b.score || 0) - (a.score || 0)).map((player, index) => ({ ...player, rank: index + 1 }));
 
-    getDistanceDescription = distance => 
+    /**
+     * Get descriptive text for a guess distance
+     * @param {number} distance - Distance between guess and target
+     * @returns {string} Descriptive text based on distance
+     */
+    getDistanceDescription = distance =>
         distance <= 5 ? 'Perfect!' : distance <= 10 ? 'Excellent!' : distance <= 20 ? 'Very close!' :
         distance <= 35 ? 'Close!' : distance <= 50 ? 'Not bad!' : 'Try again!';
 
+    /**
+     * Get color for score display
+     * @param {number} score - Player score
+     * @returns {string} Color hex code based on score
+     */
     getScoreColor = score => score >= 80 ? '#4CAF50' : score >= 60 ? '#FF9800' : score >= 40 ? '#FFC107' : '#F44336';
 
+    /**
+     * Check if game can be started based on player count
+     * @param {Object} players - Object containing player data
+     * @param {number} minPlayers - Minimum number of players required (default: MIN_PLAYERS)
+     * @returns {boolean} Whether game can be started
+     */
     canStartGame = (players, minPlayers = this.MIN_PLAYERS) => {
         const count = Object.keys(players).length;
         return count >= minPlayers && count <= this.MAX_PLAYERS;
     };
 
+    /**
+     * Get the next clue giver in rotation
+     * @param {Object} players - Object containing player data
+     * @param {string} currentClueGiverId - Current clue giver ID
+     * @returns {string} Next clue giver ID
+     */
     getNextClueGiver(players, currentClueGiverId) {
         const playerIds = Object.keys(players);
         return playerIds[(playerIds.indexOf(currentClueGiverId) + 1) % playerIds.length];
     }
 
+    /**
+     * Format score for display
+     * @param {number} score - Score to format
+     * @returns {string} Formatted score
+     */
     formatScore = score => Math.round(score || 0).toLocaleString();
 
+    /**
+     * Calculate game statistics from game history
+     * @param {Array} gameHistory - Array of round data
+     * @returns {Object|null} Game statistics or null if no history
+     */
     calculateGameStats(gameHistory) {
         if (!gameHistory?.length) return null;
         
         const totalRounds = gameHistory.length;
-        const distances = gameHistory.flatMap(round => 
+        const distances = gameHistory.flatMap(round =>
             Object.values(round.guesses || {}).map(g => this.calculateDistance(g, round.target))
         );
         const bonusRounds = gameHistory.filter(r => r.bonusAwarded).length;
@@ -150,38 +255,26 @@ class GameLogic {
         };
     }
 
+    /**
+     * Deep clone an object
+     * @param {Object} obj - Object to clone
+     * @returns {Object} Cloned object
+     */
     deepClone = obj => JSON.parse(JSON.stringify(obj));
+    
+    /**
+     * Generate a unique ID
+     * @returns {string} Unique ID
+     */
     generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
-    checkBonusEligibility = (guesses, target) => guesses?.length && guesses.every(g => this.calculateDistance(g, target) <= this.BONUS_THRESHOLD);
-    getGamePhaseOrder = () => ['lobby', 'waiting', 'giving-clue', 'guessing', 'scoring', 'finished'];
+    // checkBonusEligibility removed - redundant with calculateClueGiverScore
+    // getGamePhaseOrder removed - unused
 
-    isValidPhaseTransition(currentPhase, newPhase) {
-        const transitions = {
-            lobby: ['waiting', 'giving-clue'],
-            waiting: ['giving-clue', 'lobby'],
-            'giving-clue': ['guessing', 'lobby'],
-            guessing: ['scoring', 'lobby'],
-            scoring: ['giving-clue', 'finished', 'lobby'],
-            finished: ['lobby']
-        };
-        return transitions[currentPhase]?.includes(newPhase) || false;
-    }
+    // isValidPhaseTransition removed - unused
 
-    getSpectrumGradient(spectrum) {
-        if (!spectrum?.gradient) return 'linear-gradient(90deg, #ccc, #666)';
-        const { start, middle, end } = spectrum.gradient;
-        return middle ? `linear-gradient(90deg, ${start} 0%, ${middle} 50%, ${end} 100%)` : `linear-gradient(90deg, ${start} 0%, ${end} 100%)`;
-    }
+    // getSpectrumGradient removed - unused
 
-    create2DGradient(spectrumX, spectrumY) {
-        if (!spectrumX?.gradient || !spectrumY?.gradient) return { background: 'linear-gradient(45deg, #333, #666)', fallback: '#444' };
-        
-        return {
-            background: `linear-gradient(to right, ${spectrumX.gradient.start}00, ${spectrumX.gradient.end}ff), linear-gradient(to bottom, ${spectrumY.gradient.start}ff, ${spectrumY.gradient.end}00)`,
-            backgroundBlendMode: 'multiply',
-            fallback: spectrumX.gradient.middle || '#666'
-        };
-    }
+    // create2DGradient removed - unused
 }
 
 export const gameLogic = new GameLogic();

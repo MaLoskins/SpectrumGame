@@ -16,6 +16,8 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const { NETWORK } = require('../shared/constants.js');
+const { GameError } = require('../shared/errors.js');
 const { GameManager } = require('./game/GameManager');
 const RoomManager = require('./game/RoomManager');
 const { SocketHandler } = require('./network/SocketHandler');
@@ -40,7 +42,7 @@ class SpectrumServer {
             },
             pingTimeout: 60000,
             pingInterval: 25000,
-            transports: ['websocket', 'polling']
+            transports: NETWORK.TRANSPORTS
         });
     }
 
@@ -66,7 +68,11 @@ class SpectrumServer {
             );
             console.log(`📊 Loaded ${this.spectrums.spectrums.length} spectrum configurations`);
         } catch (error) {
-            throw new Error('Could not load spectrum configurations');
+            throw new GameError(
+                'CONFIG_LOAD_FAILED',
+                'Could not load spectrum configurations',
+                { path: path.join(__dirname, 'config', 'spectrums.json') }
+            );
         }
     }
 
@@ -104,7 +110,7 @@ class SpectrumServer {
         this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
         this.app.use(express.static(path.join(__dirname, '..', 'client')));
     }
-
+    
     setupRoutes() {
         const getStats = () => ({
             activeRooms: this.roomManager?.getActiveRoomCount() || 0,
@@ -123,11 +129,15 @@ class SpectrumServer {
         
         this.app.get('/api/spectrums', (req, res) => res.json({ categories: this.spectrums?.categories || {} }));
         this.app.get('/api/stats', (req, res) => res.json(getStats()));
+        
+        // ADD THIS: Serve shared directory for client-side imports
+        this.app.use('/shared', express.static(path.join(__dirname, '..', 'shared')));
+        
+        // This MUST come last - it's the catch-all route
         this.app.get('*', (req, res) => res.sendFile(path.join(__dirname, '..', 'client', 'index.html')));
         
         console.log('🛣️ Routes configured');
     }
-
     setupSocketIO() {
         this.socketHandler.init();
         
@@ -159,7 +169,10 @@ class SpectrumServer {
             
             this.setupGracefulShutdown();
         } catch (error) {
-            console.error('❌ Failed to start server:', error);
+            const serverError = error instanceof GameError
+                ? error
+                : new GameError('SERVER_START_FAILED', error.message, { originalError: error });
+            console.error('❌ Failed to start server:', serverError);
             process.exit(1);
         }
     }
@@ -175,12 +188,18 @@ class SpectrumServer {
         ['SIGTERM', 'SIGINT'].forEach(signal => process.on(signal, () => shutdown(signal)));
         
         process.on('uncaughtException', error => {
-            console.error('❌ Uncaught Exception:', error);
+            const uncaughtError = error instanceof GameError
+                ? error
+                : new GameError('UNCAUGHT_EXCEPTION', error.message, { stack: error.stack });
+            console.error('❌ Uncaught Exception:', uncaughtError);
             this.stop().then(() => process.exit(1));
         });
         
         process.on('unhandledRejection', (reason, promise) => {
-            console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+            const rejectionError = reason instanceof GameError
+                ? reason
+                : new GameError('UNHANDLED_REJECTION', reason?.message || String(reason));
+            console.error('❌ Unhandled Rejection at:', promise, 'reason:', rejectionError);
             this.stop().then(() => process.exit(1));
         });
     }
@@ -210,7 +229,10 @@ class SpectrumServer {
 
 if (require.main === module) {
     new SpectrumServer().start().catch(error => {
-        console.error('❌ Failed to start server:', error);
+        const startupError = error instanceof GameError
+            ? error
+            : new GameError('SERVER_START_FAILED', error.message, { originalError: error });
+        console.error('❌ Failed to start server:', startupError);
         process.exit(1);
     });
 }

@@ -2,15 +2,33 @@
  * ===================================
  * SPECTRUM GAME - SOCKET HANDLER
  * ===================================
- * 
+ *
  * Socket handler that:
  * - Manages WebSocket connections
  * - Routes socket events to appropriate handlers
  * - Handles player authentication and validation
  * - Manages real-time game communication
- * 
+ *
  * UPDATED: Support for 2D coordinate system
  * ================================= */
+
+const { VALIDATION } = require('../../shared/constants.js');
+const {
+    ROOM_EVENTS,
+    GAME_EVENTS,
+    PLAYER_EVENTS,
+    CHAT_EVENTS,
+    TIMER_EVENTS,
+    ERROR_EVENTS
+} = require('../../shared/events.js');
+const { Validator } = require('../../shared/validation.js');
+const {
+    GameError,
+    ValidationError,
+    RoomError,
+    createPlayerNameError,
+    createRoomCodeError
+} = require('../../shared/errors.js');
 
 class SocketHandler {
     constructor(io, roomManager, gameManager) {
@@ -34,15 +52,15 @@ class SocketHandler {
 
     setupSocketEventHandlers(socket) {
         const handlers = {
-            'room:create': data => this.handleCreateRoom(socket, data),
-            'room:join': data => this.handleJoinRoom(socket, data),
-            'game:start': data => this.handleStartGame(socket, data),
-            'game:submit-clue': data => this.handleSubmitClue(socket, data),
-            'game:submit-guess': data => this.handleSubmitGuess(socket, data),
-            'chat:send': data => this.handleChatMessage(socket, data),
-            'player:disconnect': data => this.handlePlayerLeave(socket, data),
+            [ROOM_EVENTS.CREATE]: data => this.handleCreateRoom(socket, data),
+            [ROOM_EVENTS.JOIN]: data => this.handleJoinRoom(socket, data),
+            [GAME_EVENTS.START]: data => this.handleStartGame(socket, data),
+            [GAME_EVENTS.SUBMIT_CLUE]: data => this.handleSubmitClue(socket, data),
+            [GAME_EVENTS.SUBMIT_GUESS]: data => this.handleSubmitGuess(socket, data),
+            [CHAT_EVENTS.SEND]: data => this.handleChatMessage(socket, data),
+            [PLAYER_EVENTS.DISCONNECT]: data => this.handlePlayerLeave(socket, data),
             'ping': ts => socket.emit('pong', ts),
-            'game:request-state': data => this.handleStateRequest(socket, data)
+            [GAME_EVENTS.REQUEST_STATE]: data => this.handleStateRequest(socket, data)
         };
         
         Object.entries(handlers).forEach(([event, handler]) => 
@@ -64,7 +82,7 @@ class SocketHandler {
             socket.join(room.id);
             this.trackPlayer(socket, playerId, playerName, result.code, room.id);
             
-            socket.emit('room:created', {
+            socket.emit(ROOM_EVENTS.CREATED, {
                 roomId: room.id,
                 roomCode: result.code,
                 playerId,
@@ -93,7 +111,7 @@ class SocketHandler {
             this.trackPlayer(socket, playerId, playerName, roomCode, room.id);
             
             // Send joined confirmation to the joining player
-            socket.emit('room:joined', {
+            socket.emit(ROOM_EVENTS.JOINED, {
                 roomId: room.id,
                 roomCode,
                 playerId,
@@ -103,7 +121,7 @@ class SocketHandler {
             });
             
             // Broadcast to all OTHER clients in the room (including the host)
-            socket.to(room.id).emit('room:player-joined', {
+            socket.to(room.id).emit(ROOM_EVENTS.PLAYER_JOINED, {
                 player: roomInfo.players.find(p => p.id === playerId)
             });
             
@@ -120,8 +138,19 @@ class SocketHandler {
             this.setupRoom(room, this);
             
             const player = room.players.get(playerId);
-            if (!player?.isHost) throw new Error('Only the host can start the game');
-            if (!this.gameManager.canStartGame(room)) throw new Error('Not enough players to start game');
+            if (!player?.isHost) {
+                throw new GameError(
+                    'GAME_START_FAILED',
+                    'Only the host can start the game'
+                );
+            }
+            
+            if (!this.gameManager.canStartGame(room)) {
+                throw new GameError(
+                    'GAME_START_FAILED',
+                    'Not enough players to start game'
+                );
+            }
             
             console.log(`🎯 Starting game in room ${room.code}`);
             room.phase = 'active';
@@ -139,7 +168,7 @@ class SocketHandler {
             const { room, playerId } = this.getPlayerRoom(socket);
             const roomInfo = this.roomManager.getRoomInfo(room.code);
             
-            socket.emit('game:state-update', {
+            socket.emit(GAME_EVENTS.STATE_UPDATE, {
                 gameState: {
                     phase: room.phase,
                     currentRound: room.currentRound,
@@ -168,7 +197,7 @@ class SocketHandler {
             console.log(`💡 Clue submitted in room ${room.code}: "${clue}"`);
             
             const result = this.gameManager.submitClue(room, playerId, clue);
-            this.io.to(room.id).emit('game:clue-submitted', result);
+            this.io.to(room.id).emit(GAME_EVENTS.CLUE_SUBMITTED, result);
             
             console.log(`✅ Clue submitted successfully in room ${room.code}`);
         } catch (error) {
@@ -182,7 +211,7 @@ class SocketHandler {
             console.log(`🎯 Guess submitted in room ${room.code}: (${coordinate.x}, ${coordinate.y})`);
             
             const result = this.gameManager.submitGuess(room, playerId, coordinate);
-            this.io.to(room.id).emit('game:guess-submitted', result);
+            this.io.to(room.id).emit(GAME_EVENTS.GUESS_SUBMITTED, result);
             
             console.log(`✅ Guess submitted successfully in room ${room.code}`);
         } catch (error) {
@@ -194,12 +223,18 @@ class SocketHandler {
         try {
             const { room, playerId } = this.getPlayerRoom(socket);
             const player = room.players.get(playerId);
-            if (!player) throw new Error('Player not in room');
+            if (!player) {
+                throw new RoomError(
+                    'ROOM_JOIN_FAILED',
+                    'Player not in room',
+                    room.code
+                );
+            }
             
             this.validateChatMessage(message);
             console.log(`💬 Chat message in room ${room.code}: ${player.name}: ${message}`);
             
-            this.io.to(room.id).emit('chat:message', {
+            this.io.to(room.id).emit(CHAT_EVENTS.MESSAGE, {
                 playerId,
                 playerName: player.name,
                 message: message.trim(),
@@ -224,7 +259,7 @@ class SocketHandler {
             if (playerData) {
                 this.roomManager.updatePlayerConnection(playerId, false);
                 const room = this.roomManager.getRoomByCode(playerData.roomCode);
-                room && this.io.to(room.id).emit('room:player-left', {
+                room && this.io.to(room.id).emit(ROOM_EVENTS.PLAYER_LEFT, {
                     playerId,
                     playerName: playerData.playerName,
                     isDisconnected: true
@@ -245,12 +280,12 @@ class SocketHandler {
             socket.leave(playerData.roomId);
             
             if (!result.roomDeleted) {
-                this.io.to(playerData.roomId).emit('room:player-left', {
+                this.io.to(playerData.roomId).emit(ROOM_EVENTS.PLAYER_LEFT, {
                     playerId,
                     playerName: playerData.playerName
                 });
                 
-                result.newHost && this.io.to(playerData.roomId).emit('room:host-changed', {
+                result.newHost && this.io.to(playerData.roomId).emit(ROOM_EVENTS.HOST_CHANGED, {
                     newHostId: result.newHost.id,
                     newHostName: result.newHost.name
                 });
@@ -272,7 +307,7 @@ class SocketHandler {
     broadcastRoundStart(room, roundData) {
         room.players.forEach((player, pid) => {
             const playerSocket = this.getPlayerSocket(pid);
-            playerSocket?.emit('game:round-start', {
+            playerSocket?.emit(GAME_EVENTS.ROUND_START, {
                 ...roundData,
                 targetCoordinate: pid === room.clueGiverId ? room.targetCoordinate : null
             });
@@ -312,33 +347,47 @@ class SocketHandler {
 
     // Validation methods
     validatePlayerName(name) {
-        if (!name?.trim()) throw new Error('Player name is required');
-        const trimmed = name.trim();
-        if (trimmed.length > 20) throw new Error('Player name must be 20 characters or less');
-        if (!/^[a-zA-Z0-9\s\-_]+$/.test(trimmed)) throw new Error('Player name contains invalid characters');
+        const validation = Validator.playerName(name);
+        if (!validation.valid) {
+            throw createPlayerNameError(name, validation.error);
+        }
     }
 
     validateRoomCode(code) {
-        if (!code?.trim()) throw new Error('Room code is required');
-        if (!/^[A-Z0-9]{4,6}$/.test(code.trim().toUpperCase())) throw new Error('Invalid room code format');
+        const validation = Validator.roomCode(code);
+        if (!validation.valid) {
+            throw createRoomCodeError(code, validation.error);
+        }
     }
 
     validateChatMessage(message) {
-        if (!message?.trim()) throw new Error('Message cannot be empty');
-        if (message.trim().length > 200) throw new Error('Message must be 200 characters or less');
+        const validation = Validator.chatMessage(message);
+        if (!validation.valid) {
+            throw new ValidationError(
+                'INVALID_CHAT_MESSAGE',
+                validation.error,
+                'message',
+                message
+            );
+        }
     }
 
     handleError(socket, code, error) {
-        console.error(`❌ ${code}:`, error);
-        socket.emit('error', { code, message: error.message });
+        // Convert to GameError if it's not already
+        const gameError = error instanceof GameError
+            ? error
+            : new GameError(code, error.message, { originalError: error.toString() });
+        
+        console.error(`❌ ${gameError.code}:`, gameError);
+        socket.emit(ERROR_EVENTS.GENERAL, gameError.toJSON());
     }
 
     // Broadcast methods
-    broadcastRoundEnd = (room, results) => this.io.to(room.id).emit('game:round-end', results);
-    broadcastGameEnd = (room, results) => this.io.to(room.id).emit('game:finished', results);
-    broadcastTimerUpdate = (room, timeRemaining) => 
-        (timeRemaining % 5 === 0 || timeRemaining <= 10 || timeRemaining === 30) && 
-        this.io.to(room.id).emit('timer:update', { timeRemaining, phase: room.phase });
+    broadcastRoundEnd = (room, results) => this.io.to(room.id).emit(GAME_EVENTS.ROUND_END, results);
+    broadcastGameEnd = (room, results) => this.io.to(room.id).emit(GAME_EVENTS.FINISHED, results);
+    broadcastTimerUpdate = (room, timeRemaining) =>
+        (timeRemaining % 5 === 0 || timeRemaining <= 10 || timeRemaining === 30) &&
+        this.io.to(room.id).emit(TIMER_EVENTS.UPDATE, { timeRemaining, phase: room.phase });
 
     // Stats and utility
     getConnectedPlayerCount = () => this.connectedPlayers.size;

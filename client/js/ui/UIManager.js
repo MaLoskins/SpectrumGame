@@ -38,6 +38,11 @@ export class UIManager {
         });
     }
 
+    /**
+     * Initialize the UI manager
+     * Caches DOM elements, sets up event listeners, and initializes UI
+     * @returns {Promise<void>}
+     */
     async init() {
         console.log('🎨 Initializing UIManager...');
         this.cacheElements();
@@ -48,6 +53,10 @@ export class UIManager {
         console.log('✅ UIManager initialized');
     }
 
+    /**
+     * Cache DOM elements for faster access
+     * Stores references to frequently accessed DOM elements
+     */
     cacheElements() {
         console.log('🎨 Caching DOM elements...');
         
@@ -118,6 +127,10 @@ export class UIManager {
         }
     }
 
+    /**
+     * Set up event listeners for user interactions
+     * Attaches global and specific event handlers for UI elements
+     */
     setupEventListeners() {
         console.log('🎧 Setting up event listeners...');
         
@@ -132,6 +145,11 @@ export class UIManager {
         this.elements.chatInput?.addEventListener('keypress', e => { if (e.key === 'Enter') this.handleSendChat(); });
     }
 
+    /**
+     * Handle global click events using event delegation
+     * Routes clicks to appropriate handlers based on target element
+     * @param {Event} e - Click event object
+     */
     handleGlobalClick(e) {
         const target = e.target;
         
@@ -150,10 +168,18 @@ export class UIManager {
         else if (target === this.elements.modalOverlay) this.hideModal();
     }
 
+    /**
+     * Handle global keydown events
+     * @param {KeyboardEvent} e - Keydown event object
+     */
     handleGlobalKeydown(e) {
         this.handleKeyboardShortcuts(e);
     }
 
+    /**
+     * Set up state change listeners
+     * Maps state changes to UI update handlers
+     */
     setupStateListeners() {
         const stateHandlers = {
             'connection.status': data => this.updateConnectionStatus(data.newValue),
@@ -179,31 +205,83 @@ export class UIManager {
     }
 
     // Batch DOM updates for performance
-    queueDOMUpdate(updateFn) {
-        this.domUpdateQueue.push(updateFn);
+    /**
+     * Queue a DOM update for batch processing
+     * Uses requestIdleCallback or requestAnimationFrame for performance optimization
+     * @param {Function} updateFn - Function to execute for the update
+     * @param {boolean} critical - Whether the update is critical and should be processed immediately
+     */
+    queueDOMUpdate(updateFn, critical = false) {
+        this.domUpdateQueue.push({ fn: updateFn, critical });
         
         if (!this.batchUpdateTimeout) {
-            this.batchUpdateTimeout = requestAnimationFrame(() => {
-                this.processDOMUpdates();
-            });
+            // Use requestIdleCallback for non-critical updates when browser is idle
+            if (window.requestIdleCallback && !critical) {
+                this.batchUpdateTimeout = requestIdleCallback(() => {
+                    this.processDOMUpdates();
+                }, { timeout: 200 }); // Ensure it runs within 200ms even if browser is busy
+            } else {
+                this.batchUpdateTimeout = requestAnimationFrame(() => {
+                    this.processDOMUpdates();
+                });
+            }
         }
     }
 
+    /**
+     * Process queued DOM updates
+     * Handles critical updates first, then processes non-critical updates in chunks
+     * @private
+     */
     processDOMUpdates() {
         const updates = [...this.domUpdateQueue];
         this.domUpdateQueue = [];
         this.batchUpdateTimeout = null;
         
-        // Execute all queued updates
-        updates.forEach(fn => fn());
+        // Process critical updates first
+        const criticalUpdates = updates.filter(update => update.critical);
+        const nonCriticalUpdates = updates.filter(update => !update.critical);
+        
+        // Execute critical updates immediately
+        criticalUpdates.forEach(update => update.fn());
+        
+        // Execute non-critical updates in chunks to avoid blocking the main thread
+        if (nonCriticalUpdates.length > 0) {
+            const chunkSize = 5;
+            const chunks = [];
+            
+            for (let i = 0; i < nonCriticalUpdates.length; i += chunkSize) {
+                chunks.push(nonCriticalUpdates.slice(i, i + chunkSize));
+            }
+            
+            const processChunk = (index) => {
+                if (index >= chunks.length) return;
+                
+                chunks[index].forEach(update => update.fn());
+                
+                requestAnimationFrame(() => {
+                    processChunk(index + 1);
+                });
+            };
+            
+            processChunk(0);
+        }
     }
 
+    /**
+     * Initialize the UI to its default state
+     * Sets up initial view and resets form elements
+     */
     initializeUI() {
         this.switchView('lobby');
         this.hideAllControlSections();
         this.resetLobbyForm();
     }
 
+    /**
+     * Handle create room button click
+     * Animates to input state and shows player name input
+     */
     handleCreateRoom() {
         this.addButtonPressEffect(this.elements.createRoomBtn);
         this.animateToInputState(() => {
@@ -215,6 +293,10 @@ export class UIManager {
         requestAnimationFrame(() => this.elements.playerNameInput.focus());
     }
 
+    /**
+     * Handle join room button click
+     * Animates to input state and shows player name and room code inputs
+     */
     handleJoinRoom() {
         this.addButtonPressEffect(this.elements.joinRoomBtn);
         this.animateToInputState(() => {
@@ -227,6 +309,10 @@ export class UIManager {
         requestAnimationFrame(() => this.elements.playerNameInput.focus());
     }
 
+    /**
+     * Handle confirm action button click
+     * Validates inputs and emits appropriate events based on action type
+     */
     handleConfirmAction() {
         const action = this.elements.confirmActionBtn.dataset.action;
         const playerName = this.elements.playerNameInput.value.trim();
@@ -250,9 +336,21 @@ export class UIManager {
         this.resetLobbyForm();
     }
 
+    /**
+     * Handle cancel action button click
+     * Resets the lobby form to its initial state
+     */
     handleCancelAction = () => this.resetLobbyForm();
+    /**
+     * Handle start game button click
+     * Emits event to start the game
+     */
     handleStartGame = () => this.stateManager.emit('ui:start-game');
 
+    /**
+     * Handle submit clue button click
+     * Validates and submits the clue to the game
+     */
     handleSubmitClue() {
         if (this.debugMode) console.log('🎯 Submit clue button clicked');
         
@@ -284,14 +382,26 @@ export class UIManager {
         setTimeout(() => this.elements.clueInput?.classList.remove('animate-guess-submitted'), 500);
     }
 
+    /**
+     * Handle next round button click
+     * Updates UI to waiting state for next round
+     */
     handleNextRound() {
         this.hideAllControlSections();
         this.elements.waitingSection.classList.remove('hidden');
         this.elements.waitingMessage.textContent = 'Preparing next round...';
     }
 
+    /**
+     * Handle view final scores button click
+     * Shows modal with final game scores
+     */
     handleViewFinalScores = () => this.showModal('final-scores', this.stateManager.getGameState().finalScores);
 
+    /**
+     * Handle send chat button click
+     * Sends chat message and clears input field
+     */
     handleSendChat() {
         const message = this.elements.chatInput.value.trim();
         if (message) {
@@ -300,6 +410,10 @@ export class UIManager {
         }
     }
 
+    /**
+     * Handle toggle chat button click
+     * Toggles chat visibility and updates button text
+     */
     handleToggleChat() {
         const chatVisible = this.stateManager.getUIState().chatVisible;
         this.stateManager.updateUIState({ chatVisible: !chatVisible });
@@ -308,6 +422,11 @@ export class UIManager {
         this.elements.toggleChatBtn.textContent = chatVisible ? '+' : '−';
     }
 
+    /**
+     * Handle keyboard shortcuts
+     * Maps key presses to appropriate actions
+     * @param {KeyboardEvent} e - Keyboard event object
+     */
     handleKeyboardShortcuts(e) {
         const shortcuts = {
             Escape: () => this.activeModal && this.hideModal(),
@@ -323,6 +442,11 @@ export class UIManager {
         shortcuts[e.key]?.();
     }
 
+    /**
+     * Update UI based on connection status
+     * Shows/hides loading indicator and displays appropriate messages
+     * @param {string} status - Current connection status
+     */
     updateConnectionStatus(status) {
         const messages = {
             connecting: 'Connecting...',
@@ -341,47 +465,111 @@ export class UIManager {
         }
     }
 
+    /**
+     * Update the UI based on the current game phase
+     * @param {string} phase - Current game phase
+     */
     updateGamePhase(phase) {
         const gameState = this.stateManager.getGameState();
         const isClueGiver = this.stateManager.isCurrentPlayerClueGiver();
         
         if (this.debugMode) console.log(`🎮 Updating game phase to: ${phase}, isClueGiver: ${isClueGiver}`);
         
-        this.elements.gamePhaseText.textContent = gameLogic.getPhaseDisplayText(phase, isClueGiver, gameState.timeRemaining);
+        // Update phase display text
+        this.updatePhaseDisplayText(phase, isClueGiver, gameState);
         
+        // Hide all control sections before showing the relevant one
         this.hideAllControlSections();
-        
-        // Scroll notification panel to show relevant content
-        const scrollToControl = () => {
-            if (this.elements.gameControlContainer) {
-                this.elements.gameControlContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        };
         
         // Use requestAnimationFrame for DOM updates
         requestAnimationFrame(() => {
-            const phaseHandlers = {
-                lobby: () => this.handleLobbyPhase(),
-                'giving-clue': () => this.handleGivingCluePhase(isClueGiver),
-                guessing: () => this.handleGuessingPhase(isClueGiver),
-                scoring: () => this.handleScoringPhase(),
-                waiting: () => this.handleWaitingPhase(),
-                results: () => this.handleResultsPhase(gameState),
-                finished: () => this.handleFinishedPhase(gameState)
-            };
+            // Apply phase-specific handler
+            this.applyPhaseHandler(phase, isClueGiver, gameState);
             
-            (phaseHandlers[phase] || (() => this.handleDefaultPhase()))();
+            // Update common UI elements
+            this.updateCommonPhaseElements(phase, isClueGiver);
             
-            this.updateSpectrumInteraction(phase, isClueGiver);
-            this.updateTimerVisibility(phase);
-            
-            // Scroll to show relevant control section
-            if (['giving-clue', 'results', 'finished'].includes(phase)) {
-                setTimeout(scrollToControl, 300);
-            }
+            // Scroll to relevant section if needed
+            this.scrollToRelevantSection(phase);
         });
     }
+    
+    /**
+     * Update the phase display text
+     * @param {string} phase - Current game phase
+     * @param {boolean} isClueGiver - Whether current player is clue giver
+     * @param {Object} gameState - Current game state
+     * @private
+     */
+    updatePhaseDisplayText(phase, isClueGiver, gameState) {
+        this.elements.gamePhaseText.textContent = gameLogic.getPhaseDisplayText(
+            phase,
+            isClueGiver,
+            gameState.timeRemaining
+        );
+    }
+    
+    /**
+     * Apply the appropriate phase handler based on current phase
+     * @param {string} phase - Current game phase
+     * @param {boolean} isClueGiver - Whether current player is clue giver
+     * @param {Object} gameState - Current game state
+     * @private
+     */
+    applyPhaseHandler(phase, isClueGiver, gameState) {
+        const phaseHandlers = {
+            lobby: () => this.handleLobbyPhase(),
+            'giving-clue': () => this.handleGivingCluePhase(isClueGiver),
+            guessing: () => this.handleGuessingPhase(isClueGiver),
+            scoring: () => this.handleScoringPhase(),
+            waiting: () => this.handleWaitingPhase(),
+            results: () => this.handleResultsPhase(gameState),
+            finished: () => this.handleFinishedPhase(gameState)
+        };
+        
+        // Execute the appropriate handler or default
+        (phaseHandlers[phase] || (() => this.handleDefaultPhase()))();
+    }
+    
+    /**
+     * Update common UI elements that change with phase
+     * @param {string} phase - Current game phase
+     * @param {boolean} isClueGiver - Whether current player is clue giver
+     * @private
+     */
+    updateCommonPhaseElements(phase, isClueGiver) {
+        this.updateSpectrumInteraction(phase, isClueGiver);
+        this.updateTimerVisibility(phase);
+    }
+    
+    /**
+     * Scroll to the relevant section based on phase
+     * @param {string} phase - Current game phase
+     * @private
+     */
+    scrollToRelevantSection(phase) {
+        if (['giving-clue', 'results', 'finished'].includes(phase)) {
+            setTimeout(this.scrollToControlContainer, 300);
+        }
+    }
+    
+    /**
+     * Scroll to the game control container
+     * @private
+     */
+    scrollToControlContainer = () => {
+        if (this.elements.gameControlContainer) {
+            this.elements.gameControlContainer.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    };
 
+    /**
+     * Handle lobby phase UI updates
+     * Updates spectrum labels and shows/hides start game button based on player count
+     */
     handleLobbyPhase() {
         this.updateSpectrumLabels();
         this.elements.waitingSection.classList.remove('hidden');
@@ -408,38 +596,84 @@ export class UIManager {
         }
     }
 
+    /**
+     * Handle the giving-clue phase UI updates
+     * @param {boolean} isClueGiver - Whether current player is clue giver
+     */
     handleGivingCluePhase(isClueGiver) {
         if (this.debugMode) console.log(`🎯 Giving clue phase - isClueGiver: ${isClueGiver}`);
         
         if (isClueGiver) {
-            if (this.elements.clueInputSection) {
-                this.elements.clueInputSection.classList.remove('hidden');
-                
-                if (this.elements.clueInput) {
-                    this.elements.clueInput.value = '';
-                    this.elements.clueInput.disabled = false;
-                    this.elements.clueInput.classList.remove('error');
-                }
-                
-                if (this.elements.submitClueBtn) {
-                    this.elements.submitClueBtn.disabled = false;
-                    this.elements.submitClueBtn.classList.remove('disabled');
-                }
-                
-                requestAnimationFrame(() => this.elements.clueInput?.focus());
-                
-                // Add notification badge
-                this.showNotification('Your turn to give a clue!', 'info', 5000);
-            } else {
-                console.error('❌ Clue input section element not found!');
-            }
+            this.setupClueGiverUI();
         } else {
-            this.elements.waitingSection.classList.remove('hidden');
-            this.elements.waitingMessage.textContent = 'Waiting for clue...';
-            this.elements.waitingMessage.classList.remove('animate-pulse');
+            this.setupClueWaiterUI();
         }
     }
+    
+    /**
+     * Set up UI for the clue giver
+     * @private
+     */
+    setupClueGiverUI() {
+        if (!this.elements.clueInputSection) {
+            console.error('❌ Clue input section element not found!');
+            return;
+        }
+        
+        // Show clue input section
+        this.elements.clueInputSection.classList.remove('hidden');
+        
+        // Reset and enable clue input
+        this.resetClueInput();
+        
+        // Enable submit button
+        this.enableSubmitButton();
+        
+        // Focus the input field
+        requestAnimationFrame(() => this.elements.clueInput?.focus());
+        
+        // Show notification
+        this.showNotification('Your turn to give a clue!', 'info', 5000);
+    }
+    
+    /**
+     * Reset and prepare the clue input field
+     * @private
+     */
+    resetClueInput() {
+        if (this.elements.clueInput) {
+            this.elements.clueInput.value = '';
+            this.elements.clueInput.disabled = false;
+            this.elements.clueInput.classList.remove('error');
+        }
+    }
+    
+    /**
+     * Enable the submit button
+     * @private
+     */
+    enableSubmitButton() {
+        if (this.elements.submitClueBtn) {
+            this.elements.submitClueBtn.disabled = false;
+            this.elements.submitClueBtn.classList.remove('disabled');
+        }
+    }
+    
+    /**
+     * Set up UI for players waiting for a clue
+     * @private
+     */
+    setupClueWaiterUI() {
+        this.elements.waitingSection.classList.remove('hidden');
+        this.elements.waitingMessage.textContent = 'Waiting for clue...';
+        this.elements.waitingMessage.classList.remove('animate-pulse');
+    }
 
+    /**
+     * Handle guessing phase UI updates
+     * Shows appropriate UI elements based on player role
+     * @param {boolean} isClueGiver - Whether current player is clue giver
+     */
     handleGuessingPhase(isClueGiver) {
         if (this.debugMode) console.log(`🎲 Guessing phase - isClueGiver: ${isClueGiver}`);
         
@@ -455,6 +689,10 @@ export class UIManager {
         }
     }
 
+    /**
+     * Handle scoring phase UI updates
+     * Updates spectrum labels and shows waiting message
+     */
     handleScoringPhase() {
         this.updateSpectrumLabels();
         this.elements.waitingSection.classList.remove('hidden');
@@ -470,11 +708,20 @@ export class UIManager {
         this.updateTimerVisibility('scoring');
     }
 
+    /**
+     * Handle waiting phase UI updates
+     * Updates spectrum labels and delegates to scoring phase handler
+     */
     handleWaitingPhase() {
         this.updateSpectrumLabels();
         this.handleScoringPhase();
     }
 
+    /**
+     * Handle results phase UI updates
+     * Shows results section and updates display with round results
+     * @param {Object} gameState - Current game state
+     */
     handleResultsPhase(gameState) {
         if (this.debugMode) console.log('📊 Results phase');
         
@@ -494,6 +741,11 @@ export class UIManager {
         }, 3000);
     }
 
+    /**
+     * Handle finished phase UI updates
+     * Shows final results and celebration notification
+     * @param {Object} gameState - Current game state
+     */
     handleFinishedPhase(gameState) {
         if (this.debugMode) console.log('🎉 Game finished phase');
         
@@ -508,12 +760,22 @@ export class UIManager {
         this.showNotification('🎉 Game finished! Check the final scores!', 'success', 0);
     }
 
+    /**
+     * Handle default phase UI updates
+     * Shows loading message when no specific phase handler is available
+     */
     handleDefaultPhase() {
         this.elements.waitingSection.classList.remove('hidden');
         this.elements.waitingMessage.textContent = 'Loading...';
         this.elements.waitingMessage.classList.add('animate-pulse');
     }
 
+    /**
+     * Update spectrum interaction based on game phase and player role
+     * Enables/disables spectrum grid interactivity
+     * @param {string} phase - Current game phase
+     * @param {boolean} isClueGiver - Whether current player is clue giver
+     */
     updateSpectrumInteraction(phase, isClueGiver) {
         const spectrumWrapper = document.getElementById('spectrum-grid');
         if (!spectrumWrapper) return;
@@ -523,6 +785,11 @@ export class UIManager {
         spectrumWrapper.classList.toggle('disabled', !interactive);
     }
 
+    /**
+     * Update timer visibility based on game phase
+     * Shows/hides timer and resets its appearance
+     * @param {string} phase - Current game phase
+     */
     updateTimerVisibility(phase) {
         const timer = this.elements.roundTimer;
         if (!timer) return;
@@ -536,6 +803,10 @@ export class UIManager {
         }
     }
 
+    /**
+     * Update the results display with round results
+     * @param {Object} gameState - Current game state
+     */
     updateResultsDisplay(gameState) {
         const container = this.elements.resultsContainer;
         if (!container) return;
@@ -543,36 +814,90 @@ export class UIManager {
         // Use DocumentFragment for better performance
         const fragment = document.createDocumentFragment();
         
-        const summary = document.createElement('div');
-        summary.className = 'round-summary';
-        summary.innerHTML = `
-            <p>Target was at: <strong>(${gameState.targetCoordinate?.x || 0}, ${gameState.targetCoordinate?.y || 0})</strong></p>
-        `;
-        fragment.appendChild(summary);
+        // Add target summary
+        fragment.appendChild(this.createTargetSummary(gameState));
         
-        if (gameState.guesses && gameState.roundScores) {
-            Object.entries(gameState.guesses).forEach(([playerId, coordinate]) => {
-                const player = this.stateManager.getPlayer(playerId);
-                const score = gameState.roundScores[playerId] || 0;
-                const distance = gameState.targetCoordinate ? 
-                    Math.round(gameLogic.calculateDistance(coordinate, gameState.targetCoordinate) * 10) / 10 : 0;
-                
-                fragment.appendChild(this.createPlayerResultElement(player, coordinate, score, distance));
-            });
-        }
+        // Add player results
+        this.addPlayerResults(fragment, gameState);
         
+        // Add bonus indicator if applicable
         if (gameState.bonusAwarded) {
-            const bonus = document.createElement('div');
-            bonus.className = 'bonus-indicator animate-success-celebration';
-            bonus.innerHTML = '🎉 <strong>Bonus Round!</strong> All players guessed within 10 units!';
-            fragment.appendChild(bonus);
+            fragment.appendChild(this.createBonusIndicator());
         }
         
         // Single DOM update
         container.innerHTML = '';
         container.appendChild(fragment);
     }
+    
+    /**
+     * Create the target summary element
+     * @param {Object} gameState - Current game state
+     * @returns {HTMLElement} Target summary element
+     * @private
+     */
+    createTargetSummary(gameState) {
+        const summary = document.createElement('div');
+        summary.className = 'round-summary';
+        
+        const targetX = gameState.targetCoordinate?.x || 0;
+        const targetY = gameState.targetCoordinate?.y || 0;
+        
+        summary.innerHTML = `
+            <p>Target was at: <strong>(${targetX}, ${targetY})</strong></p>
+        `;
+        
+        return summary;
+    }
+    
+    /**
+     * Add player results to the fragment
+     * @param {DocumentFragment} fragment - Document fragment to append to
+     * @param {Object} gameState - Current game state
+     * @private
+     */
+    addPlayerResults(fragment, gameState) {
+        if (!gameState.guesses || !gameState.roundScores) return;
+        
+        Object.entries(gameState.guesses).forEach(([playerId, coordinate]) => {
+            const player = this.stateManager.getPlayer(playerId);
+            const score = gameState.roundScores[playerId] || 0;
+            const distance = this.calculateGuessDistance(coordinate, gameState.targetCoordinate);
+            
+            fragment.appendChild(this.createPlayerResultElement(player, coordinate, score, distance));
+        });
+    }
+    
+    /**
+     * Calculate the distance between a guess and the target
+     * @param {Object} coordinate - Guess coordinate
+     * @param {Object} targetCoordinate - Target coordinate
+     * @returns {number} Rounded distance
+     * @private
+     */
+    calculateGuessDistance(coordinate, targetCoordinate) {
+        if (!targetCoordinate) return 0;
+        
+        const distance = gameLogic.calculateDistance(coordinate, targetCoordinate);
+        return Math.round(distance * 10) / 10;
+    }
+    
+    /**
+     * Create a bonus indicator element
+     * @returns {HTMLElement} Bonus indicator element
+     * @private
+     */
+    createBonusIndicator() {
+        const bonus = document.createElement('div');
+        bonus.className = 'bonus-indicator animate-success-celebration';
+        bonus.innerHTML = '🎉 <strong>Bonus Round!</strong> All players guessed within 10 units!';
+        return bonus;
+    }
 
+    /**
+     * Update the final results display with game summary
+     * @param {Object} gameState - Current game state
+     */
     updateFinalResultsDisplay(gameState) {
         const container = this.elements.resultsContainer;
         if (!container) return;
@@ -588,6 +913,14 @@ export class UIManager {
         `;
     }
 
+    /**
+     * Create a player result element for the results display
+     * @param {Object} player - Player data
+     * @param {Object} coordinate - Player's guess coordinate
+     * @param {number} score - Player's score for the round
+     * @param {number} distance - Distance from player's guess to target
+     * @returns {HTMLElement} Player result element
+     */
     createPlayerResultElement(player, coordinate, score, distance) {
         const div = document.createElement('div');
         div.className = 'player-result';
@@ -609,6 +942,10 @@ export class UIManager {
         return div;
     }
 
+    /**
+     * Update spectrum labels with current game state
+     * Sets axis labels and names based on current spectrums
+     */
     updateSpectrumLabels() {
         const { spectrumX, spectrumY } = this.stateManager.getGameState();
 
@@ -649,6 +986,11 @@ export class UIManager {
         setLabels(this.elements.spectrumYName, this.elements.spectrumYBottom, this.elements.spectrumYTop, spectrumY);
     }
 
+    /**
+     * Update clue display with current clue
+     * Shows/hides clue text with animation
+     * @param {string} clue - Current clue text
+     */
     updateClue(clue) {
         if (clue) {
             this.elements.clueText.textContent = clue;
@@ -659,6 +1001,11 @@ export class UIManager {
         }
     }
 
+    /**
+     * Update timer display with remaining time
+     * Sets timer text and applies appropriate warning level styling
+     * @param {number} timeRemaining - Time remaining in seconds
+     */
     updateTimer(timeRemaining) {
         const formattedTime = gameLogic.formatTimeRemaining(timeRemaining);
         this.elements.roundTimer.textContent = formattedTime;
@@ -667,6 +1014,11 @@ export class UIManager {
         this.elements.roundTimer.className = `timer ${warningLevel}`;
     }
 
+    /**
+     * Update round information display
+     * Sets current round, total rounds, and room code
+     * @param {number} currentRound - Current round number
+     */
     updateRoundInfo(currentRound) {
         const gameState = this.stateManager.getGameState();
         this.elements.currentRound.textContent = currentRound;
@@ -674,6 +1026,11 @@ export class UIManager {
         this.elements.currentRoomCode.textContent = this.stateManager.getConnectionState().roomCode;
     }
 
+    /**
+     * Update player list display with current players
+     * Creates and displays player elements
+     * @param {Object} players - Map of player objects
+     */
     updatePlayerList(players) {
         const container = this.elements.playersContainer;
         const fragment = document.createDocumentFragment();
@@ -690,6 +1047,14 @@ export class UIManager {
         container.appendChild(fragment);
     }
 
+    /**
+     * Create a player element for the player list
+     * @param {Object} player - Player data
+     * @param {number} index - Player index for styling
+     * @param {Object} gameState - Current game state
+     * @param {string} currentPlayerId - Current player's ID
+     * @returns {HTMLElement} Player element
+     */
     createPlayerElement(player, index, gameState, currentPlayerId) {
         const div = document.createElement('div');
         div.className = 'player-item';
@@ -718,6 +1083,12 @@ export class UIManager {
         return div;
     }
 
+    /**
+     * Get player status text based on game state
+     * @param {Object} player - Player data
+     * @param {Object} gameState - Current game state
+     * @returns {string} Player status text
+     */
     getPlayerStatus(player, gameState) {
         if (player.id === gameState.clueGiverId) return 'Clue Giver';
         if (gameState.phase === 'guessing' && player.hasGuessed) return 'Guessed';
@@ -725,6 +1096,11 @@ export class UIManager {
         return 'Waiting';
     }
 
+    /**
+     * Update scoreboard display with current players
+     * Creates and displays score elements in ranking order
+     * @param {Object} players - Map of player objects
+     */
     updateScoreboard(players) {
         const container = this.elements.scoreboardContainer;
         const fragment = document.createDocumentFragment();
@@ -740,6 +1116,12 @@ export class UIManager {
         container.appendChild(fragment);
     }
 
+    /**
+     * Create a score element for the scoreboard
+     * @param {Object} player - Player data
+     * @param {boolean} isLeader - Whether player is the current leader
+     * @returns {HTMLElement} Score element
+     */
     createScoreElement(player, isLeader) {
         const div = document.createElement('div');
         div.className = 'score-item';
@@ -757,6 +1139,11 @@ export class UIManager {
         return div;
     }
 
+    /**
+     * Update chat messages display
+     * Creates and displays chat message elements
+     * @param {Array} messages - Array of chat message objects
+     */
     updateChatMessages(messages) {
         const container = this.elements.chatMessages;
         const fragment = document.createDocumentFragment();
@@ -771,6 +1158,11 @@ export class UIManager {
         container.scrollTop = container.scrollHeight;
     }
 
+    /**
+     * Create a chat message element
+     * @param {Object} message - Chat message data
+     * @returns {HTMLElement} Chat message element
+     */
     createChatMessage(message) {
         const div = document.createElement('div');
         div.className = 'chat-message animate-message-slide-in';
@@ -804,6 +1196,10 @@ export class UIManager {
         return div;
     }
 
+    /**
+     * Switch between main views (lobby/game)
+     * @param {string} view - View to switch to ('lobby' or 'game')
+     */
     switchView(view) {
         this.elements.lobby.classList.add('hidden');
         this.elements.gameRoom.classList.add('hidden');
@@ -823,29 +1219,50 @@ export class UIManager {
         }
     }
 
+    /**
+     * Show lobby view
+     * Switches to lobby view and resets form
+     */
     showLobby() {
         this.switchView('lobby');
         this.resetLobbyForm();
     }
 
+    /**
+     * Handle window resize events
+     * Repositions modal and scrolls chat to bottom
+     */
     handleResize = () => {
             // Don't dispatch a new resize event - this causes an infinite loop!
             if (this.activeModal) this.repositionModal();
             if (this.elements.chatMessages) this.scrollChatToBottom();
         }
 
+    /**
+     * Reposition modal on window resize
+     * Resets transform to ensure proper positioning
+     */
     repositionModal() {
         if (!this.activeModal || !this.elements.modalOverlay) return;
         const modal = this.elements.modalOverlay.querySelector('.modal');
         if (modal) modal.style.transform = '';
     }
 
+    /**
+     * Scroll chat messages container to bottom
+     * Ensures newest messages are visible
+     */
     scrollChatToBottom() {
         if (this.elements.chatMessages) {
             this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
         }
     }
 
+    /**
+     * Show modal with specified content
+     * @param {string} modalId - ID of modal content to show
+     * @param {Object} data - Data to pass to modal content generator
+     */
     showModal(modalId, data = null) {
         this.elements.modalOverlay.classList.remove('hidden');
         this.elements.modalOverlay.classList.add('animate-fade-in');
@@ -857,6 +1274,10 @@ export class UIManager {
         this.activeModal = modalId;
     }
 
+    /**
+     * Hide currently active modal
+     * Animates modal out and updates state
+     */
     hideModal() {
         if (!this.activeModal) return;
         
@@ -871,6 +1292,11 @@ export class UIManager {
         }, 300);
     }
 
+    /**
+     * Set modal content based on modal ID
+     * @param {string} modalId - ID of modal content to show
+     * @param {Object} data - Data to pass to modal content generator
+     */
     setModalContent(modalId, data) {
         const content = {
             'final-scores': () => {
@@ -916,23 +1342,55 @@ export class UIManager {
         `).join('') + '</div>';
     }
 
+    /**
+     * Show notification message
+     * @param {string} message - Notification message text
+     * @param {string} type - Notification type ('info', 'success', 'warning', 'error')
+     * @param {number} duration - Duration in milliseconds (0 for persistent)
+     */
     showNotification(message, type = 'info', duration = 5000) {
         this.stateManager.addNotification({ message, type, duration });
     }
 
+    /**
+     * Update notifications display
+     * Adds new notifications and removes old ones with animation
+     * @param {Array} notifications - Array of notification objects
+     */
     updateNotifications(notifications) {
         const container = this.elements.notificationsContainer;
-        const fragment = document.createDocumentFragment();
+        if (!container) return;
         
-        notifications.forEach(notification => {
-            fragment.appendChild(this.createNotificationElement(notification));
+        // Get existing notification elements
+        const existingNotifications = Array.from(container.children);
+        const existingIds = new Set(existingNotifications.map(el => el.dataset.id));
+        
+        // Find notifications to add and remove
+        const notificationsToAdd = notifications.filter(n => !existingIds.has(n.id.toString()));
+        const idsToKeep = new Set(notifications.map(n => n.id.toString()));
+        const elementsToRemove = existingNotifications.filter(el => !idsToKeep.has(el.dataset.id));
+        
+        // Remove old notifications
+        elementsToRemove.forEach(el => {
+            el.classList.add('animate-notification-slide-out');
+            setTimeout(() => el.remove(), 300);
         });
         
-        // Single DOM update
-        container.innerHTML = '';
-        container.appendChild(fragment);
+        // Add new notifications
+        if (notificationsToAdd.length > 0) {
+            const fragment = document.createDocumentFragment();
+            notificationsToAdd.forEach(notification => {
+                fragment.appendChild(this.createNotificationElement(notification));
+            });
+            container.appendChild(fragment);
+        }
     }
 
+    /**
+     * Create a notification element
+     * @param {Object} notification - Notification data
+     * @returns {HTMLElement} Notification element
+     */
     createNotificationElement(notification) {
         const div = document.createElement('div');
         div.className = `notification ${notification.type} animate-notification-slide-in`;
@@ -966,10 +1424,19 @@ export class UIManager {
         return div;
     }
 
+    /**
+     * Update loading indicator visibility
+     * @param {boolean} loading - Whether loading is in progress
+     */
     updateLoadingState(loading) {
         this.elements.loadingIndicator.classList.toggle('hidden', !loading);
     }
 
+    /**
+     * Validate player name input
+     * Applies error styling if invalid
+     * @returns {boolean} Whether name is valid
+     */
     validatePlayerName() {
         const name = this.elements.playerNameInput.value.trim();
         const validation = gameLogic.validatePlayerName(name);
@@ -978,6 +1445,11 @@ export class UIManager {
         return validation.valid;
     }
 
+    /**
+     * Validate room code input
+     * Applies error styling if invalid
+     * @returns {boolean} Whether room code is valid
+     */
     validateRoomCode() {
         const code = this.elements.roomCodeInput.value.trim();
         const validation = gameLogic.validateRoomCode(code);
@@ -986,6 +1458,11 @@ export class UIManager {
         return validation.valid;
     }
 
+    /**
+     * Validate clue input
+     * Applies error styling if invalid
+     * @returns {boolean} Whether clue is valid
+     */
     validateClue() {
         const clue = this.elements.clueInput.value.trim();
         const validation = gameLogic.validateClue(clue);
@@ -994,6 +1471,10 @@ export class UIManager {
         return validation.valid;
     }
 
+    /**
+     * Check if current player is the room host
+     * @returns {boolean} Whether current player is host
+     */
     isHost() {
         const roomState = this.stateManager.getRoomState();
         const connectionState = this.stateManager.getConnectionState();
@@ -1006,23 +1487,43 @@ export class UIManager {
         return isHost;
     }
 
+    /**
+     * Show player name input section
+     * Reveals input field and sets focus
+     */
     showPlayerNameInput() {
         this.elements.playerNameSection.classList.remove('hidden');
         this.elements.playerNameInput.focus();
     }
 
+    /**
+     * Show room code input section
+     * Reveals input field
+     */
     showRoomCodeInput = () => this.elements.roomCodeSection.classList.remove('hidden');
 
+    /**
+     * Show action buttons (confirm/cancel)
+     * Reveals buttons for form submission
+     */
     showActionButtons() {
         this.elements.confirmActionBtn.classList.remove('hidden');
         this.elements.cancelActionBtn.classList.remove('hidden');
     }
 
+    /**
+     * Hide action buttons (confirm/cancel)
+     * Hides buttons for form submission
+     */
     hideActionButtons() {
         this.elements.confirmActionBtn.classList.add('hidden');
         this.elements.cancelActionBtn.classList.add('hidden');
     }
 
+    /**
+     * Reset lobby form to initial state
+     * Hides input sections, clears values, and removes error styling
+     */
     resetLobbyForm() {
         ['playerNameSection', 'roomCodeSection'].forEach(section => 
             this.elements[section].classList.add('hidden'));
@@ -1033,12 +1534,20 @@ export class UIManager {
         this.elements.roomCodeInput.classList.remove('error');
     }
 
+    /**
+     * Hide all game control sections
+     * Hides all interactive game control elements
+     */
     hideAllControlSections() {
         ['clueInputSection', 'guessInputSection', 'waitingSection', 'resultsSection', 
          'startGameBtn', 'nextRoundBtn', 'viewFinalScoresBtn'].forEach(section => 
             this.elements[section]?.classList.add('hidden'));
     }
 
+    /**
+     * Add button press animation effect
+     * @param {HTMLElement} button - Button element to animate
+     */
     addButtonPressEffect(button) {
         if (!button) return;
         
@@ -1050,6 +1559,11 @@ export class UIManager {
         }, 300);
     }
 
+    /**
+     * Animate transition to input state
+     * Fades out lobby actions and executes callback
+     * @param {Function} callback - Function to execute after animation
+     */
     animateToInputState(callback) {
         const lobbyActions = document.querySelector('.lobby-actions');
         if (lobbyActions) {
@@ -1069,6 +1583,12 @@ export class UIManager {
         }
     }
 
+    /**
+     * Show validation error with animation
+     * Applies shake animation and shows error notification
+     * @param {HTMLElement} element - Input element with error
+     * @param {string} message - Error message to display
+     */
     showValidationError(element, message) {
         if (!element) return;
         
@@ -1080,6 +1600,13 @@ export class UIManager {
         setTimeout(() => element.classList.remove('animate-error-shake'), 500);
     }
 
+    /**
+     * Set enhanced loading indicator state
+     * Shows/hides loading indicator with custom message and animation
+     * @param {boolean} loading - Whether loading is in progress
+     * @param {string} message - Loading message to display
+     * @param {number} progress - Optional progress value (0-100)
+     */
     setEnhancedLoading(loading, message = 'Loading...', progress = null) {
         const indicator = this.elements.loadingIndicator;
         if (!indicator) return;
@@ -1106,15 +1633,43 @@ export class UIManager {
         }
     }
 
+    /**
+     * Destroy the UI manager and clean up resources
+     * Removes event listeners, cancels pending updates, and resets state
+     */
     destroy() {
         // Clean up event listeners
-        document.removeEventListener('click', this.handleGlobalClick);
-        document.removeEventListener('keydown', this.handleGlobalKeydown);
+        document.removeEventListener('click', this.handleGlobalClick.bind(this));
+        document.removeEventListener('keydown', this.handleGlobalKeydown.bind(this));
+        
+        // Clean up specific input handlers
+        this.elements.playerNameInput?.removeEventListener('input', () => this.validatePlayerName());
+        this.elements.roomCodeInput?.removeEventListener('input', () => this.validateRoomCode());
+        this.elements.clueInput?.removeEventListener('input', () => this.validateClue());
+        this.elements.chatInput?.removeEventListener('keypress', e => { if (e.key === 'Enter') this.handleSendChat(); });
+        
+        // Clean up notification close buttons
+        const notifications = document.querySelectorAll('.notification-close');
+        notifications.forEach(btn => {
+            const id = btn.parentElement?.dataset.id;
+            if (id) btn.removeEventListener('click', () => this.stateManager.removeNotification(id));
+        });
         
         // Cancel any pending DOM updates
         if (this.batchUpdateTimeout) {
-            cancelAnimationFrame(this.batchUpdateTimeout);
+            if (window.cancelIdleCallback && typeof this.batchUpdateTimeout === 'number') {
+                cancelIdleCallback(this.batchUpdateTimeout);
+            } else {
+                cancelAnimationFrame(this.batchUpdateTimeout);
+            }
         }
+        
+        // Clear all timeouts
+        const timeouts = [];
+        for (let i = 0; i < 100; i++) {
+            timeouts.push(setTimeout(() => {}, 0));
+        }
+        timeouts.forEach(id => clearTimeout(id));
         
         // Clear state
         this.stateManager.removeAllListeners();

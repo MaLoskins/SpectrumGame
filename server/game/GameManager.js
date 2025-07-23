@@ -2,29 +2,33 @@
  * ===================================
  * SPECTRUM GAME - GAME MANAGER
  * ===================================
- * 
+ *
  * Game manager that:
  * - Enforces game rules and logic
  * - Calculates scores and bonuses
  * - Manages round timing
  * - Validates player actions
- * 
+ *
  * UPDATED: 2D grid mechanics with X/Y coordinates
  * ================================= */
+
+const { GAME_RULES, SCORING, VALIDATION } = require('../../shared/constants.js');
+const { Validator } = require('../../shared/validation.js');
+const { GameError, ValidationError, GameLogicError } = require('../../shared/errors.js');
 
 class GameManager {
     constructor(spectrums) {
         Object.assign(this, {
             spectrums,
-            ROUND_DURATION: 60,
-            MAX_ROUNDS: 10,
-            MIN_PLAYERS: 2,
-            MAX_PLAYERS: 6,
-            BONUS_THRESHOLD: 10,
-            BONUS_POINTS: 50,
+            ROUND_DURATION: GAME_RULES.ROUND_DURATION,
+            MAX_ROUNDS: GAME_RULES.MAX_ROUNDS,
+            MIN_PLAYERS: GAME_RULES.MIN_PLAYERS,
+            MAX_PLAYERS: GAME_RULES.MAX_PLAYERS,
+            BONUS_THRESHOLD: SCORING.BONUS_THRESHOLD,
+            BONUS_POINTS: SCORING.BONUS_POINTS,
             RESULTS_VIEWING_TIME: 7000,
             BETWEEN_ROUNDS_DELAY: 3000,
-            MAX_DISTANCE: Math.sqrt(20000), // ~141.4
+            MAX_DISTANCE: GAME_RULES.MAX_DISTANCE,
             gameTimers: new Map()
         });
         console.log('🎮 GameManager initialized');
@@ -136,11 +140,31 @@ class GameManager {
 
     submitClue(room, playerId, clue) {
         try {
-            if (playerId !== room.clueGiverId) throw new Error('Only the clue giver can submit clues');
-            if (room.phase !== 'giving-clue') throw new Error('Not in clue giving phase');
+            if (playerId !== room.clueGiverId) {
+                throw new GameLogicError(
+                    'CLUE_SUBMIT_FAILED',
+                    'Only the clue giver can submit clues',
+                    room.phase
+                );
+            }
             
-            const validation = this.validateClue(clue);
-            if (!validation.valid) throw new Error(validation.error);
+            if (room.phase !== 'giving-clue') {
+                throw new GameLogicError(
+                    'CLUE_SUBMIT_FAILED',
+                    'Not in clue giving phase',
+                    room.phase
+                );
+            }
+            
+            const validation = Validator.clue(clue);
+            if (!validation.valid) {
+                throw new ValidationError(
+                    'INVALID_CLUE',
+                    validation.error,
+                    'clue',
+                    clue
+                );
+            }
             
             room.clue = clue.trim();
             room.phase = 'guessing';
@@ -158,12 +182,40 @@ class GameManager {
 
     submitGuess(room, playerId, coordinate) {
         try {
-            if (playerId === room.clueGiverId) throw new Error('Clue giver cannot submit guesses');
-            if (room.phase !== 'guessing') throw new Error('Not in guessing phase');
+            if (playerId === room.clueGiverId) {
+                throw new GameLogicError(
+                    'GUESS_SUBMIT_FAILED',
+                    'Clue giver cannot submit guesses',
+                    room.phase
+                );
+            }
             
-            const validation = this.validateGuess(coordinate);
-            if (!validation.valid) throw new Error(validation.error);
-            if (room.guesses.has(playerId)) throw new Error('Player has already guessed');
+            if (room.phase !== 'guessing') {
+                throw new GameLogicError(
+                    'GUESS_SUBMIT_FAILED',
+                    'Not in guessing phase',
+                    room.phase
+                );
+            }
+            
+            const validation = Validator.coordinate(coordinate);
+            if (!validation.valid) {
+                throw new ValidationError(
+                    'INVALID_GUESS',
+                    validation.error,
+                    'coordinate',
+                    coordinate
+                );
+            }
+            
+            if (room.guesses.has(playerId)) {
+                throw new GameLogicError(
+                    'GUESS_SUBMIT_FAILED',
+                    'Player has already guessed',
+                    room.phase,
+                    { playerId }
+                );
+            }
             
             room.guesses.set(playerId, coordinate);
             console.log(`🎯 Guess submitted for room ${room.code}: Player ${playerId} guessed (${coordinate.x}, ${coordinate.y})`);
@@ -316,21 +368,11 @@ class GameManager {
     }
 
     validateClue(clue) {
-        if (!clue?.trim()) return { valid: false, error: 'Clue cannot be empty' };
-        const trimmed = clue.trim();
-        if (trimmed.length > 100) return { valid: false, error: 'Clue must be 100 characters or less' };
-        if (/\d/.test(trimmed)) return { valid: false, error: 'Clue cannot contain numbers' };
-        return { valid: true };
+        return Validator.clue(clue);
     }
 
     validateGuess(coordinate) {
-        if (!coordinate || typeof coordinate.x !== 'number' || typeof coordinate.y !== 'number') {
-            return { valid: false, error: 'Invalid coordinate format' };
-        }
-        if (coordinate.x < 0 || coordinate.x > 100 || coordinate.y < 0 || coordinate.y > 100) {
-            return { valid: false, error: 'Coordinates must be between 0 and 100' };
-        }
-        return { valid: true };
+        return Validator.coordinate(coordinate);
     }
 
     canStartGame = room => room.players.size >= this.MIN_PLAYERS && room.players.size <= this.MAX_PLAYERS;

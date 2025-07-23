@@ -203,17 +203,54 @@ export class ChatManager {
         
         const wasAtBottom = this.isScrolledToBottom;
         
-        // Use DocumentFragment for better performance
-        const fragment = document.createDocumentFragment();
+        // Get existing message IDs
+        const existingMessageIds = new Set(
+            Array.from(this.messagesContainer.querySelectorAll('.chat-message'))
+                .map(el => el.dataset.messageId)
+        );
         
-        this.groupMessages(messages).forEach(group => 
-            fragment.appendChild(this.createMessageGroup(group)));
+        // Check if we're just adding new messages
+        const isAppendOnly = messages.length > 0 &&
+            messages.every((msg, i, arr) =>
+                i === 0 || msg.timestamp >= arr[i-1].timestamp
+            );
         
-        // Single DOM update
-        this.messagesContainer.innerHTML = '';
-        this.messagesContainer.appendChild(fragment);
-        
-        if (wasAtBottom || messages.length === 1) this.scrollToBottom(true);
+        // If we're just adding new messages and there are existing messages,
+        // only append the new ones for better performance
+        if (isAppendOnly && existingMessageIds.size > 0) {
+            const newMessages = messages.filter(msg => !existingMessageIds.has(msg.id.toString()));
+            
+            if (newMessages.length > 0) {
+                // Use requestIdleCallback for non-critical updates
+                const appendNewMessages = () => {
+                    const fragment = document.createDocumentFragment();
+                    this.groupMessages(newMessages).forEach(group =>
+                        fragment.appendChild(this.createMessageGroup(group)));
+                    this.messagesContainer.appendChild(fragment);
+                    
+                    if (wasAtBottom) this.scrollToBottom(true);
+                };
+                
+                if (window.requestIdleCallback) {
+                    requestIdleCallback(appendNewMessages, { timeout: 200 });
+                } else {
+                    requestAnimationFrame(appendNewMessages);
+                }
+            }
+        } else {
+            // Full rebuild needed
+            // Use DocumentFragment for better performance
+            const fragment = document.createDocumentFragment();
+            
+            this.groupMessages(messages).forEach(group =>
+                fragment.appendChild(this.createMessageGroup(group)));
+            
+            // Single DOM update
+            this.messagesContainer.innerHTML = '';
+            this.messagesContainer.appendChild(fragment);
+            
+            if (wasAtBottom || messages.length === 1) this.scrollToBottom(true);
+        }
         
         if (!this.isVisible || !this.isScrolledToBottom) {
             this.updateUnreadCount(this.stateManager.getChatMessages().length);
@@ -317,6 +354,16 @@ export class ChatManager {
             return '';
         }
         
+        // Cache formatted messages for better performance
+        if (this._formattedContentCache === undefined) {
+            this._formattedContentCache = new Map();
+        }
+        
+        // Return cached result if available
+        if (this._formattedContentCache.has(content)) {
+            return this._formattedContentCache.get(content);
+        }
+        
         // More efficient escaping
         const escapeMap = {
             '&': '&amp;',
@@ -326,10 +373,20 @@ export class ChatManager {
             "'": '&#39;'
         };
         
-        return content
+        const formatted = content
             .replace(/[&<>"']/g, m => escapeMap[m])
             .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
             .replace(/\n/g, '<br>');
+        
+        // Cache the result (limit cache size to prevent memory leaks)
+        if (this._formattedContentCache.size > 100) {
+            // Remove oldest entries when cache gets too large
+            const oldestKeys = Array.from(this._formattedContentCache.keys()).slice(0, 20);
+            oldestKeys.forEach(key => this._formattedContentCache.delete(key));
+        }
+        
+        this._formattedContentCache.set(content, formatted);
+        return formatted;
     }
 
     formatTimestamp(timestamp, shortFormat = false) {
@@ -504,8 +561,23 @@ export class ChatManager {
         this.sendButton?.removeEventListener('click', this.handleSendMessage);
         this.toggleButton?.removeEventListener('click', this.handleToggleChat);
         
+        // Clear all timeouts
+        const timeouts = [];
+        for (let i = 0; i < 100; i++) {
+            timeouts.push(setTimeout(() => {}, 0));
+        }
+        timeouts.forEach(id => clearTimeout(id));
+        
+        // Clear references
         this.messageHistory = [];
         this.typingUsers.clear();
+        this._formattedContentCache?.clear();
+        this.chatContainer = null;
+        this.messagesContainer = null;
+        this.inputElement = null;
+        this.sendButton = null;
+        this.toggleButton = null;
+        
         console.log('🧹 ChatManager destroyed');
     }
 }

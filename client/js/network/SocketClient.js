@@ -2,14 +2,25 @@
  * ===================================
  * SPECTRUM GAME - SOCKET CLIENT
  * ===================================
- * 
+ *
  * WebSocket client that:
  * - Manages WebSocket connection lifecycle
  * - Handles message serialization/deserialization
  * - Implements connection retry logic
  * - Routes events to appropriate handlers
- * 
+ *
  * ================================= */
+
+import { NETWORK } from '../../shared/constants.js';
+import {
+    CONNECTION_EVENTS,
+    ROOM_EVENTS,
+    GAME_EVENTS,
+    CHAT_EVENTS,
+    TIMER_EVENTS,
+    ERROR_EVENTS
+} from '../../shared/events.js';
+import { NetworkError, convertToGameError } from '../../shared/errors.js';
 
 export class SocketClient {
     constructor(stateManager) {
@@ -19,13 +30,13 @@ export class SocketClient {
             connected: false,
             isConnecting: false,
             reconnectAttempts: 0,
-            maxReconnectAttempts: 5,
-            reconnectDelay: 1000,
-            maxReconnectDelay: 30000,
+            maxReconnectAttempts: NETWORK.RECONNECT_ATTEMPTS,
+            reconnectDelay: NETWORK.INITIAL_RECONNECT_DELAY,
+            maxReconnectDelay: NETWORK.MAX_RECONNECT_DELAY,
             eventListeners: new Map(),
             connectionOptions: {
-                transports: ['websocket', 'polling'],
-                timeout: 10000,
+                transports: NETWORK.TRANSPORTS,
+                timeout: NETWORK.CONNECTION_TIMEOUT,
                 forceNew: true,
                 reconnection: false
             }
@@ -34,7 +45,10 @@ export class SocketClient {
 
     async init() {
         console.log('🔌 Initializing SocketClient...');
-        if (typeof io === 'undefined') throw new Error('Socket.io client library not loaded');
+        if (typeof io === 'undefined') throw new NetworkError(
+            'CONNECTION_FAILED',
+            'Socket.io client library not loaded'
+        );
         await this.connect();
         console.log('✅ SocketClient initialized');
     }
@@ -62,8 +76,8 @@ export class SocketClient {
     }
 
     getServerUrl() {
-        return ['localhost', '127.0.0.1'].includes(window.location.hostname) 
-            ? 'http://localhost:3000' 
+        return ['localhost', '127.0.0.1'].includes(window.location.hostname)
+            ? NETWORK.LOCAL_SERVER_URL
             : window.location.origin;
     }
 
@@ -71,33 +85,43 @@ export class SocketClient {
         if (!this.socket) return;
         
         const handlers = {
-            connect: () => this.handleConnectionChange(true),
-            disconnect: reason => this.handleConnectionChange(false, reason),
-            connect_error: this.handleConnectionError,
-            reconnect: () => this.handleConnectionChange(true),
-            reconnect_error: this.handleConnectionError
+            [CONNECTION_EVENTS.CONNECT]: () => this.handleConnectionChange(true),
+            [CONNECTION_EVENTS.DISCONNECT]: reason => this.handleConnectionChange(false, reason),
+            [CONNECTION_EVENTS.CONNECT_ERROR]: this.handleConnectionError,
+            [CONNECTION_EVENTS.RECONNECT]: () => this.handleConnectionChange(true),
+            [CONNECTION_EVENTS.RECONNECT_ERROR]: this.handleConnectionError
         };
         
         Object.entries(handlers).forEach(([event, handler]) => 
             this.socket.on(event, handler.bind(this)));
         
         // Game events - forward to listeners
-        ['room:created', 'room:joined', 'room:player-joined', 'room:player-left',
-         'room:host-changed', 'game:state-update', 'game:round-start', 'game:clue-submitted',
-         'game:guess-submitted', 'game:round-end', 'game:finished', 'chat:message',
-         'timer:update', 'error', 'game:phase-change'
+        [
+            // Room events
+            ROOM_EVENTS.CREATED, ROOM_EVENTS.JOINED, ROOM_EVENTS.PLAYER_JOINED,
+            ROOM_EVENTS.PLAYER_LEFT, ROOM_EVENTS.HOST_CHANGED,
+            
+            // Game events
+            GAME_EVENTS.STATE_UPDATE, GAME_EVENTS.ROUND_START, GAME_EVENTS.CLUE_SUBMITTED,
+            GAME_EVENTS.GUESS_SUBMITTED, GAME_EVENTS.ROUND_END, GAME_EVENTS.FINISHED,
+            GAME_EVENTS.PHASE_CHANGE,
+            
+            // Other events
+            CHAT_EVENTS.MESSAGE, TIMER_EVENTS.UPDATE, ERROR_EVENTS.GENERAL
         ].forEach(event => this.socket.on(event, data => this.emitToListeners(event, data)));
         
-        this.socket.on('pong', timestamp => this.emitToListeners('latency', Date.now() - timestamp));
+        this.socket.on(CONNECTION_EVENTS.PONG, timestamp => this.emitToListeners('latency', Date.now() - timestamp));
     }
 
     waitForConnection() {
         return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error('Connection timeout')), this.connectionOptions.timeout);
+            const timeout = setTimeout(() => reject(
+                new NetworkError('CONNECTION_TIMEOUT', 'Connection timeout')
+            ), this.connectionOptions.timeout);
             const cleanup = () => clearTimeout(timeout);
             
-            this.socket.once('connect', () => { cleanup(); resolve(); });
-            this.socket.once('connect_error', error => { cleanup(); reject(error); });
+            this.socket.once(CONNECTION_EVENTS.CONNECT, () => { cleanup(); resolve(); });
+            this.socket.once(CONNECTION_EVENTS.CONNECT_ERROR, error => { cleanup(); reject(error); });
         });
     }
 
@@ -110,7 +134,7 @@ export class SocketClient {
             error: connected ? null : undefined
         });
         
-        this.emitToListeners(connected ? 'connected' : 'disconnected', reason);
+        this.emitToListeners(connected ? CONNECTION_EVENTS.CONNECT : CONNECTION_EVENTS.DISCONNECT, reason);
         
         if (!connected) {
             this.reconnectAttempts = 0;
@@ -122,20 +146,37 @@ export class SocketClient {
     handleConnectionError = error => {
         console.error('❌ Connection error:', error);
         Object.assign(this, { connected: false, isConnecting: false });
-        this.stateManager.updateConnectionState({ 
-            status: 'error', 
-            error: error.message || 'Connection failed' 
+        
+        // Convert to NetworkError if it's not already
+        const networkError = error instanceof NetworkError
+            ? error
+            : new NetworkError(
+                'CONNECTION_FAILED',
+                error.message || 'Connection failed',
+                { originalError: error }
+            );
+        
+        this.stateManager.updateConnectionState({
+            status: 'error',
+            error: networkError.message
         });
-        this.emitToListeners('connection-error', error);
+        
+        this.emitToListeners(ERROR_EVENTS.CONNECTION, networkError);
         this.scheduleReconnect();
     }
 
     scheduleReconnect() {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             console.error('❌ Max reconnection attempts reached');
+            const maxAttemptsError = new NetworkError(
+                'CONNECTION_FAILED',
+                'Unable to connect to server. Please refresh the page.',
+                { attempts: this.maxReconnectAttempts }
+            );
+            
             this.stateManager.updateConnectionState({
                 status: 'error',
-                error: 'Unable to connect to server. Please refresh the page.'
+                error: maxAttemptsError.message
             });
             return;
         }
@@ -179,10 +220,17 @@ export class SocketClient {
             return true;
         } catch (error) {
             console.error(`Failed to emit ${event}:`, error);
+            
             // Only trigger reconnection for critical connection errors
             if (error.message?.includes('transport') || error.message?.includes('disconnected')) {
-                this.handleConnectionError(error);
+                const networkError = new NetworkError(
+                    'CONNECTION_LOST',
+                    `Failed to emit ${event}: ${error.message}`,
+                    { event, data }
+                );
+                this.handleConnectionError(networkError);
             }
+            
             return false;
         }
     }
@@ -195,7 +243,12 @@ export class SocketClient {
 
     emitToListeners(event, data = null) {
         this.eventListeners.get(event)?.forEach(callback => {
-            try { callback(data); } catch (error) { console.error(`Error in event listener for ${event}:`, error); }
+            try {
+                callback(data);
+            } catch (error) {
+                const handledError = convertToGameError(error, 'EVENT_HANDLER_ERROR');
+                console.error(`Error in event listener for ${event}:`, handledError);
+            }
         });
     }
 
@@ -204,7 +257,7 @@ export class SocketClient {
     getConnectionStatus = () => this.connected ? 'connected' : this.isConnecting ? 'connecting' : this.reconnectAttempts > 0 ? 'reconnecting' : 'disconnected';
     getSocketId = () => this.socket?.id || null;
     getLatency = () => this.socket?.ping || null;
-    ping = () => this.connected && this.socket && this.socket.emit('ping', Date.now());
+    ping = () => this.connected && this.socket && this.socket.emit(CONNECTION_EVENTS.PING, Date.now());
 
     getDebugInfo = () => ({
         connected: this.connected,

@@ -191,14 +191,7 @@ export function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-/**
- * Convert string to title case
- */
-export function titleCase(str) {
-    return str.replace(/\w\S*/g, txt => 
-        txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
-    );
-}
+// titleCase function removed - unused
 
 /**
  * Truncate string with ellipsis
@@ -261,12 +254,7 @@ export function isMobile() {
            /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
-/**
- * Check if device is tablet
- */
-export function isTablet() {
-    return window.innerWidth > 767 && window.innerWidth <= 1023;
-}
+// isTablet function removed - unused
 
 /**
  * Check if device is desktop
@@ -292,61 +280,13 @@ export function getViewport() {
     };
 }
 
-/**
- * Scroll to element smoothly
- */
-export function scrollToElement(element, offset = 0) {
-    if (!element) return;
-    
-    const elementPosition = element.getBoundingClientRect().top;
-    const offsetPosition = elementPosition + window.pageYOffset - offset;
-    
-    window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-    });
-}
+// scrollToElement function removed - unused
 
-/**
- * Check if element is in viewport
- */
-export function isInViewport(element) {
-    if (!element) return false;
-    
-    const rect = element.getBoundingClientRect();
-    return (
-        rect.top >= 0 &&
-        rect.left >= 0 &&
-        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-    );
-}
+// isInViewport function removed - unused
 
-/**
- * Add CSS class with animation
- */
-export function addClassWithAnimation(element, className, duration = 300) {
-    if (!element) return Promise.resolve();
-    
-    return new Promise(resolve => {
-        element.classList.add(className);
-        setTimeout(resolve, duration);
-    });
-}
+// addClassWithAnimation function removed - unused
 
-/**
- * Remove CSS class with animation
- */
-export function removeClassWithAnimation(element, className, duration = 300) {
-    if (!element) return Promise.resolve();
-    
-    return new Promise(resolve => {
-        setTimeout(() => {
-            element.classList.remove(className);
-            resolve();
-        }, duration);
-    });
-}
+// removeClassWithAnimation function removed - unused
 
 /**
  * Wait for specified time
@@ -383,15 +323,7 @@ export function timeout(ms, value) {
     return new Promise(resolve => setTimeout(() => resolve(value), ms));
 }
 
-/**
- * Race a promise against a timeout
- */
-export function withTimeout(promise, ms, timeoutValue = null) {
-    return Promise.race([
-        promise,
-        timeout(ms, timeoutValue)
-    ]);
-}
+// withTimeout function removed - unused
 
 /**
  * Local storage helpers with error handling
@@ -438,111 +370,11 @@ export const storage = {
     }
 };
 
-/**
- * Cookie helpers
- */
-export const cookies = {
-    get(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) {
-            return parts.pop().split(';').shift();
-        }
-        return null;
-    },
-    
-    set(name, value, days = 7) {
-        const expires = new Date();
-        expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
-        document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
-    },
-    
-    remove(name) {
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
-    }
-};
+// cookies object removed - unused
 
-/**
- * Event emitter class (optimized)
- */
-export class EventEmitter {
-    constructor() {
-        this.events = new Map();
-    }
-    
-    on(event, callback) {
-        if (!this.events.has(event)) {
-            this.events.set(event, new Set());
-        }
-        this.events.get(event).add(callback);
-    }
-    
-    off(event, callback) {
-        this.events.get(event)?.delete(callback);
-    }
-    
-    emit(event, ...args) {
-        const callbacks = this.events.get(event);
-        if (!callbacks) return;
-        
-        callbacks.forEach(callback => {
-            try {
-                callback(...args);
-            } catch (error) {
-                console.error(`Error in event listener for ${event}:`, error);
-            }
-        });
-    }
-    
-    once(event, callback) {
-        const onceCallback = (...args) => {
-            callback(...args);
-            this.off(event, onceCallback);
-        };
-        this.on(event, onceCallback);
-    }
-    
-    removeAllListeners(event) {
-        if (event) {
-            this.events.delete(event);
-        } else {
-            this.events.clear();
-        }
-    }
-}
+// EventEmitter class removed - unused
 
-/**
- * Performance measurement helpers
- */
-export const perf = {
-    mark(name) {
-        if (performance.mark) {
-            performance.mark(name);
-        }
-    },
-    
-    measure(name, startMark, endMark) {
-        if (performance.measure) {
-            try {
-                performance.measure(name, startMark, endMark);
-                const measure = performance.getEntriesByName(name)[0];
-                return measure ? measure.duration : 0;
-            } catch (error) {
-                console.warn('Performance measurement failed:', error);
-                return 0;
-            }
-        }
-        return 0;
-    },
-    
-    time(label) {
-        console.time(label);
-    },
-    
-    timeEnd(label) {
-        console.timeEnd(label);
-    }
-};
+// perf object removed - unused
 
 /**
  * Dark mode color utilities
@@ -661,28 +493,22 @@ export const helpers = {
     removeItem,
     isEmpty,
     capitalize,
-    titleCase,
+    // titleCase removed - unused
     truncate,
     escapeHtml,
     parseQueryString,
     createQueryString,
     isMobile,
-    isTablet,
+    // isTablet removed - unused
     isDesktop,
     isTouchDevice,
     getViewport,
-    scrollToElement,
-    isInViewport,
-    addClassWithAnimation,
-    removeClassWithAnimation,
+    // scrollToElement, isInViewport, addClassWithAnimation, removeClassWithAnimation removed - unused
     wait,
     retry,
     timeout,
-    withTimeout,
+    // withTimeout, cookies, EventEmitter, perf removed - unused
     storage,
-    cookies,
-    EventEmitter,
-    perf,
     color,
     darkModeColors
 };
