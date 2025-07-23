@@ -2,6 +2,7 @@
  * Chat Manager - Real-time chat interface management
  * Handles message display, formatting, timestamps, scroll management, and input validation
  * FIXED: Fixed TypeError by using correct StateManager methods
+ * FIXED: Fixed message grouping display issue
  */
 
 export class ChatManager {
@@ -203,150 +204,73 @@ export class ChatManager {
         
         const wasAtBottom = this.isScrolledToBottom;
         
-        // Get existing message IDs
-        const existingMessageIds = new Set(
-            Array.from(this.messagesContainer.querySelectorAll('.chat-message'))
-                .map(el => el.dataset.messageId)
-        );
+        // Clear and rebuild - simpler and more reliable for grouped messages
+        this.messagesContainer.innerHTML = '';
         
-        // Check if we're just adding new messages
-        const isAppendOnly = messages.length > 0 &&
-            messages.every((msg, i, arr) =>
-                i === 0 || msg.timestamp >= arr[i-1].timestamp
-            );
+        // Use DocumentFragment for better performance
+        const fragment = document.createDocumentFragment();
         
-        // If we're just adding new messages and there are existing messages,
-        // only append the new ones for better performance
-        if (isAppendOnly && existingMessageIds.size > 0) {
-            const newMessages = messages.filter(msg => !existingMessageIds.has(msg.id.toString()));
-            
-            if (newMessages.length > 0) {
-                // Use requestIdleCallback for non-critical updates
-                const appendNewMessages = () => {
-                    const fragment = document.createDocumentFragment();
-                    this.groupMessages(newMessages).forEach(group =>
-                        fragment.appendChild(this.createMessageGroup(group)));
-                    this.messagesContainer.appendChild(fragment);
-                    
-                    if (wasAtBottom) this.scrollToBottom(true);
-                };
-                
-                if (window.requestIdleCallback) {
-                    requestIdleCallback(appendNewMessages, { timeout: 200 });
-                } else {
-                    requestAnimationFrame(appendNewMessages);
-                }
-            }
-        } else {
-            // Full rebuild needed
-            // Use DocumentFragment for better performance
-            const fragment = document.createDocumentFragment();
-            
-            this.groupMessages(messages).forEach(group =>
-                fragment.appendChild(this.createMessageGroup(group)));
-            
-            // Single DOM update
-            this.messagesContainer.innerHTML = '';
-            this.messagesContainer.appendChild(fragment);
-            
-            if (wasAtBottom || messages.length === 1) this.scrollToBottom(true);
-        }
+        // Don't group messages - display them individually for clarity
+        messages.forEach(message => {
+            fragment.appendChild(this.createIndividualMessage(message));
+        });
+        
+        // Single DOM update
+        this.messagesContainer.appendChild(fragment);
+        
+        if (wasAtBottom || messages.length === 1) this.scrollToBottom(true);
         
         if (!this.isVisible || !this.isScrolledToBottom) {
             this.updateUnreadCount(this.stateManager.getChatMessages().length);
         }
     }
 
-    groupMessages(messages) {
-        const groups = [];
-        let currentGroup = null;
-        
-        messages.forEach(message => {
-            const shouldGroup = currentGroup && 
-                currentGroup.playerId === message.playerId &&
-                currentGroup.type === message.type &&
-                (message.timestamp - currentGroup.lastTimestamp) < 60000;
-            
-            if (shouldGroup) {
-                currentGroup.messages.push(message);
-                currentGroup.lastTimestamp = message.timestamp;
-            } else {
-                groups.push(currentGroup = {
-                    playerId: message.playerId,
-                    playerName: message.playerName,
-                    type: message.type,
-                    messages: [message],
-                    firstTimestamp: message.timestamp,
-                    lastTimestamp: message.timestamp
-                });
-            }
-        });
-        
-        return groups;
-    }
-
-    createMessageGroup(group) {
-        const div = document.createElement('div');
-        div.className = 'message-group';
-        
-        if (group.type === 'system') div.classList.add('system-group');
-        
-        const currentPlayerId = this.stateManager.getConnectionState().playerId;
-        const isOwnMessage = group.playerId === currentPlayerId;
-        if (isOwnMessage) div.classList.add('own-group');
-        
-        if (group.type !== 'system') {
-            div.appendChild(this.createMessageHeader(group, isOwnMessage));
-        }
-        
-        group.messages.forEach((message, index) => 
-            div.appendChild(this.createMessageElement(message, index === 0)));
-        
-        return div;
-    }
-
-    createMessageHeader(group, isOwnMessage) {
-        const header = document.createElement('div');
-        header.className = 'message-header';
-        
-        const sender = document.createElement('span');
-        sender.className = 'message-sender';
-        sender.textContent = group.playerName || 'Unknown';
-        
-        const time = document.createElement('span');
-        time.className = 'message-time';
-        time.textContent = this.formatTimestamp(group.firstTimestamp);
-        
-        header.append(...(isOwnMessage ? [time, sender] : [sender, time]));
-        return header;
-    }
-
-    createMessageElement(message, isFirst) {
+    createIndividualMessage(message) {
         const div = document.createElement('div');
         div.className = 'chat-message';
         div.dataset.messageId = message.id;
         
-        if (message.type === 'system') div.classList.add('system');
+        if (message.type === 'system') {
+            div.classList.add('system');
+        } else {
+            const currentPlayerId = this.stateManager.getConnectionState().playerId;
+            if (message.playerId === currentPlayerId) div.classList.add('own');
+        }
         
-        const currentPlayerId = this.stateManager.getConnectionState().playerId;
-        if (message.playerId === currentPlayerId) div.classList.add('own');
+        // Add header for non-system messages
+        if (message.type !== 'system') {
+            const header = document.createElement('div');
+            header.className = 'message-header';
+            
+            const sender = document.createElement('span');
+            sender.className = 'message-sender';
+            sender.textContent = message.playerName || 'Unknown';
+            
+            const time = document.createElement('span');
+            time.className = 'message-time';
+            time.textContent = this.formatTimestamp(message.timestamp);
+            
+            header.appendChild(sender);
+            header.appendChild(time);
+            div.appendChild(header);
+        }
         
         const content = document.createElement('div');
         content.className = 'message-content';
-        content.innerHTML = this.formatMessageContent(message.content);
+        content.innerHTML = this.formatMessageContent(message.content || message.text);
         div.appendChild(content);
         
-        if (!isFirst) {
-            const timestamp = document.createElement('div');
-            timestamp.className = 'message-timestamp';
-            timestamp.textContent = this.formatTimestamp(message.timestamp, true);
-            div.appendChild(timestamp);
-        }
-        
-        // Use CSS animation instead of JS
+        // Add animation
         div.classList.add('animate-message-slide-in');
+        
         return div;
     }
+
+    // Remove the old grouping methods since we're not using them anymore
+    // groupMessages method removed
+    // createMessageGroup method removed
+    // createMessageHeader method removed
+    // createMessageElement method removed
 
     formatMessageContent(content) {
         if (!content || typeof content !== 'string') {
