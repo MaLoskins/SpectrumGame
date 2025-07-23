@@ -155,6 +155,578 @@
       },
       "category": "abstract",
       "difficulty": "hard"
+    },
+    {
+      "id": "formality",
+      "name": "Formality",
+      "leftLabel": "Extremely Casual",
+      "rightLabel": "Ultra Formal",
+      "gradient": {
+        "start": "#81C784",
+        "middle": "#7986CB",
+        "end": "#3F51B5"
+      },
+      "category": "social",
+      "difficulty": "medium"
+    },
+    {
+      "id": "texture",
+      "name": "Texture",
+      "leftLabel": "Perfectly Smooth",
+      "rightLabel": "Extremely Rough",
+      "gradient": {
+        "start": "#E1BEE7",
+        "middle": "#BCAAA4",
+        "end": "#6D4C41"
+      },
+      "category": "physical",
+      "difficulty": "easy"
+    },
+    {
+      "id": "confidence",
+      "name": "Confidence Level",
+      "leftLabel": "Extremely Timid",
+      "rightLabel": "Supremely Confident",
+      "gradient": {
+        "start": "#B0BEC5",
+        "middle": "#64B5F6",
+        "end": "#1976D2"
+      },
+      "category": "emotional",
+      "difficulty": "medium"
+    },
+    {
+      "id": "wealth",
+      "name": "Wealth Level",
+      "leftLabel": "Dirt Poor",
+      "rightLabel": "Filthy Rich",
+      "gradient": {
+        "start": "#8D6E63",
+        "middle": "#FFC107",
+        "end": "#FFD700"
+      },
+      "category": "social",
+      "difficulty": "easy"
+    },
+    {
+      "id": "sound-volume",
+      "name": "Sound Volume",
+      "leftLabel": "Dead Silent",
+      "rightLabel": "Deafeningly Loud",
+      "gradient": {
+        "start": "#B39DDB",
+        "middle": "#FF7043",
+        "end": "#E53935"
+      },
+      "category": "physical",
+      "difficulty": "easy"
+    },
+    {
+      "id": "humor",
+      "name": "Humor Level",
+      "leftLabel": "Deadly Serious",
+      "rightLabel": "Hilariously Funny",
+      "gradient": {
+        "start": "#757575",
+        "middle": "#FFC107",
+        "end": "#FF6F00"
+      },
+      "category": "emotional",
+      "difficulty": "medium"
+    },
+    {
+      "id": "rarity",
+      "name": "Rarity",
+      "leftLabel": "Extremely Common",
+      "rightLabel": "Impossibly Rare",
+      "gradient": {
+        "start": "#A5D6A7",
+        "middle": "#7E57C2",
+        "end": "#6A1B9A"
+      },
+      "category": "abstract",
+      "difficulty": "medium"
+    },
+    {
+      "id": "weight",
+      "name": "Weight",
+      "leftLabel": "Light as a Feather",
+      "rightLabel": "Heavy as Lead",
+      "gradient": {
+        "start": "#81D4FA",
+        "middle": "#90A4AE",
+        "end": "#455A64"
+      },
+      "category": "physical",
+      "difficulty": "easy"
+    },
+    {
+      "id": "energy-level",
+      "name": "Energy Level",
+      "leftLabel": "Completely Drained",
+      "rightLabel": "Bursting with Energy",
+      "gradient": {
+        "start": "#BCAAA4",
+        "middle": "#FFB74D",
+        "end": "#FF5722"
+      },
+      "category": "emotional",
+      "difficulty": "easy"
+    },
+    {
+      "id": "controversy",
+      "name": "Controversy Level",
+      "leftLabel": "Universally Accepted",
+      "rightLabel": "Extremely Controversial",
+      "gradient": {
+        "start": "#81C784",
+        "middle": "#FFB74D",
+        "end": "#E53935"
+      },
+      "category": "social",
+      "difficulty": "hard"
+    },
+    {
+      "id": "flavor-intensity",
+      "name": "Flavor Intensity",
+      "leftLabel": "Completely Bland",
+      "rightLabel": "Overwhelmingly Intense",
+      "gradient": {
+        "start": "#E0E0E0",
+        "middle": "#FF8A65",
+        "end": "#D32F2F"
+      },
+      "category": "physical",
+      "difficulty": "easy"
+    },
+    {
+      "id": "creativity",
+      "name": "Creativity Level",
+      "leftLabel": "Utterly Conventional",
+      "rightLabel": "Wildly Creative",
+      "gradient": {
+        "start": "#90A4AE",
+        "middle": "#BA68C8",
+        "end": "#E91E63"
+      },
+      "category": "abstract",
+      "difficulty": "hard"
+    },
+    {
+      "id": "privacy",
+      "name": "Privacy Level",
+      "leftLabel": "Completely Public",
+      "rightLabel": "Top Secret",
+      "gradient": {
+        "start": "#4FC3F7",
+        "middle": "#5C6BC0",
+        "end": "#311B92"
+      },
+      "category": "social",
+      "difficulty": "medium"
+    },
+    {
+      "id": "patience-required",
+      "name": "Patience Required",
+      "leftLabel": "Instant Gratification",
+      "rightLabel": "Requires Infinite Patience",
+      "gradient": {
+        "start": "#81C784",
+        "middle": "#FFD54F",
+        "end": "#FF6F00"
+      },
+      "category": "abstract",
+      "difficulty": "medium"
+    },
+    {
+      "id": "cleanliness",
+      "name": "Cleanliness",
+      "leftLabel": "Absolutely Filthy",
+      "rightLabel": "Spotlessly Clean",
+      "gradient": {
+        "start": "#6D4C41",
+        "middle": "#BDBDBD",
+        "end": "#E3F2FD"
+      },
+      "category": "physical",
+      "difficulty": "easy"
+    },
+    {
+      "id": "fear-factor",
+      "name": "Fear Factor",
+      "leftLabel": "Not Scary At All",
+      "rightLabel": "Absolutely Terrifying",
+      "gradient": {
+        "start": "#AED581",
+        "middle": "#FF8A65",
+        "end": "#B71C1C"
+      },
+      "category": "emotional",
+      "difficulty": "easy"
+    },
+    {
+      "id": "authenticity",
+      "name": "Authenticity",
+      "leftLabel": "Completely Fake",
+      "rightLabel": "100% Authentic",
+      "gradient": {
+        "start": "#EF5350",
+        "middle": "#FFB74D",
+        "end": "#66BB6A"
+      },
+      "category": "abstract",
+      "difficulty": "hard"
+    },
+    {
+      "id": "sweetness",
+      "name": "Sweetness Level",
+      "leftLabel": "Extremely Bitter",
+      "rightLabel": "Sickeningly Sweet",
+      "gradient": {
+        "start": "#5D4037",
+        "middle": "#F48FB1",
+        "end": "#E91E63"
+      },
+      "category": "physical",
+      "difficulty": "easy"
+    },
+    {
+      "id": "tech-savvy",
+      "name": "Tech Savviness",
+      "leftLabel": "Complete Luddite",
+      "rightLabel": "Tech Genius",
+      "gradient": {
+        "start": "#8D6E63",
+        "middle": "#42A5F5",
+        "end": "#1565C0"
+      },
+      "category": "social",
+      "difficulty": "medium"
+    },
+    {
+      "id": "predictability",
+      "name": "Predictability",
+      "leftLabel": "Totally Unpredictable",
+      "rightLabel": "100% Predictable",
+      "gradient": {
+        "start": "#CE93D8",
+        "middle": "#90CAF9",
+        "end": "#5E35B1"
+      },
+      "category": "abstract",
+      "difficulty": "hard"
+    },
+    {
+      "id": "moisture",
+      "name": "Moisture Level",
+      "leftLabel": "Bone Dry",
+      "rightLabel": "Soaking Wet",
+      "gradient": {
+        "start": "#FFCC80",
+        "middle": "#81D4FA",
+        "end": "#1976D2"
+      },
+      "category": "physical",
+      "difficulty": "easy"
+    },
+    {
+      "id": "nostalgia",
+      "name": "Nostalgia Factor",
+      "leftLabel": "Modern/Contemporary",
+      "rightLabel": "Deeply Nostalgic",
+      "gradient": {
+        "start": "#E1F5FE",
+        "middle": "#F8BBD0",
+        "end": "#8D6E63"
+      },
+      "category": "emotional",
+      "difficulty": "medium"
+    },
+    {
+      "id": "transparency",
+      "name": "Transparency",
+      "leftLabel": "Completely Opaque",
+      "rightLabel": "Crystal Clear",
+      "gradient": {
+        "start": "#37474F",
+        "middle": "#B0BEC5",
+        "end": "#E3F2FD"
+      },
+      "category": "physical",
+      "difficulty": "easy"
+    },
+    {
+      "id": "exclusivity",
+      "name": "Exclusivity",
+      "leftLabel": "Open to Everyone",
+      "rightLabel": "Ultra Exclusive",
+      "gradient": {
+        "start": "#A5D6A7",
+        "middle": "#FFD54F",
+        "end": "#6A1B9A"
+      },
+      "category": "social",
+      "difficulty": "medium"
+    },
+    {
+      "id": "competitiveness",
+      "name": "Competitive Spirit",
+      "leftLabel": "Completely Cooperative",
+      "rightLabel": "Fiercely Competitive",
+      "gradient": {
+        "start": "#80CBC4",
+        "middle": "#FFB74D",
+        "end": "#E53935"
+      },
+      "category": "emotional",
+      "difficulty": "medium"
+    },
+    {
+      "id": "durability",
+      "name": "Durability",
+      "leftLabel": "Extremely Fragile",
+      "rightLabel": "Virtually Indestructible",
+      "gradient": {
+        "start": "#FFCDD2",
+        "middle": "#90A4AE",
+        "end": "#37474F"
+      },
+      "category": "physical",
+      "difficulty": "easy"
+    },
+    {
+      "id": "mystery",
+      "name": "Mystery Level",
+      "leftLabel": "Completely Obvious",
+      "rightLabel": "Total Enigma",
+      "gradient": {
+        "start": "#E0E0E0",
+        "middle": "#9575CD",
+        "end": "#311B92"
+      },
+      "category": "abstract",
+      "difficulty": "hard"
+    },
+    {
+      "id": "flexibility",
+      "name": "Flexibility",
+      "leftLabel": "Completely Rigid",
+      "rightLabel": "Extremely Flexible",
+      "gradient": {
+        "start": "#8D6E63",
+        "middle": "#FFA726",
+        "end": "#4CAF50"
+      },
+      "category": "physical",
+      "difficulty": "easy"
+    },
+    {
+      "id": "romance",
+      "name": "Romance Level",
+      "leftLabel": "Zero Romance",
+      "rightLabel": "Extremely Romantic",
+      "gradient": {
+        "start": "#90A4AE",
+        "middle": "#F48FB1",
+        "end": "#E91E63"
+      },
+      "category": "emotional",
+      "difficulty": "medium"
+    },
+    {
+      "id": "efficiency",
+      "name": "Efficiency",
+      "leftLabel": "Terribly Inefficient",
+      "rightLabel": "Maximum Efficiency",
+      "gradient": {
+        "start": "#EF5350",
+        "middle": "#FFC107",
+        "end": "#4CAF50"
+      },
+      "category": "abstract",
+      "difficulty": "medium"
+    },
+    {
+      "id": "spiciness",
+      "name": "Spiciness",
+      "leftLabel": "No Spice",
+      "rightLabel": "Volcanic Heat",
+      "gradient": {
+        "start": "#FFF9C4",
+        "middle": "#FF8A65",
+        "end": "#B71C1C"
+      },
+      "category": "physical",
+      "difficulty": "easy"
+    },
+    {
+      "id": "ambition",
+      "name": "Ambition Level",
+      "leftLabel": "No Ambition",
+      "rightLabel": "Boundless Ambition",
+      "gradient": {
+        "start": "#BDBDBD",
+        "middle": "#FFB74D",
+        "end": "#F57C00"
+      },
+      "category": "emotional",
+      "difficulty": "medium"
+    },
+    {
+      "id": "naturalness",
+      "name": "Natural vs Artificial",
+      "leftLabel": "Completely Artificial",
+      "rightLabel": "100% Natural",
+      "gradient": {
+        "start": "#9E9E9E",
+        "middle": "#8BC34A",
+        "end": "#2E7D32"
+      },
+      "category": "abstract",
+      "difficulty": "medium"
+    },
+    {
+      "id": "independence",
+      "name": "Independence",
+      "leftLabel": "Completely Dependent",
+      "rightLabel": "Fiercely Independent",
+      "gradient": {
+        "start": "#FFCDD2",
+        "middle": "#90CAF9",
+        "end": "#1565C0"
+      },
+      "category": "social",
+      "difficulty": "medium"
+    },
+    {
+      "id": "chaos-order",
+      "name": "Chaos vs Order",
+      "leftLabel": "Complete Chaos",
+      "rightLabel": "Perfect Order",
+      "gradient": {
+        "start": "#E91E63",
+        "middle": "#9C27B0",
+        "end": "#3F51B5"
+      },
+      "category": "abstract",
+      "difficulty": "hard"
+    },
+    {
+      "id": "maturity",
+      "name": "Maturity Level",
+      "leftLabel": "Extremely Childish",
+      "rightLabel": "Highly Mature",
+      "gradient": {
+        "start": "#81C784",
+        "middle": "#5C6BC0",
+        "end": "#283593"
+      },
+      "category": "social",
+      "difficulty": "medium"
+    },
+    {
+      "id": "value",
+      "name": "Perceived Value",
+      "leftLabel": "Worthless",
+      "rightLabel": "Priceless",
+      "gradient": {
+        "start": "#9E9E9E",
+        "middle": "#FFD700",
+        "end": "#D4AF37"
+      },
+      "category": "abstract",
+      "difficulty": "hard"
+    },
+    {
+      "id": "introvert-extrovert",
+      "name": "Social Energy",
+      "leftLabel": "Extreme Introvert",
+      "rightLabel": "Extreme Extrovert",
+      "gradient": {
+        "start": "#5C6BC0",
+        "middle": "#26A69A",
+        "end": "#FF6F00"
+      },
+      "category": "social",
+      "difficulty": "easy"
+    },
+    {
+      "id": "luck-required",
+      "name": "Luck Factor",
+      "leftLabel": "Pure Skill",
+      "rightLabel": "Pure Luck",
+      "gradient": {
+        "start": "#3F51B5",
+        "middle": "#9C27B0",
+        "end": "#4CAF50"
+      },
+      "category": "abstract",
+      "difficulty": "medium"
+    },
+    {
+      "id": "elegance",
+      "name": "Elegance",
+      "leftLabel": "Crude/Clumsy",
+      "rightLabel": "Supremely Elegant",
+      "gradient": {
+        "start": "#8D6E63",
+        "middle": "#CE93D8",
+        "end": "#7B1FA2"
+      },
+      "category": "abstract",
+      "difficulty": "hard"
+    },
+    {
+      "id": "rebelliousness",
+      "name": "Rebelliousness",
+      "leftLabel": "Total Conformist",
+      "rightLabel": "Complete Rebel",
+      "gradient": {
+        "start": "#90A4AE",
+        "middle": "#FF7043",
+        "end": "#D32F2F"
+      },
+      "category": "social",
+      "difficulty": "medium"
+    },
+    {
+      "id": "attention-seeking",
+      "name": "Attention Level",
+      "leftLabel": "Hates Attention",
+      "rightLabel": "Craves Spotlight",
+      "gradient": {
+        "start": "#607D8B",
+        "middle": "#FFC107",
+        "end": "#FF5722"
+      },
+      "category": "social",
+      "difficulty": "easy"
+    },
+    {
+      "id": "trustworthiness",
+      "name": "Trust Level",
+      "leftLabel": "Can't Trust at All",
+      "rightLabel": "Completely Trustworthy",
+      "gradient": {
+        "start": "#EF5350",
+        "middle": "#FFC107",
+        "end": "#4CAF50"
+      },
+      "category": "social",
+      "difficulty": "medium"
+    },
+    {
+      "id": "practicality",
+      "name": "Practicality",
+      "leftLabel": "Completely Impractical",
+      "rightLabel": "Extremely Practical",
+      "gradient": {
+        "start": "#CE93D8",
+        "middle": "#81C784",
+        "end": "#2E7D32"
+      },
+      "category": "abstract",
+      "difficulty": "medium"
     }
   ],
   "categories": {
