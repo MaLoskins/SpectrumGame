@@ -741,6 +741,361 @@
       "category": "abstract",
       "difficulty": "medium"
     }
+        {
+      "id": "dad-joke-quality",
+      "name": "Dad Joke Quality",
+      "leftLabel": "So Bad It's Good",
+      "rightLabel": "So Bad It's Terrible",
+      "gradient": {
+        "start": "#4CAF50",
+        "middle": "#FFC107",
+        "end": "#F44336"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "wifi-reliability",
+      "name": "WiFi Connection",
+      "leftLabel": "Works Perfectly",
+      "rightLabel": "Only Works in That One Corner",
+      "gradient": {
+        "start": "#4CAF50",
+        "middle": "#FF9800",
+        "end": "#E91E63"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "ikea-difficulty",
+      "name": "IKEA Assembly Difficulty",
+      "leftLabel": "Child's Play",
+      "rightLabel": "Relationship Destroyer",
+      "gradient": {
+        "start": "#81C784",
+        "middle": "#FFB74D",
+        "end": "#D32F2F"
+      },
+      "category": "humor",
+      "difficulty": "medium"
+    },
+    {
+      "id": "pet-judgment",
+      "name": "How Much Your Cat Judges You",
+      "leftLabel": "Mild Disappointment",
+      "rightLabel": "Complete Disgust",
+      "gradient": {
+        "start": "#B39DDB",
+        "middle": "#7E57C2",
+        "end": "#4A148C"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "sock-mystery",
+      "name": "Likelihood of Finding Matching Sock",
+      "leftLabel": "Definitely in Drawer",
+      "rightLabel": "In Another Dimension",
+      "gradient": {
+        "start": "#4FC3F7",
+        "middle": "#AB47BC",
+        "end": "#6A1B9A"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "pizza-acceptability",
+      "name": "Acceptable Time to Eat Pizza",
+      "leftLabel": "Only at Parties",
+      "rightLabel": "Breakfast, Lunch, AND Dinner",
+      "gradient": {
+        "start": "#90A4AE",
+        "middle": "#FF8A65",
+        "end": "#FF5722"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "procrastination-level",
+      "name": "Procrastination Level",
+      "leftLabel": "I'll Do It Now",
+      "rightLabel": "Due Yesterday? Perfect Time to Start",
+      "gradient": {
+        "start": "#66BB6A",
+        "middle": "#FFCA28",
+        "end": "#EF5350"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "social-battery",
+      "name": "Social Battery Level",
+      "leftLabel": "Ready to Party",
+      "rightLabel": "Hide Under Blanket Forever",
+      "gradient": {
+        "start": "#FFD54F",
+        "middle": "#FF8A65",
+        "end": "#5D4037"
+      },
+      "category": "humor",
+      "difficulty": "medium"
+    },
+    {
+      "id": "snooze-button-usage",
+      "name": "Snooze Button Addiction",
+      "leftLabel": "Wake Up Immediately",
+      "rightLabel": "17 Alarms Set 5 Minutes Apart",
+      "gradient": {
+        "start": "#81C784",
+        "middle": "#FFB74D",
+        "end": "#E53935"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "phone-battery-anxiety",
+      "name": "Phone Battery Panic Level",
+      "leftLabel": "90% is Fine",
+      "rightLabel": "99% WHERE'S MY CHARGER?!",
+      "gradient": {
+        "start": "#4CAF50",
+        "middle": "#FFC107",
+        "end": "#F44336"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "food-photo-necessity",
+      "name": "Need to Photograph Food",
+      "leftLabel": "Just Eat It",
+      "rightLabel": "45 Angles, 3 Filters, 2 Apps",
+      "gradient": {
+        "start": "#B0BEC5",
+        "middle": "#F48FB1",
+        "end": "#E91E63"
+      },
+      "category": "humor",
+      "difficulty": "medium"
+    },
+    {
+      "id": "password-complexity",
+      "name": "Password Ridiculousness",
+      "leftLabel": "password123",
+      "rightLabel": "Jk$9mN!qX#2@pL&7zR*4",
+      "gradient": {
+        "start": "#EF5350",
+        "middle": "#AB47BC",
+        "end": "#1976D2"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "shower-temperature",
+      "name": "Shower Temperature Preference",
+      "leftLabel": "Arctic Expedition",
+      "rightLabel": "Surface of the Sun",
+      "gradient": {
+        "start": "#42A5F5",
+        "middle": "#FFA726",
+        "end": "#EF5350"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "text-response-speed",
+      "name": "Text Response Time",
+      "leftLabel": "Instant Reply",
+      "rightLabel": "3-5 Business Days",
+      "gradient": {
+        "start": "#66BB6A",
+        "middle": "#FFEE58",
+        "end": "#78909C"
+      },
+      "category": "humor",
+      "difficulty": "medium"
+    },
+    {
+      "id": "avocado-ripeness",
+      "name": "Avocado Ripeness Window",
+      "leftLabel": "Rock Hard",
+      "rightLabel": "Brown Mush (You Blinked)",
+      "gradient": {
+        "start": "#8BC34A",
+        "middle": "#689F38",
+        "end": "#3E2723"
+      },
+      "category": "humor",
+      "difficulty": "hard"
+    },
+    {
+      "id": "zoom-background",
+      "name": "Zoom Background Chaos",
+      "leftLabel": "Pristine Office",
+      "rightLabel": "Laundry Mountain Paradise",
+      "gradient": {
+        "start": "#E3F2FD",
+        "middle": "#FFCDD2",
+        "end": "#6D4C41"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "midnight-snack",
+      "name": "Midnight Snack Shame Level",
+      "leftLabel": "Single Grape",
+      "rightLabel": "Entire Leftover Pizza + Ice Cream",
+      "gradient": {
+        "start": "#C8E6C9",
+        "middle": "#FFE082",
+        "end": "#D32F2F"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "parallel-parking",
+      "name": "Parallel Parking Skill",
+      "leftLabel": "One Smooth Motion",
+      "rightLabel": "47 Attempts, Still Crooked",
+      "gradient": {
+        "start": "#2E7D32",
+        "middle": "#FFC107",
+        "end": "#B71C1C"
+      },
+      "category": "humor",
+      "difficulty": "medium"
+    },
+    {
+      "id": "plant-survival",
+      "name": "Plant Parent Success Rate",
+      "leftLabel": "Green Thumb Guru",
+      "rightLabel": "Cactus Assassin",
+      "gradient": {
+        "start": "#43A047",
+        "middle": "#FFB300",
+        "end": "#5D4037"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "online-shopping-regret",
+      "name": "3AM Purchase Regret Level",
+      "leftLabel": "Best Decision Ever",
+      "rightLabel": "Why Do I Own 50 Rubber Ducks?",
+      "gradient": {
+        "start": "#66BB6A",
+        "middle": "#FFCA28",
+        "end": "#E91E63"
+      },
+      "category": "humor",
+      "difficulty": "medium"
+    },
+    {
+      "id": "email-draft-time",
+      "name": "Time Spent Writing 'Simple' Email",
+      "leftLabel": "2 Minutes",
+      "rightLabel": "3 Hours + Thesaurus",
+      "gradient": {
+        "start": "#81C784",
+        "middle": "#FFD54F",
+        "end": "#7B1FA2"
+      },
+      "category": "humor",
+      "difficulty": "medium"
+    },
+    {
+      "id": "googling-symptoms",
+      "name": "WebMD Diagnosis Severity",
+      "leftLabel": "Common Cold",
+      "rightLabel": "Rare Tropical Disease",
+      "gradient": {
+        "start": "#81C784",
+        "middle": "#FFB74D",
+        "end": "#B71C1C"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "fridge-check-frequency",
+      "name": "Fridge Checking Frequency",
+      "leftLabel": "Once When Hungry",
+      "rightLabel": "Every 5 Minutes Hoping Food Appears",
+      "gradient": {
+        "start": "#4FC3F7",
+        "middle": "#FFD54F",
+        "end": "#FF5722"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "meeting-usefulness",
+      "name": "Meeting Productivity",
+      "leftLabel": "Actually Productive",
+      "rightLabel": "Could've Been an Email",
+      "gradient": {
+        "start": "#4CAF50",
+        "middle": "#FFC107",
+        "end": "#E53935"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+    {
+      "id": "autocorrect-betrayal",
+      "name": "Autocorrect Betrayal Level",
+      "leftLabel": "Helpful Assistant",
+      "rightLabel": "Ruins Your Life Daily",
+      "gradient": {
+        "start": "#66BB6A",
+        "middle": "#FFB74D",
+        "end": "#D32F2F"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    },
+
+    {
+      "id": "lawfulness",
+      "name": "Lawfulness Level",
+      "leftLabel": "Hardened Criminal",
+      "rightLabel": "Law-Abiding Citizen",
+      "gradient": {
+        "start": "#B71C1C",
+        "middle": "#FFC107",
+        "end": "#2E7D32"
+      },
+      "category": "social",
+      "difficulty": "medium"
+    },
+
+    {
+      "id": "grass-touching",
+      "name": "Online vs Outdoor Life",
+      "leftLabel": "Discord Mod Energy",
+      "rightLabel": "Actively Touching Grass",
+      "gradient": {
+        "start": "#5C6BC0",
+        "middle": "#AB47BC",
+        "end": "#4CAF50"
+      },
+      "category": "humor",
+      "difficulty": "easy"
+    }
+
+
   ],
   "categories": {
     "physical": {
@@ -762,6 +1117,11 @@
       "name": "Social Dynamics",
       "color": "#FFB74D",
       "description": "Social interactions and relationships"
+    },
+    "humor": {
+      "name": "Comedy & Humor",
+      "color": "#FFC107",
+      "description": "Funny, relatable everyday situations"
     }
   }
 }
