@@ -2,7 +2,6 @@
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://spectrumgame-production.up.railway.app/)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Socket.io](https://img.shields.io/badge/socket.io-4.7.5-black)](https://socket.io)
 [![Railway](https://img.shields.io/badge/deployed%20on-Railway-blueviolet)](https://railway.app)
 
@@ -190,9 +189,6 @@ We welcome contributions that enhance gameplay, improve performance, or expand f
 | Frame Rate | 60 FPS | 58 FPS |
 | Memory Usage | < 50MB | 32MB |
 
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
