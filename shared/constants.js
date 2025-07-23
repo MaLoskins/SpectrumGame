@@ -155,13 +155,13 @@ if (typeof module !== 'undefined' && module.exports) {
   };
 }
 
-// ES6 module exports for browsers
-export {
-  GAME_RULES,
-  SCORING,
-  VALIDATION,
-  NETWORK,
-  UI,
-  ERROR_CODES,
-  CONSTANTS
-};
+// Make available globally in browser
+if (typeof window !== 'undefined') {
+  window.GAME_RULES = GAME_RULES;
+  window.SCORING = SCORING;
+  window.VALIDATION = VALIDATION;
+  window.NETWORK = NETWORK;
+  window.UI = UI;
+  window.ERROR_CODES = ERROR_CODES;
+  window.CONSTANTS = CONSTANTS;
+}

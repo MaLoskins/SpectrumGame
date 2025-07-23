@@ -13,7 +13,7 @@
  * ================================= */
 
 const { GAME_RULES, SCORING, VALIDATION } = require('../../shared/constants.js');
-const { Validator } = require('../../shared/validation.js');
+const Validator = require('../../shared/validation.js');
 const { GameError, ValidationError, GameLogicError } = require('../../shared/errors.js');
 
 class GameManager {

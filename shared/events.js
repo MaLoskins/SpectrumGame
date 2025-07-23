@@ -148,17 +148,17 @@ if (typeof module !== 'undefined' && module.exports) {
   };
 }
 
-// ES6 module exports for browsers
-export {
-  CONNECTION_EVENTS,
-  ROOM_EVENTS,
-  GAME_EVENTS,
-  PLAYER_EVENTS,
-  CHAT_EVENTS,
-  TIMER_EVENTS,
-  UI_EVENTS,
-  STATE_EVENTS,
-  ERROR_EVENTS,
-  getEventName,
-  EVENTS
-};
+// Make available globally in browser
+if (typeof window !== 'undefined') {
+  window.CONNECTION_EVENTS = CONNECTION_EVENTS;
+  window.ROOM_EVENTS = ROOM_EVENTS;
+  window.GAME_EVENTS = GAME_EVENTS;
+  window.PLAYER_EVENTS = PLAYER_EVENTS;
+  window.CHAT_EVENTS = CHAT_EVENTS;
+  window.TIMER_EVENTS = TIMER_EVENTS;
+  window.UI_EVENTS = UI_EVENTS;
+  window.STATE_EVENTS = STATE_EVENTS;
+  window.ERROR_EVENTS = ERROR_EVENTS;
+  window.getEventName = getEventName;
+  window.EVENTS = EVENTS;
+}

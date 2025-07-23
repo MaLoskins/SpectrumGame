@@ -21,7 +21,7 @@ const {
     TIMER_EVENTS,
     ERROR_EVENTS
 } = require('../../shared/events.js');
-const { Validator } = require('../../shared/validation.js');
+const Validator = require('../../shared/validation.js');
 const {
     GameError,
     ValidationError,

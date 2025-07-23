@@ -12,11 +12,6 @@
  * UPDATED: Support for 2D coordinate system
  * ================================= */
 
-import { GAME_RULES, VALIDATION, UI } from '../../shared/constants.js';
-import { EVENTS, ROOM_EVENTS, GAME_EVENTS, PLAYER_EVENTS, CHAT_EVENTS, TIMER_EVENTS, UI_EVENTS } from '../../shared/events.js';
-import { Validator } from '../../shared/validation.js';
-import { GameError, ValidationError, convertToGameError } from '../../shared/errors.js';
-
 export class GameClient {
     constructor(stateManager, socketClient) {
         Object.assign(this, {

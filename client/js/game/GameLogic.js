@@ -4,8 +4,7 @@
  * UPDATED: Support for 2D coordinate system
  */
 
-import { GAME_RULES, SCORING, VALIDATION } from '../../shared/constants.js';
-import { Validator } from '../../shared/validation.js';
+
 
 class GameLogic {
     constructor() {

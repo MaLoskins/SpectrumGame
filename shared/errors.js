@@ -12,15 +12,6 @@
  * This file is used by both client and server
  * ================================= */
 
-// Import error codes
-let ERROR_CODES;
-if (typeof require !== 'undefined') {
-  // CommonJS environment (Node.js)
-  ERROR_CODES = require('./constants.js').ERROR_CODES;
-} else if (typeof window !== 'undefined') {
-  // Browser environment
-  ERROR_CODES = window.ERROR_CODES;
-}
 
 /**
  * Base GameError class for standardized error handling
@@ -289,7 +280,7 @@ const Errors = {
   convertToGameError
 };
 
-// CommonJS module exports
+// CommonJS module exports for Node.js
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     GameError,
@@ -310,21 +301,21 @@ if (typeof module !== 'undefined' && module.exports) {
   };
 }
 
-// ES6 module exports for browsers
-export {
-  GameError,
-  ValidationError,
-  NetworkError,
-  RoomError,
-  GameLogicError,
-  createPlayerNameError,
-  createRoomCodeError,
-  createClueError,
-  createCoordinateError,
-  createRoomNotFoundError,
-  createRoomFullError,
-  createConnectionError,
-  createGameStateError,
-  convertToGameError,
-  Errors
-};
+// Make available globally in browser
+if (typeof window !== 'undefined') {
+  window.GameError = GameError;
+  window.ValidationError = ValidationError;
+  window.NetworkError = NetworkError;
+  window.RoomError = RoomError;
+  window.GameLogicError = GameLogicError;
+  window.createPlayerNameError = createPlayerNameError;
+  window.createRoomCodeError = createRoomCodeError;
+  window.createClueError = createClueError;
+  window.createCoordinateError = createCoordinateError;
+  window.createRoomNotFoundError = createRoomNotFoundError;
+  window.createRoomFullError = createRoomFullError;
+  window.createConnectionError = createConnectionError;
+  window.createGameStateError = createGameStateError;
+  window.convertToGameError = convertToGameError;
+  window.Errors = Errors;
+}

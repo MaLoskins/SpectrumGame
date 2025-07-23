@@ -13,9 +13,6 @@
  * This file is used by both client and server
  * ================================= */
 
-import { VALIDATION } from './constants.js';
-
-
 /**
  * Validator class for centralizing all validation logic
  */
@@ -26,6 +23,9 @@ class Validator {
    * @returns {Object} Validation result with valid flag and error message if invalid
    */
   static playerName(name) {
+    const VALIDATION = (typeof window !== 'undefined' && window.VALIDATION) || 
+                       (typeof require !== 'undefined' && require('./constants.js').VALIDATION);
+    
     const trimmed = name?.trim();
     
     if (!trimmed) {
@@ -55,6 +55,9 @@ class Validator {
    * @returns {Object} Validation result with valid flag and error message if invalid
    */
   static roomCode(code) {
+    const VALIDATION = (typeof window !== 'undefined' && window.VALIDATION) || 
+                       (typeof require !== 'undefined' && require('./constants.js').VALIDATION);
+    
     const trimmed = code?.trim().toUpperCase();
     
     if (!trimmed) {
@@ -77,6 +80,9 @@ class Validator {
    * @returns {Object} Validation result with valid flag and error message if invalid
    */
   static clue(clue) {
+    const VALIDATION = (typeof window !== 'undefined' && window.VALIDATION) || 
+                       (typeof require !== 'undefined' && require('./constants.js').VALIDATION);
+    
     const trimmed = clue?.trim();
     
     if (!trimmed) {
@@ -125,6 +131,9 @@ class Validator {
    * @returns {Object} Validation result with valid flag and error message if invalid
    */
   static chatMessage(message) {
+    const VALIDATION = (typeof window !== 'undefined' && window.VALIDATION) || 
+                       (typeof require !== 'undefined' && require('./constants.js').VALIDATION);
+    
     const trimmed = message?.trim();
     
     if (!trimmed) {
@@ -175,6 +184,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = Validator;
 }
 
-// ES6 module export for browsers
-export default Validator;
-export { Validator };
+// Make available globally in browser
+if (typeof window !== 'undefined') {
+  window.Validator = Validator;
+}

@@ -11,17 +11,6 @@
  *
  * ================================= */
 
-import { NETWORK } from '../../shared/constants.js';
-import {
-    CONNECTION_EVENTS,
-    ROOM_EVENTS,
-    GAME_EVENTS,
-    CHAT_EVENTS,
-    TIMER_EVENTS,
-    ERROR_EVENTS
-} from '../../shared/events.js';
-import { NetworkError, convertToGameError } from '../../shared/errors.js';
-
 export class SocketClient {
     constructor(stateManager) {
         Object.assign(this, {
