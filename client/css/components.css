@@ -676,7 +676,10 @@
   contain: size layout style;
   max-height: 100%;
   overflow: hidden;
+  transition: max-height 300ms ease-in-out;
+
 }
+
 
 .chat-header {
   display: flex;
@@ -692,20 +695,41 @@
   margin: 0;
 }
 
-.toggle-chat {
-  background: none;
-  border: none;
+/* Chat panel specific toggle styling */
+.chat-panel .toggle-chat {
+  position: static; /* Reset position since it's already in the header */
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
-  font-size: clamp(1rem, 2vw, 1.5rem);
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-bold);
   cursor: pointer;
-  padding: 0.25rem;
-  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all 150ms;
+  padding: 0;
+  line-height: 1;
 }
 
-.toggle-chat:hover {
+.chat-panel .toggle-chat:hover {
   background: var(--hover-bg);
   color: var(--text-primary);
+  border-color: var(--accent-teal);
+}
+
+.chat-panel .toggle-chat:active {
+  transform: scale(0.95);
+}
+
+/* Unread indicator for chat toggle */
+.chat-panel .toggle-chat.has-unread {
+  background: var(--accent-teal);
+  color: var(--primary-bg);
+  animation: pulse 2s ease-in-out infinite;
 }
 
 .chat-messages {
@@ -1535,6 +1559,40 @@
   border-bottom: none !important;
 }
 
+/* Chat panel collapsed state */
+.chat-panel.collapsed {
+  max-height: 3.5rem !important;
+  min-height: 3.5rem !important;
+  overflow: hidden;
+}
+
+.chat-panel.collapsed .chat-messages,
+.chat-panel.collapsed .chat-input-container {
+  display: none !important;
+}
+
+.chat-panel.collapsed .chat-header {
+  border-bottom: none;
+}
+
+/* Mobile-specific chat styles */
+@media (max-width: 768px) {
+  .chat-panel.mobile-expanded {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50vh;
+    max-height: 50vh;
+    z-index: 100;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  }
+  
+  body.chat-open .game-main {
+    padding-bottom: 50vh;
+  }
+}
+
 /* Ensure headers have proper positioning for toggle button */
 @media (max-width: 768px) {
   .player-list h3,
@@ -1591,7 +1649,9 @@
     .collapsed .players-container,
     .collapsed .game-control-container,
     .collapsed .scoreboard,
-    .collapsed .notifications-container {
+    .collapsed .notifications-container,
+    .chat-panel.collapsed .chat-messages,
+    .chat-panel.collapsed .chat-input-container {
         display: flex !important;
     }
     

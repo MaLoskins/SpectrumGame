@@ -719,39 +719,22 @@ export class ChatManager {
      * Update visibility with mobile optimizations
      * @param {boolean} visible - Whether chat is visible
      */
+
     updateVisibility(visible) {
         this.isVisible = visible;
-        if (!this.chatContainer) return;
-        
-        // Use CSS classes for animations
-        this.chatContainer.classList.toggle('collapsed', !visible);
-        
-        // On mobile, handle differently
-        if (this.isMobile) {
-            if (visible) {
-                this.chatContainer.classList.add('mobile-expanded');
-                document.body.classList.add('chat-open');
-            } else {
-                this.chatContainer.classList.remove('mobile-expanded');
-                document.body.classList.remove('chat-open');
-            }
-        }
-        
-        this.messagesContainer.style.display = visible ? 'flex' : 'none';
-        this.toggleButton.textContent = visible ? '−' : '+';
+        // Don't manipulate the collapsed class here - let UIManager handle it
         
         if (visible) {
             // Use requestAnimationFrame for DOM updates
             requestAnimationFrame(() => {
-                if (!this.virtualKeyboardOpen) {
-                    this.inputElement?.focus();
+                if (!this.virtualKeyboardOpen && this.inputElement) {
+                    this.inputElement.focus();
                 }
                 this.markAsRead();
                 this.scrollToBottom(false);
             });
         }
     }
-
     updateUnreadCount(count) {
         this.unreadCount = count;
         

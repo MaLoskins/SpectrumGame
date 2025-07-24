@@ -243,11 +243,11 @@ export class UIManager {
      * Enable mobile-specific panel behaviors
      */
     enableMobilePanels() {
-        // Add collapse buttons to panels
+        // Add collapse buttons to panels (EXCLUDING chat panel which has its own toggle)
         const panels = [
             this.elements.playerList,
-            this.elements.notificationPanel,
-            this.elements.chatPanel
+            this.elements.notificationPanel
+            // Removed chatPanel from here
         ].filter(Boolean);
 
         panels.forEach(panel => {
@@ -771,11 +771,19 @@ export class UIManager {
      * Toggles chat visibility and updates button text
      */
     handleToggleChat() {
-        const chatVisible = this.stateManager.getUIState().chatVisible;
-        this.stateManager.updateUIState({ chatVisible: !chatVisible });
+        const chatPanel = document.querySelector('.chat-panel');
+        if (!chatPanel) return;
         
-        this.elements.chatMessages.style.display = chatVisible ? 'none' : 'flex';
-        this.elements.toggleChatBtn.textContent = chatVisible ? '+' : '−';
+        // Toggle the collapsed class directly
+        chatPanel.classList.toggle('collapsed');
+        
+        // Update button text
+        const isCollapsed = chatPanel.classList.contains('collapsed');
+        this.elements.toggleChatBtn.textContent = isCollapsed ? '+' : '−';
+        
+        // Update state
+        const chatVisible = !isCollapsed;
+        this.stateManager.updateUIState({ chatVisible });
     }
 
     /**
