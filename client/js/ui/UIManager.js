@@ -251,16 +251,32 @@ export class UIManager {
         ].filter(Boolean);
 
         panels.forEach(panel => {
-            if (!panel.querySelector('.panel-toggle')) {
-                const toggle = document.createElement('button');
-                toggle.className = 'panel-toggle';
-                toggle.innerHTML = '−';
-                toggle.addEventListener('click', () => this.togglePanel(panel));
-                
-                const header = panel.querySelector('h3');
-                if (header) {
-                    header.parentElement.appendChild(toggle);
-                }
+            // Remove any existing toggle button first
+            const existingToggle = panel.querySelector('.panel-toggle');
+            if (existingToggle) {
+                existingToggle.remove();
+            }
+            
+            // Add new toggle button
+            const toggle = document.createElement('button');
+            toggle.className = 'panel-toggle';
+            toggle.innerHTML = '−';
+            toggle.setAttribute('aria-label', 'Toggle panel visibility');
+            toggle.setAttribute('aria-expanded', 'true');
+            
+            // Check if panel was previously collapsed
+            const isCollapsed = panel.classList.contains('collapsed');
+            if (isCollapsed) {
+                toggle.innerHTML = '+';
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+            
+            toggle.addEventListener('click', () => this.togglePanel(panel));
+            
+            const header = panel.querySelector('h3');
+            if (header && header.parentElement) {
+                header.parentElement.style.position = 'relative';
+                header.parentElement.appendChild(toggle);
             }
         });
     }
@@ -269,11 +285,21 @@ export class UIManager {
      * Disable mobile panel behaviors
      */
     disableMobilePanels() {
+        // Remove toggle buttons
         document.querySelectorAll('.panel-toggle').forEach(toggle => {
             toggle.remove();
         });
+        
+        // IMPORTANT: Remove collapsed state from all panels
+        document.querySelectorAll('.collapsed').forEach(panel => {
+            panel.classList.remove('collapsed');
+        });
+        
+        // Also remove auto-collapsed state
+        document.querySelectorAll('.auto-collapsed').forEach(panel => {
+            panel.classList.remove('auto-collapsed');
+        });
     }
-
     /**
      * Toggle panel visibility on mobile
      */
@@ -281,7 +307,9 @@ export class UIManager {
         panel.classList.toggle('collapsed');
         const toggle = panel.querySelector('.panel-toggle');
         if (toggle) {
-            toggle.innerHTML = panel.classList.contains('collapsed') ? '+' : '−';
+            const isCollapsed = panel.classList.contains('collapsed');
+            toggle.innerHTML = isCollapsed ? '+' : '−';
+            toggle.setAttribute('aria-expanded', !isCollapsed);
         }
     }
 
