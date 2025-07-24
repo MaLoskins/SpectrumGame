@@ -1,6 +1,7 @@
 /**
  * Spectrum Renderer - Interactive 2D spectrum grid visualization
  * ENHANCED: High-performance particle system with advanced visual effects
+ * UPDATED: Responsive rendering support for all screen sizes
  * 
  * @class SpectrumRenderer
  * @description Handles the rendering of the 2D spectrum grid, player guesses, target positions,
@@ -54,6 +55,15 @@ export class SpectrumRenderer {
             lastInteractionTime: 0,
             interactionThrottle: 50,
             centerExclusionRadius: 20,
+            
+            // Responsive rendering settings
+            isMobile: false,
+            isTablet: false,
+            responsiveScale: 1,
+            // Remove these constraints
+            // minCanvasSize: 200,
+            // maxCanvasSize: 700,
+            
             colors: {
                 teal: '#00d4ff',
                 lilac: '#b794f4',
@@ -80,12 +90,36 @@ export class SpectrumRenderer {
      * @returns {Promise<void>}
      */
     async init() {
+        this.detectDeviceType();
         this.setupCanvas();
         this.setupEventListeners();
         this.setupStateListeners();
         this.startRenderLoop();
         this.markDirty();
         this.requestRender();
+    }
+
+    /**
+     * Detect device type for responsive adjustments
+     * @private
+     */
+    detectDeviceType() {
+        const width = window.innerWidth;
+        this.isMobile = width <= 768;
+        this.isTablet = width > 768 && width <= 1200;
+        
+        // Adjust settings based on device
+        if (this.isMobile) {
+            this.interactionThrottle = 100; // Slower interaction updates on mobile
+            this.centerExclusionRadius = 15; // Smaller exclusion zone
+            this.responsiveScale = 0.8; // Scale down UI elements
+        } else if (this.isTablet) {
+            this.interactionThrottle = 75;
+            this.centerExclusionRadius = 18;
+            this.responsiveScale = 0.9;
+        } else {
+            this.responsiveScale = 1;
+        }
     }
 
     /**
@@ -100,12 +134,18 @@ export class SpectrumRenderer {
         this.canvas.className = 'spectrum-canvas';
         this.ctx = this.canvas.getContext('2d', { 
             alpha: false,
-            desynchronized: true
+            desynchronized: true,
+            willReadFrequently: false
         });
         
+        // Set canvas styles
+        this.canvas.style.position = 'absolute';
+        this.canvas.style.top = '0';
+        this.canvas.style.left = '0';
         this.canvas.style.width = '100%';
         this.canvas.style.height = '100%';
         this.canvas.style.display = 'block';
+        this.canvas.style.touchAction = 'none';
         
         this.gridContainer.appendChild(this.canvas);
         this.updateCanvasSize();
@@ -132,17 +172,31 @@ export class SpectrumRenderer {
         this.dprCheckInterval = setInterval(checkDPR, 500);
         
         window.addEventListener('resize', this.handleResize);
+        window.addEventListener('orientationchange', this.handleOrientationChange);
         
+        // Use pointer events for better touch support
         const events = {
             pointerenter: this.handlePointerEnter,
             pointerleave: this.handlePointerLeave,
             pointermove: this.handlePointerMove,
             pointerdown: this.handlePointerDown,
-            pointerup: this.handlePointerUp
+            pointerup: this.handlePointerUp,
+            pointercancel: this.handlePointerCancel // Handle touch cancellation
         };
         
         Object.entries(events).forEach(([event, handler]) => 
             this.canvas.addEventListener(event, handler.bind(this), { passive: true }));
+    }
+
+    /**
+     * Handle orientation change events
+     * @private
+     */
+    handleOrientationChange = () => {
+        setTimeout(() => {
+            this.detectDeviceType();
+            this.handleResize();
+        }, 100); // Delay to allow orientation change to complete
     }
 
     /**
@@ -166,7 +220,7 @@ export class SpectrumRenderer {
     }
 
     /**
-     * Update canvas size and handle DPR changes
+     * Update canvas size and handle DPR changes with responsive constraints
      * @private
      */
     updateCanvasSize() {
@@ -180,24 +234,52 @@ export class SpectrumRenderer {
             return;
         }
         
-        const currentDPR = Math.min(window.devicePixelRatio || 1, 2);
+        // Use the actual container dimensions exactly
+        const canvasWidth = Math.floor(width);
+        const canvasHeight = Math.floor(height);
         
-        if (this.canvasSize.width === width && 
-            this.canvasSize.height === height && 
+        const currentDPR = Math.min(window.devicePixelRatio || 1, this.isMobile ? 2 : 3);
+        
+        if (this.canvasSize.width === canvasWidth && 
+            this.canvasSize.height === canvasHeight && 
             this.devicePixelRatio === currentDPR) return;
         
         this.containerRect = rect;
-        this.canvasSize = {width, height};
+        this.canvasSize = {width: canvasWidth, height: canvasHeight};
         this.devicePixelRatio = currentDPR;
         
         // Update main canvas
-        this.canvas.width = width * this.devicePixelRatio;
-        this.canvas.height = height * this.devicePixelRatio;
+        this.canvas.width = canvasWidth * this.devicePixelRatio;
+        this.canvas.height = canvasHeight * this.devicePixelRatio;
+        
+        // Force canvas to fill container
+        this.canvas.style.position = 'absolute';
+        this.canvas.style.top = '0';
+        this.canvas.style.left = '0';
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
+        
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.scale(this.devicePixelRatio, this.devicePixelRatio);
         
+        // Update font sizes based on canvas size
+        this.updateResponsiveSizes();
+        
         this.markDirty();
         this.render();
+    }
+
+    /**
+     * Update responsive sizes based on canvas dimensions
+     * @private
+     */
+    updateResponsiveSizes() {
+        const baseSize = Math.min(this.canvasSize.width, this.canvasSize.height);
+        
+        // Scale UI elements based on canvas size
+        this.responsiveFontSize = Math.max(10, Math.floor(baseSize / 50));
+        this.responsiveMarkerSize = Math.max(8, Math.floor(baseSize / 60));
+        this.responsiveLineWidth = Math.max(1, baseSize / 400);
     }
 
     /**
@@ -205,6 +287,7 @@ export class SpectrumRenderer {
      * @private
      */
     handleResize = () => {
+        this.detectDeviceType();
         this.updateCanvasSize();
         this.requestRender();
     }
@@ -228,7 +311,10 @@ export class SpectrumRenderer {
                     this.requestRender();
                 }
                 
-                if (this.renderRequested && timestamp - this.lastRenderTime >= this.renderThrottleTime) {
+                // Adjust render throttle for mobile
+                const throttleTime = this.isMobile ? 33 : this.renderThrottleTime; // 30fps on mobile
+                
+                if (this.renderRequested && timestamp - this.lastRenderTime >= throttleTime) {
                     if (!this.dirtyRegions.length) this.checkStateChanges();
                     if (this.dirtyRegions.length || this.particles.length > 0) this.render();
                     this.lastRenderTime = timestamp;
@@ -323,7 +409,7 @@ export class SpectrumRenderer {
     }
 
     /**
-     * Main render method
+     * Main render method with responsive adjustments
      * @private
      */
     render() {
@@ -390,26 +476,51 @@ export class SpectrumRenderer {
     }
 
     /**
-     * Render grid lines
+     * Render grid lines with responsive line width
      * @private
      */
     renderGridLines() {
         const {width, height} = this.canvasSize;
         this.ctx.save();
+        
+        // Adjust line width for device
+        this.ctx.lineWidth = this.responsiveLineWidth;
+        
+        // Don't render minor grid lines on mobile
+        if (!this.isMobile) {
+            this.ctx.strokeStyle = this.colors.gridLine;
+            this.ctx.beginPath();
+            
+            // Minor grid lines
+            const gridSpacing = Math.floor(width / 10);
+            for (let i = 1; i < 10; i++) {
+                if (i !== 5) { // Skip center lines
+                    this.ctx.moveTo(i * gridSpacing, 0);
+                    this.ctx.lineTo(i * gridSpacing, height);
+                    this.ctx.moveTo(0, i * gridSpacing);
+                    this.ctx.lineTo(width, i * gridSpacing);
+                }
+            }
+            this.ctx.stroke();
+        }
+        
+        // Major grid lines
         this.ctx.strokeStyle = this.colors.gridLineMajor;
-        this.ctx.lineWidth = 1;
+        this.ctx.lineWidth = this.responsiveLineWidth * 1.5;
         this.ctx.beginPath();
         this.ctx.moveTo(width / 2, 0);
         this.ctx.lineTo(width / 2, height);
         this.ctx.moveTo(0, height / 2);
         this.ctx.lineTo(width, height / 2);
         this.ctx.stroke();
+        
+        // Border
         this.ctx.strokeRect(0, 0, width, height);
         this.ctx.restore();
     }
 
     /**
-     * Render the center exclusion zone
+     * Render the center exclusion zone with responsive sizing
      * @private
      */
     renderCenterExclusionZone() {
@@ -431,24 +542,27 @@ export class SpectrumRenderer {
         this.ctx.fill();
         
         this.ctx.strokeStyle = this.colors.exclusionBorder;
-        this.ctx.lineWidth = 2;
+        this.ctx.lineWidth = this.responsiveLineWidth * 2;
         this.ctx.setLineDash([5, 5]);
         this.ctx.beginPath();
         this.ctx.arc(centerX, centerY, radiusInPixels, 0, Math.PI * 2);
         this.ctx.stroke();
         
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-        this.ctx.lineWidth = 1;
-        this.ctx.setLineDash([]);
-        this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY, radiusInPixels - 3, 0, Math.PI * 2);
-        this.ctx.stroke();
-        
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        this.ctx.font = `${Math.max(10, radiusInPixels / 10)}px Arial`;
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText('NO TARGET ZONE', centerX, centerY);
+        // Don't show text on mobile
+        if (!this.isMobile) {
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            this.ctx.lineWidth = 1;
+            this.ctx.setLineDash([]);
+            this.ctx.beginPath();
+            this.ctx.arc(centerX, centerY, radiusInPixels - 3, 0, Math.PI * 2);
+            this.ctx.stroke();
+            
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            this.ctx.font = `${this.responsiveFontSize}px Arial`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText('NO TARGET ZONE', centerX, centerY);
+        }
         
         this.ctx.restore();
     }
@@ -463,7 +577,6 @@ export class SpectrumRenderer {
         const distance = Math.sqrt(Math.pow(coord.x - centerX, 2) + Math.pow(coord.y - centerY, 2));
         return distance <= this.centerExclusionRadius;
     }
-
     /**
      * Convert game coordinates to canvas pixels
      * @private
@@ -542,20 +655,22 @@ export class SpectrumRenderer {
     }
 
     /**
-     * Render a single guess marker
+     * Render a single guess marker with responsive sizing
      * @private
      */
     renderGuessMarker(ctx, x, y, color, initial) {
+        const markerSize = this.responsiveMarkerSize;
+        
         ctx.save();
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.arc(x, y, 12, 0, Math.PI * 2);
+        ctx.arc(x, y, markerSize, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = this.colors.darkBg;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = this.responsiveLineWidth * 2;
         ctx.stroke();
         ctx.fillStyle = this.colors.darkBg;
-        ctx.font = 'bold 12px Arial';
+        ctx.font = `bold ${Math.floor(markerSize * 0.8)}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(initial, x, y);
@@ -563,23 +678,24 @@ export class SpectrumRenderer {
     }
 
     /**
-     * Render hover preview
+     * Render hover preview with responsive sizing
      * @private
      */
     renderHoverPreview() {
         const pos = this.coordToCanvas(this.hoverCoordinate);
         const inExclusionZone = this.isInExclusionZone(this.hoverCoordinate);
+        const previewSize = this.responsiveMarkerSize * 0.8;
         
         this.ctx.save();
         this.ctx.globalAlpha = inExclusionZone ? 0.3 : 0.6;
         this.ctx.fillStyle = inExclusionZone ? this.colors.red : this.colors.lilac;
         this.ctx.beginPath();
-        this.ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
+        this.ctx.arc(pos.x, pos.y, previewSize, 0, Math.PI * 2);
         this.ctx.fill();
         
         if (inExclusionZone) {
             this.ctx.strokeStyle = this.colors.red;
-            this.ctx.lineWidth = 2;
+            this.ctx.lineWidth = this.responsiveLineWidth * 2;
             this.ctx.setLineDash([3, 3]);
             this.ctx.stroke();
         }
@@ -697,52 +813,54 @@ export class SpectrumRenderer {
     }
 
     /**
-     * Create particle burst at position
+     * Create particle burst at position with responsive particle count
      * @private
      */
     createPlacementParticles(x, y) {
         console.log(`Creating particles at (${x}, ${y})`); // Debug log
         
-        const particleCount = 15; // More particles
+        // Reduce particles on mobile for performance
+        const particleCount = this.isMobile ? 8 : 15;
         
         for (let i = 0; i < particleCount; i++) {
             const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.3;
-            const speed = 3 + Math.random() * 4; // Faster
-            const size = 3 + Math.random() * 3; // Bigger
+            const speed = (3 + Math.random() * 4) * this.responsiveScale;
+            const size = (3 + Math.random() * 3) * this.responsiveScale;
             
             this.particles.push({
                 x,
                 y,
                 vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 4, // More upward velocity
+                vy: Math.sin(angle) * speed - 4,
                 size,
                 baseSize: size,
-                life: 20, // Shorter life
+                life: this.isMobile ? 15 : 20, // Shorter life on mobile
                 color: this.particleColors[Math.floor(Math.random() * this.particleColors.length)],
                 type: Math.random() < 0.3 ? 'sparkle' : 'normal'
             });
         }
         
-        // Add some extra bright sparkles
-        for (let i = 0; i < 8; i++) {
+        // Fewer sparkles on mobile
+        const sparkleCount = this.isMobile ? 3 : 8;
+        for (let i = 0; i < sparkleCount; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const speed = 5 + Math.random() * 3;
+            const speed = (5 + Math.random() * 3) * this.responsiveScale;
             
             this.particles.push({
                 x: x + (Math.random() - 0.5) * 10,
                 y: y + (Math.random() - 0.5) * 10,
                 vx: Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed - 3,
-                size: 2,
-                baseSize: 2,
-                life: 15,
+                size: 2 * this.responsiveScale,
+                baseSize: 2 * this.responsiveScale,
+                life: this.isMobile ? 10 : 15,
                 color: '#ffffff',
                 type: 'sparkle'
             });
         }
         
         console.log('Total particles:', this.particles.length); // Debug log
-        this.markDirty(); // Force full redraw
+        this.markDirty();
         this.requestRender();
     }
 
@@ -813,6 +931,18 @@ export class SpectrumRenderer {
             }
             this.handleGuessPlacement(this.hoverCoordinate);
         }
+    }
+
+    /**
+     * Handle pointer cancel event (for touch)
+     * @private
+     */
+    handlePointerCancel = () => {
+        this.isDragging = false;
+        this.isHovering = false;
+        this.hoverCoordinate = null;
+        this.gridContainer.classList.remove('interactive');
+        this.requestRender();
     }
 
     /**
@@ -968,8 +1098,9 @@ export class SpectrumRenderer {
         clearTimeout(this.resizeTimeout);
         
         window.removeEventListener('resize', this.handleResize);
+        window.removeEventListener('orientationchange', this.handleOrientationChange);
         
-        ['pointerenter', 'pointerleave', 'pointermove', 'pointerdown', 'pointerup'].forEach(event => 
+        ['pointerenter', 'pointerleave', 'pointermove', 'pointerdown', 'pointerup', 'pointercancel'].forEach(event => 
             this.canvas?.removeEventListener(event, this[`handle${event.charAt(0).toUpperCase() + event.slice(1)}`]));
         
         this.canvas?.parentNode?.removeChild(this.canvas);

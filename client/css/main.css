@@ -598,7 +598,7 @@ input.error {
   flex-wrap: wrap;
 }
 
-/* Main game area with modern Grid - FIXED HEIGHT ISSUE */
+/* Main game area with modern Grid */
 .game-main {
   display: grid;
   grid-template-columns: var(--sidebar-width-left) 1fr var(--sidebar-width-right);
@@ -676,166 +676,261 @@ input.error {
   will-change: transform;
 }
 
-/* Responsive with consolidated media queries - MAJOR FIXES */
+/* ===== RESPONSIVE OVERHAUL ===== */
+
+/* Tablet Layout (768px - 1200px) */
 @media (max-width: 1200px) {
-  /* Switch to stacked layout with better space distribution */
-  .game-main { 
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr auto;
-    height: calc(100vh - var(--header-height));
+  :root {
+    --header-height: 80px;
+    --padding-responsive: 1rem;
   }
   
-  /* Stack sidebars as horizontal scrollable sections */
+  /* Switch to flexible panel layout */
+  .game-main {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--header-height));
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  
+  /* Players & Controls side by side */
   .game-sidebar-left {
-    grid-row: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--space-md);
+    gap: 1rem;
+    padding: 1rem;
+    flex-shrink: 0;
+    min-height: auto;
     height: auto;
-    max-height: 35vh;
-    padding: var(--space-md);
-    overflow: visible;
   }
   
   .game-sidebar-left > * {
-    min-height: 0;
+    height: auto;
+    max-height: 40vh;
     overflow-y: auto;
   }
   
-  /* Center game area takes remaining space */
-  .game-center { 
-    grid-row: 2;
-    padding: var(--space-md);
-    min-height: 30vh;
+  /* Spectrum gets dedicated space */
+  .game-center {
+    flex: 1 1 auto;
+    min-height: 50vh;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    margin: 1rem;
+    border-radius: var(--radius-2xl);
   }
   
   /* Chat at bottom */
   .game-sidebar-right {
-    grid-row: 3;
-    height: 25vh;
-    max-height: 300px;
-    padding: var(--space-md);
+    flex-shrink: 0;
+    height: 30vh;
+    min-height: 200px;
+    max-height: 400px;
+    padding: 1rem;
+    border-top: 1px solid var(--glass-border);
+    background: var(--glass-bg);
   }
   
-  /* Fix header wrapping */
+  /* Header responsive */
   .header-content {
-    min-height: auto;
-    padding: var(--space-sm) var(--space-md);
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
   }
   
   .room-info {
     display: flex;
-    gap: var(--space-md);
     flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  
+  .room-code {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.75rem;
   }
 }
 
+/* Mobile Layout (480px - 768px) */
 @media (max-width: 768px) {
-  :root { 
+  :root {
     --header-height: auto;
+    --padding-responsive: 0.75rem;
   }
   
-  /* Mobile-first layout */
-  .game-main {
+  /* Tab-based layout for mobile */
+  .game-room {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 80px); /* Account for wrapped header */
+    height: 100vh;
   }
   
-  /* Tabs for Players and Controls */
+  /* Compact header */
+  .game-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    min-height: auto;
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+  
+  .room-info {
+    width: 100%;
+    justify-content: space-between;
+    font-size: 0.875rem;
+  }
+  
+  .game-phase {
+    width: 100%;
+    text-align: center;
+    padding: 0.5rem;
+    background: rgba(0, 212, 255, 0.1);
+    border-radius: var(--radius-lg);
+  }
+  
+  /* Scrollable main content */
+  .game-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.5rem;
+    gap: 0.5rem;
+    height: calc(100vh - 120px);
+  }
+  
+  /* Collapsible panels */
   .game-sidebar-left {
     display: flex;
     flex-direction: column;
-    max-height: 40vh;
-    padding: var(--space-sm);
-    gap: var(--space-sm);
+    gap: 0.5rem;
+    order: 2;
   }
   
-  .game-sidebar-left > * {
-    flex: 1;
-    min-height: 150px;
-  }
-  
-  /* Spectrum takes more space */
-  .game-center {
-    flex: 1;
-    min-height: 35vh;
-    padding: var(--space-sm);
-  }
-  
-  /* Chat collapsed by default but expandable */
-  .game-sidebar-right {
-    height: auto;
+  .player-list,
+  .notification-panel {
     max-height: 30vh;
-    position: relative;
+    padding: 0.75rem;
   }
   
-  .header-content { 
-    flex-direction: column;
-    align-items: stretch;
-    padding: var(--space-sm);
-    gap: var(--space-xs);
+  /* Spectrum takes priority */
+  .game-center {
+    order: 1;
+    min-height: 40vh;
+    height: 50vh;
+    padding: 0.5rem;
+    margin: 0;
+    background: transparent;
   }
   
-  .room-info { 
-    flex-direction: column;
-    gap: var(--space-xs);
-    text-align: center;
+  /* Chat at bottom */
+  .game-sidebar-right {
+    order: 3;
+    height: 25vh;
+    min-height: 150px;
+    max-height: 250px;
+    position: sticky;
+    bottom: 0;
+    background: var(--secondary-bg);
+    border-top: 2px solid var(--glass-border);
   }
   
-  /* Make controls more touch-friendly */
+  /* Mobile-friendly buttons */
   .btn {
     min-height: 44px;
-    padding: var(--space-sm) var(--space-md);
+    font-size: 0.875rem;
   }
   
   input, textarea {
     min-height: 44px;
-    font-size: 16px; /* Prevent zoom on iOS */
+    font-size: 16px;
   }
   
-  /* Lobby responsive */
-  .lobby-container {
-    padding: var(--space-md);
-  }
-  
-  .game-title {
-    font-size: clamp(2rem, 10vw, 3.5rem);
-  }
-  
-  .lobby-main {
-    max-width: 100%;
+  /* Compact timer */
+  .timer {
+    font-size: 1rem;
+    padding: 0.25rem 0.5rem;
+    min-width: 60px;
   }
 }
 
+/* Small Mobile (< 480px) */
 @media (max-width: 480px) {
-  /* Ultra-compact mobile layout */
-  body { 
-    font-size: var(--font-size-sm);
+  :root {
+    --padding-responsive: 0.5rem;
+  }
+  
+  /* Ultra-compact layout */
+  body {
+    font-size: 0.875rem;
   }
   
   .game-main {
-    gap: var(--space-xs);
+    padding: 0.25rem;
+    gap: 0.25rem;
   }
   
-  /* Minimize chrome, maximize content */
-  .game-sidebar-left {
-    max-height: 35vh;
+  /* Minimal header */
+  .header-content {
+    padding: 0.25rem;
   }
   
-  .game-center {
-    min-height: 40vh;
+  .room-code {
+    font-size: 0.75rem;
+    padding: 0.125rem 0.5rem;
   }
   
-  .game-sidebar-right {
+  .game-phase {
+    font-size: 0.75rem;
+    padding: 0.25rem;
+  }
+  
+  /* Compact panels */
+  .player-list,
+  .notification-panel {
+    padding: 0.5rem;
     max-height: 25vh;
   }
   
-  .lobby-container { 
-    padding: var(--space-sm);
+  .player-list h3,
+  .notification-panel h3 {
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Prioritize spectrum */
+  .game-center {
+    min-height: 35vh;
+    height: 45vh;
+    padding: 0.25rem;
+  }
+  
+  /* Minimal chat */
+  .game-sidebar-right {
+    height: 20vh;
+    min-height: 120px;
+  }
+  
+  .chat-header {
+    padding: 0.5rem;
+  }
+  
+  .chat-header h3 {
+    font-size: 0.875rem;
+  }
+  
+  /* Mobile lobby */
+  .lobby-container {
+    padding: 1rem;
   }
   
   .game-title {
@@ -843,18 +938,33 @@ input.error {
   }
   
   .game-subtitle {
-    font-size: var(--font-size-base);
+    font-size: 0.875rem;
   }
   
-  .lobby-actions .btn,
-  .lobby-footer .btn {
-    font-size: var(--font-size-base);
-    padding: var(--space-sm) var(--space-md);
+  .lobby-actions .btn {
+    font-size: 0.875rem;
+    height: 44px;
+  }
+}
+
+/* Landscape Mobile Optimizations */
+@media (max-width: 768px) and (orientation: landscape) {
+  .game-main {
+    height: calc(100vh - 60px);
   }
   
-  .player-name-section,
-  .room-code-section {
-    padding: var(--space-md);
+  .game-center {
+    min-height: 60vh;
+  }
+  
+  .player-list,
+  .notification-panel {
+    max-height: 40vh;
+  }
+  
+  .game-sidebar-right {
+    height: 20vh;
+    max-height: 150px;
   }
 }
 

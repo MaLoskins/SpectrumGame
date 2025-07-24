@@ -1,7 +1,7 @@
 /**
  * UI Manager - Coordinates all UI interactions and state updates
  * Handles DOM manipulation, screen transitions, form validation, and reactive updates
- * UPDATED: Integrated game controls into notification panel
+ * UPDATED: Enhanced responsive support and mobile optimizations
  */
 
 import { gameLogic } from '../game/GameLogic.js';
@@ -21,6 +21,17 @@ export class UIManager {
             animationFrame: null,
             domUpdateQueue: [],
             batchUpdateTimeout: null,
+            // Responsive settings
+            isMobile: false,
+            isTablet: false,
+            isLandscape: false,
+            touchEnabled: false,
+            lastWindowWidth: window.innerWidth,
+            resizeDebounceTimer: null,
+            // Mobile-specific settings
+            mobileMenuOpen: false,
+            swipeStartX: null,
+            swipeThreshold: 50,
             // Dark mode colors for dynamic elements
             colors: {
                 teal: '#00d4ff',
@@ -45,12 +56,303 @@ export class UIManager {
      */
     async init() {
         console.log('🎨 Initializing UIManager...');
+        this.detectDeviceCapabilities();
         this.cacheElements();
         this.setupEventListeners();
         this.setupStateListeners();
         this.initializeUI();
+        this.setupResponsiveHandlers();
         this.isInitialized = true;
         console.log('✅ UIManager initialized');
+    }
+
+    /**
+     * Detect device capabilities and characteristics
+     */
+    detectDeviceCapabilities() {
+        const width = window.innerWidth;
+        this.isMobile = width <= 768;
+        this.isTablet = width > 768 && width <= 1200;
+        this.isLandscape = window.innerWidth > window.innerHeight;
+        this.touchEnabled = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        
+        // Add device class to body for CSS hooks
+        document.body.classList.toggle('mobile', this.isMobile);
+        document.body.classList.toggle('tablet', this.isTablet);
+        document.body.classList.toggle('touch', this.touchEnabled);
+        document.body.classList.toggle('landscape', this.isLandscape);
+        
+        console.log('📱 Device detected:', {
+            mobile: this.isMobile,
+            tablet: this.isTablet,
+            landscape: this.isLandscape,
+            touch: this.touchEnabled
+        });
+    }
+
+    /**
+     * Set up responsive handlers
+     */
+    setupResponsiveHandlers() {
+        // Optimized resize handler
+        window.addEventListener('resize', () => {
+            clearTimeout(this.resizeDebounceTimer);
+            this.resizeDebounceTimer = setTimeout(() => {
+                this.handleResponsiveResize();
+            }, 250);
+        });
+
+        // Orientation change handler
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                this.detectDeviceCapabilities();
+                this.adjustUIForOrientation();
+            }, 100);
+        });
+
+        // Touch gesture support for mobile
+        if (this.touchEnabled) {
+            this.setupTouchGestures();
+        }
+
+        // Viewport height fix for mobile browsers
+        this.fixViewportHeight();
+    }
+
+    /**
+     * Fix viewport height for mobile browsers
+     */
+    fixViewportHeight() {
+        const setVH = () => {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        };
+
+        setVH();
+        window.addEventListener('resize', setVH);
+        window.addEventListener('orientationchange', setVH);
+    }
+
+    /**
+     * Handle responsive resize events
+     */
+    handleResponsiveResize() {
+        const newWidth = window.innerWidth;
+        const widthChanged = Math.abs(newWidth - this.lastWindowWidth) > 50;
+
+        if (widthChanged) {
+            this.lastWindowWidth = newWidth;
+            this.detectDeviceCapabilities();
+            this.adjustUIForScreenSize();
+        }
+
+        // Always handle resize
+        this.handleResize();
+    }
+
+    /**
+     * Adjust UI for current screen size
+     */
+    adjustUIForScreenSize() {
+        // Adjust modal sizes
+        if (this.activeModal) {
+            this.repositionModal();
+        }
+
+        // Adjust notification positions
+        this.repositionNotifications();
+
+        // Handle collapsible panels on mobile
+        if (this.isMobile) {
+            this.enableMobilePanels();
+        } else {
+            this.disableMobilePanels();
+        }
+
+        // Adjust font sizes dynamically
+        this.updateDynamicFontSizes();
+    }
+
+    /**
+     * Adjust UI for orientation changes
+     */
+    adjustUIForOrientation() {
+        if (this.isMobile && this.isLandscape) {
+            // Landscape mobile adjustments
+            this.minimizeNonEssentialUI();
+        } else {
+            // Portrait or desktop adjustments
+            this.restoreFullUI();
+        }
+    }
+
+    /**
+     * Setup touch gestures for mobile
+     */
+    setupTouchGestures() {
+        const gameRoom = this.elements.gameRoom;
+        if (!gameRoom) return;
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        gameRoom.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        gameRoom.addEventListener('touchend', (e) => {
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+
+            // Horizontal swipe detection
+            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > this.swipeThreshold) {
+                if (deltaX > 0) {
+                    this.handleSwipeRight();
+                } else {
+                    this.handleSwipeLeft();
+                }
+            }
+        }, { passive: true });
+    }
+
+    /**
+     * Handle swipe right gesture
+     */
+    handleSwipeRight() {
+        if (this.isMobile && this.currentView === 'game') {
+            // Show previous panel or menu
+            this.showMobileMenu();
+        }
+    }
+
+    /**
+     * Handle swipe left gesture
+     */
+    handleSwipeLeft() {
+        if (this.isMobile && this.mobileMenuOpen) {
+            // Hide mobile menu
+            this.hideMobileMenu();
+        }
+    }
+
+    /**
+     * Enable mobile-specific panel behaviors
+     */
+    enableMobilePanels() {
+        // Add collapse buttons to panels
+        const panels = [
+            this.elements.playerList,
+            this.elements.notificationPanel,
+            this.elements.chatPanel
+        ].filter(Boolean);
+
+        panels.forEach(panel => {
+            if (!panel.querySelector('.panel-toggle')) {
+                const toggle = document.createElement('button');
+                toggle.className = 'panel-toggle';
+                toggle.innerHTML = '−';
+                toggle.addEventListener('click', () => this.togglePanel(panel));
+                
+                const header = panel.querySelector('h3');
+                if (header) {
+                    header.parentElement.appendChild(toggle);
+                }
+            }
+        });
+    }
+
+    /**
+     * Disable mobile panel behaviors
+     */
+    disableMobilePanels() {
+        document.querySelectorAll('.panel-toggle').forEach(toggle => {
+            toggle.remove();
+        });
+    }
+
+    /**
+     * Toggle panel visibility on mobile
+     */
+    togglePanel(panel) {
+        panel.classList.toggle('collapsed');
+        const toggle = panel.querySelector('.panel-toggle');
+        if (toggle) {
+            toggle.innerHTML = panel.classList.contains('collapsed') ? '+' : '−';
+        }
+    }
+
+    /**
+     * Show mobile menu
+     */
+    showMobileMenu() {
+        this.mobileMenuOpen = true;
+        document.body.classList.add('mobile-menu-open');
+        
+        // Create overlay if it doesn't exist
+        if (!document.querySelector('.mobile-menu-overlay')) {
+            const overlay = document.createElement('div');
+            overlay.className = 'mobile-menu-overlay';
+            overlay.addEventListener('click', () => this.hideMobileMenu());
+            document.body.appendChild(overlay);
+        }
+    }
+
+    /**
+     * Hide mobile menu
+     */
+    hideMobileMenu() {
+        this.mobileMenuOpen = false;
+        document.body.classList.remove('mobile-menu-open');
+        
+        const overlay = document.querySelector('.mobile-menu-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    }
+
+    /**
+     * Minimize non-essential UI for landscape mobile
+     */
+    minimizeNonEssentialUI() {
+        // Auto-collapse certain panels in landscape
+        if (this.elements.notificationPanel) {
+            this.elements.notificationPanel.classList.add('auto-collapsed');
+        }
+    }
+
+    /**
+     * Restore full UI
+     */
+    restoreFullUI() {
+        document.querySelectorAll('.auto-collapsed').forEach(element => {
+            element.classList.remove('auto-collapsed');
+        });
+    }
+
+    /**
+     * Update dynamic font sizes based on viewport
+     */
+    updateDynamicFontSizes() {
+        const baseFontSize = this.isMobile ? 14 : this.isTablet ? 15 : 16;
+        document.documentElement.style.fontSize = `${baseFontSize}px`;
+    }
+
+    /**
+     * Reposition notifications for current viewport
+     */
+    repositionNotifications() {
+        const container = this.elements.notificationsContainer;
+        if (!container) return;
+
+        if (this.isMobile) {
+            container.style.maxHeight = '30vh';
+        } else {
+            container.style.maxHeight = '';
+        }
     }
 
     /**
@@ -111,7 +413,11 @@ export class UIManager {
             modalCancel: '#modal-cancel', 
             modalClose: '#modal-close',
             loadingIndicator: '#loading-indicator', 
-            notificationsContainer: '#notifications-container'
+            notificationsContainer: '#notifications-container',
+            // Panel references
+            playerList: '.player-list',
+            notificationPanel: '.notification-panel',
+            chatPanel: '.chat-panel'
         };
         
         // Single batch query
@@ -138,11 +444,28 @@ export class UIManager {
         document.addEventListener('click', this.handleGlobalClick.bind(this));
         document.addEventListener('keydown', this.handleGlobalKeydown.bind(this));
         
+        // Touch event handling for mobile
+        if (this.touchEnabled) {
+            document.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
+        }
+        
         // Specific input handlers
         this.elements.playerNameInput?.addEventListener('input', () => this.validatePlayerName());
         this.elements.roomCodeInput?.addEventListener('input', () => this.validateRoomCode());
         this.elements.clueInput?.addEventListener('input', () => this.validateClue());
         this.elements.chatInput?.addEventListener('keypress', e => { if (e.key === 'Enter') this.handleSendChat(); });
+    }
+
+    /**
+     * Handle touch start events
+     */
+    handleTouchStart(e) {
+        // Add touch feedback
+        const target = e.target;
+        if (target.matches('.btn, button')) {
+            target.classList.add('touch-active');
+            setTimeout(() => target.classList.remove('touch-active'), 300);
+        }
     }
 
     /**
@@ -152,6 +475,11 @@ export class UIManager {
      */
     handleGlobalClick(e) {
         const target = e.target;
+        
+        // Prevent double-tap zoom on mobile
+        if (this.isMobile) {
+            e.preventDefault();
+        }
         
         // Button clicks via delegation
         if (target.matches('#create-room-btn')) this.handleCreateRoom();
@@ -783,6 +1111,34 @@ export class UIManager {
         const interactive = phase === 'guessing' && !isClueGiver;
         spectrumWrapper.classList.toggle('interactive', interactive);
         spectrumWrapper.classList.toggle('disabled', !interactive);
+        
+        // Update interaction area for mobile
+        if (interactive) {
+            this.updateSpectrumInteractionArea();
+        }
+    }
+
+    /**
+     * Update spectrum interaction area for mobile
+     */
+    updateSpectrumInteractionArea() {
+        const spectrumWrapper = document.getElementById('spectrum-grid');
+        if (!spectrumWrapper) return;
+        
+        // Add mobile-specific interaction hints
+        if (this.isMobile && this.stateManager.getUIState().spectrumInteractionEnabled) {
+            if (!spectrumWrapper.querySelector('.touch-hint')) {
+                const hint = document.createElement('div');
+                hint.className = 'touch-hint';
+                hint.textContent = 'Tap to place your guess';
+                spectrumWrapper.appendChild(hint);
+                
+                // Remove hint after first interaction
+                spectrumWrapper.addEventListener('pointerdown', () => {
+                    hint.remove();
+                }, { once: true });
+            }
+        }
     }
 
     /**
@@ -1197,7 +1553,7 @@ export class UIManager {
     }
 
     /**
-     * Switch between main views (lobby/game)
+     * Switch between main views (lobby/game) with mobile optimizations
      * @param {string} view - View to switch to ('lobby' or 'game')
      */
     switchView(view) {
@@ -1210,12 +1566,38 @@ export class UIManager {
         
         this.currentView = view;
         
+        // Mobile-specific view adjustments
+        if (this.isMobile && view === 'game') {
+            this.setupMobileGameView();
+        }
+        
         // Update room code display when switching to game view
         if (view === 'game') {
             const connectionState = this.stateManager.getConnectionState();
             if (connectionState.roomCode && this.elements.currentRoomCode) {
                 this.elements.currentRoomCode.textContent = connectionState.roomCode;
             }
+        }
+    }
+
+    /**
+     * Setup mobile game view optimizations
+     */
+    setupMobileGameView() {
+        // Auto-collapse non-essential panels
+        if (this.elements.notificationPanel) {
+            this.elements.notificationPanel.classList.add('collapsed');
+        }
+        
+        // Add mobile navigation hints
+        if (!document.querySelector('.mobile-nav-hint')) {
+            const hint = document.createElement('div');
+            hint.className = 'mobile-nav-hint';
+            hint.innerHTML = '<span>Swipe right for menu</span>';
+            this.elements.gameRoom.appendChild(hint);
+            
+            // Remove hint after 3 seconds
+            setTimeout(() => hint.remove(), 3000);
         }
     }
 
@@ -1229,14 +1611,18 @@ export class UIManager {
     }
 
     /**
-     * Handle window resize events
+     * Handle window resize events with mobile optimizations
      * Repositions modal and scrolls chat to bottom
      */
     handleResize = () => {
-            // Don't dispatch a new resize event - this causes an infinite loop!
-            if (this.activeModal) this.repositionModal();
-            if (this.elements.chatMessages) this.scrollChatToBottom();
+        if (this.activeModal) this.repositionModal();
+        if (this.elements.chatMessages) this.scrollChatToBottom();
+        
+        // Update spectrum interaction area on resize
+        if (this.currentView === 'game') {
+            this.updateSpectrumInteractionArea();
         }
+    }
 
     /**
      * Reposition modal on window resize
@@ -1249,17 +1635,20 @@ export class UIManager {
     }
 
     /**
-     * Scroll chat messages container to bottom
+     * Scroll chat messages container to bottom with smooth animation
      * Ensures newest messages are visible
      */
     scrollChatToBottom() {
         if (this.elements.chatMessages) {
-            this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+            this.elements.chatMessages.scrollTo({
+                top: this.elements.chatMessages.scrollHeight,
+                behavior: this.isMobile ? 'auto' : 'smooth'
+            });
         }
     }
 
     /**
-     * Show modal with specified content
+     * Show modal with responsive adjustments
      * @param {string} modalId - ID of modal content to show
      * @param {Object} data - Data to pass to modal content generator
      */
@@ -1270,12 +1659,22 @@ export class UIManager {
         const modal = this.elements.modalOverlay.querySelector('.modal');
         modal.classList.add('animate-modal-slide-in');
         
+        // Add mobile modal class
+        if (this.isMobile) {
+            modal.classList.add('mobile-modal');
+        }
+        
         this.setModalContent(modalId, data);
         this.activeModal = modalId;
+        
+        // Prevent body scroll on mobile
+        if (this.isMobile) {
+            document.body.style.overflow = 'hidden';
+        }
     }
 
     /**
-     * Hide currently active modal
+     * Hide currently active modal with mobile cleanup
      * Animates modal out and updates state
      */
     hideModal() {
@@ -1286,9 +1685,14 @@ export class UIManager {
         
         setTimeout(() => {
             this.elements.modalOverlay.classList.add('hidden');
-            modal.classList.remove('animate-modal-slide-in', 'animate-modal-slide-out');
+            modal.classList.remove('animate-modal-slide-in', 'animate-modal-slide-out', 'mobile-modal');
             this.activeModal = null;
             this.stateManager.hideModal();
+            
+            // Restore body scroll on mobile
+            if (this.isMobile) {
+                document.body.style.overflow = '';
+            }
         }, 300);
     }
 
@@ -1634,13 +2038,21 @@ export class UIManager {
     }
 
     /**
-     * Destroy the UI manager and clean up resources
-     * Removes event listeners, cancels pending updates, and resets state
+     * Clean up and destroy the UI manager
      */
     destroy() {
         // Clean up event listeners
         document.removeEventListener('click', this.handleGlobalClick.bind(this));
         document.removeEventListener('keydown', this.handleGlobalKeydown.bind(this));
+        
+        if (this.touchEnabled) {
+            document.removeEventListener('touchstart', this.handleTouchStart.bind(this));
+        }
+        
+        // Clean up responsive handlers
+        window.removeEventListener('resize', this.handleResponsiveResize);
+        window.removeEventListener('orientationchange', this.adjustUIForOrientation);
+        clearTimeout(this.resizeDebounceTimer);
         
         // Clean up specific input handlers
         this.elements.playerNameInput?.removeEventListener('input', () => this.validatePlayerName());
@@ -1679,7 +2091,8 @@ export class UIManager {
             currentView: 'lobby',
             isInitialized: false,
             activeModal: null,
-            notifications: []
+            notifications: [],
+            mobileMenuOpen: false
         });
         console.log('🧹 UIManager destroyed');
     }

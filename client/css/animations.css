@@ -256,10 +256,126 @@
   animation: particleFloat 3s ease-out;
 }
 
-/* Responsive adjustments */
+/* ===== RESPONSIVE ANIMATION ADJUSTMENTS ===== */
+
+/* Tablet adjustments */
+@media (max-width: 1200px) {
+  /* Slightly faster animations for tablet */
+  .animate-bounce { animation-duration: 0.9s; }
+  .animate-pulse { animation-duration: 1.8s; }
+  .animate-glow { animation-duration: 1.8s; }
+  
+  /* Reduce transform distances */
+  @keyframes bounce {
+    25% { transform: translateY(-6px); }
+    50% { transform: translateY(0); }
+    75% { transform: translateY(-3px); }
+  }
+  
+  @keyframes shake {
+    25%, 75% { transform: translateX(-3px); }
+    50% { transform: translateX(3px); }
+  }
+}
+
+/* Mobile adjustments */
 @media (max-width: 768px) {
-  .animate-bounce { animation-duration: 1.2s; }
-  .animate-pulse { animation-duration: 2.5s; }
+  /* Faster animations for mobile */
+  .animate-slide-in-top,
+  .animate-slide-in-bottom,
+  .animate-slide-in-left,
+  .animate-slide-in-right,
+  .animate-scale-in,
+  .animate-zoom-in,
+  .animate-fade-in,
+  .animate-fade-out { 
+    animation-duration: 0.2s; 
+  }
+  
+  .animate-bounce { animation-duration: 0.8s; }
+  .animate-pulse { animation-duration: 1.5s; }
+  .animate-glow { animation-duration: 1.5s; }
+  
+  /* Smaller transforms for mobile */
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+  }
+  
+  @keyframes bounce {
+    25% { transform: translateY(-4px); }
+    50% { transform: translateY(0); }
+    75% { transform: translateY(-2px); }
+  }
+  
+  @keyframes shake {
+    25%, 75% { transform: translateX(-2px); }
+    50% { transform: translateX(2px); }
+  }
+  
+  @keyframes pulse {
+    50% { 
+      opacity: 0.8;
+      transform: scale(1.02);
+    }
+  }
+  
+  /* Disable complex animations */
+  .spectrum-gradient.animated {
+    animation: none;
+    background-size: 100% 100%;
+  }
+  
+  .glass-shine::before {
+    animation: none;
+  }
+}
+
+/* Small mobile adjustments */
+@media (max-width: 480px) {
+  /* Minimal animations for performance */
+  .animate-bounce,
+  .animate-shake,
+  .animate-glow { 
+    animation: none; 
+  }
+  
+  /* Keep only essential animations */
+  .animate-fade-in { animation: fadeIn 0.15s ease-out; }
+  .animate-fade-out { animation: fadeOut 0.15s ease-out; }
+  
+  /* Disable hover transforms on mobile */
+  .hover-lift:hover,
+  .hover-scale:hover {
+    transform: none;
+  }
+  
+  /* Disable timer animations */
+  .timer.warning,
+  .timer.danger { 
+    animation: none;
+    opacity: 1;
+  }
+  
+  /* Use color changes instead of animations */
+  .timer.warning { color: var(--accent-orange); }
+  .timer.danger { color: var(--accent-red); }
+}
+
+/* Performance optimizations for low-end devices */
+@media (max-width: 768px) and (max-height: 600px) {
+  /* Disable all non-essential animations */
+  .animate-pulse,
+  .animate-bounce,
+  .animate-shake,
+  .animate-glow,
+  .spectrum-gradient.animated,
+  .glass-shine::before,
+  .progress-fill::after { 
+    animation: none !important; 
+  }
 }
 
 /* Accessibility - complete disable for reduced motion */
@@ -271,6 +387,17 @@
   
   .skeleton { background: var(--glass-bg); }
   .progress-fill::after { display: none; }
+  
+  /* Static timer states */
+  .timer.warning { color: var(--accent-orange); }
+  .timer.danger { color: var(--accent-red); }
+  
+  /* Static hover states */
+  .hover-lift:hover,
+  .hover-scale:hover {
+    transform: none;
+    opacity: 0.8;
+  }
 }
 
 /* Dark mode effects - simplified */
@@ -300,4 +427,63 @@
 
 @keyframes glassShine {
   to { transform: translateX(100%); }
+}
+
+/* Mobile-specific animation utilities */
+@media (max-width: 768px) {
+  /* Message animations */
+  .animate-message-slide-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+  
+  /* Modal animations */
+  .animate-modal-slide-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+  
+  .animate-modal-slide-out {
+    animation: fadeOut 0.2s ease-out;
+  }
+  
+  /* Notification animations */
+  .animate-notification-slide-in {
+    animation: slideIn 0.2s ease-out;
+  }
+  
+  .animate-notification-slide-out {
+    animation: slideOut 0.2s ease-out;
+  }
+  
+  /* Success animations */
+  .animate-success-celebration {
+    animation: pulse 0.4s ease-out;
+  }
+  
+  /* Error animations */
+  .animate-error-shake {
+    animation: shake 0.3s ease-out;
+  }
+  
+  /* Button press effect */
+  .animate-button-press {
+    animation: scaleIn 0.15s ease-out;
+  }
+}
+
+/* Landscape mobile specific */
+@media (max-width: 768px) and (orientation: landscape) {
+  /* Disable vertical animations in landscape */
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+  }
+  
+  @keyframes slideOut {
+    to {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+  }
 }
