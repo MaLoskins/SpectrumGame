@@ -162,13 +162,6 @@ export class UIManager {
         // Adjust notification positions
         this.repositionNotifications();
 
-        // Handle collapsible panels on mobile
-        if (this.isMobile) {
-            this.enableMobilePanels();
-        } else {
-            this.disableMobilePanels();
-        }
-
         // Adjust font sizes dynamically
         this.updateDynamicFontSizes();
     }
@@ -242,76 +235,11 @@ export class UIManager {
     /**
      * Enable mobile-specific panel behaviors
      */
-    enableMobilePanels() {
-        // Add collapse buttons to panels (EXCLUDING chat panel which has its own toggle)
-        const panels = [
-            this.elements.playerList,
-            this.elements.notificationPanel
-            // Removed chatPanel from here
-        ].filter(Boolean);
-
-        panels.forEach(panel => {
-            // Remove any existing toggle button first
-            const existingToggle = panel.querySelector('.panel-toggle');
-            if (existingToggle) {
-                existingToggle.remove();
-            }
-            
-            // Add new toggle button
-            const toggle = document.createElement('button');
-            toggle.className = 'panel-toggle';
-            toggle.innerHTML = '−';
-            toggle.setAttribute('aria-label', 'Toggle panel visibility');
-            toggle.setAttribute('aria-expanded', 'true');
-            
-            // Check if panel was previously collapsed
-            const isCollapsed = panel.classList.contains('collapsed');
-            if (isCollapsed) {
-                toggle.innerHTML = '+';
-                toggle.setAttribute('aria-expanded', 'false');
-            }
-            
-            toggle.addEventListener('click', () => this.togglePanel(panel));
-            
-            const header = panel.querySelector('h3');
-            if (header && header.parentElement) {
-                header.parentElement.style.position = 'relative';
-                header.parentElement.appendChild(toggle);
-            }
-        });
-    }
-
-    /**
-     * Disable mobile panel behaviors
-     */
-    disableMobilePanels() {
-        // Remove toggle buttons
-        document.querySelectorAll('.panel-toggle').forEach(toggle => {
-            toggle.remove();
-        });
-        
-        // IMPORTANT: Remove collapsed state from all panels
-        document.querySelectorAll('.collapsed').forEach(panel => {
-            panel.classList.remove('collapsed');
-        });
-        
-        // Also remove auto-collapsed state
-        document.querySelectorAll('.auto-collapsed').forEach(panel => {
-            panel.classList.remove('auto-collapsed');
-        });
-    }
+    // Mobile panel methods removed - panels are now always visible
     /**
      * Toggle panel visibility on mobile
      */
-    togglePanel(panel) {
-        panel.classList.toggle('collapsed');
-        const toggle = panel.querySelector('.panel-toggle');
-        if (toggle) {
-            const isCollapsed = panel.classList.contains('collapsed');
-            toggle.innerHTML = isCollapsed ? '+' : '−';
-            toggle.setAttribute('aria-expanded', !isCollapsed);
-        }
-    }
+    // Panel toggle method removed - panels are now always visible
 
     /**
      * Show mobile menu
@@ -346,19 +274,14 @@ export class UIManager {
      * Minimize non-essential UI for landscape mobile
      */
     minimizeNonEssentialUI() {
-        // Auto-collapse certain panels in landscape
-        if (this.elements.notificationPanel) {
-            this.elements.notificationPanel.classList.add('auto-collapsed');
-        }
+        // Panels are now always visible - no need to collapse
     }
 
     /**
      * Restore full UI
      */
     restoreFullUI() {
-        document.querySelectorAll('.auto-collapsed').forEach(element => {
-            element.classList.remove('auto-collapsed');
-        });
+        // Panels are now always visible - no need to restore
     }
 
     /**
@@ -420,7 +343,7 @@ export class UIManager {
             chatMessages: '#chat-messages', 
             chatInput: '#chat-input',
             sendChatBtn: '#send-chat', 
-            toggleChatBtn: '#toggle-chat',
+            // toggleChatBtn no longer needed as chat is always visible
             // Game control elements in notification panel
             gameControlContainer: '#game-control-container',
             clueInputSection: '#clue-input-section',
@@ -519,7 +442,7 @@ export class UIManager {
         else if (target.matches('#next-round')) this.handleNextRound();
         else if (target.matches('#view-final-scores')) this.handleViewFinalScores();
         else if (target.matches('#send-chat')) this.handleSendChat();
-        else if (target.matches('#toggle-chat')) this.handleToggleChat();
+        // No longer need toggle chat handler as chat is always visible
         else if (target.matches('#modal-close, #modal-cancel')) this.hideModal();
         else if (target === this.elements.modalOverlay) this.hideModal();
     }
@@ -766,25 +689,7 @@ export class UIManager {
         }
     }
 
-    /**
-     * Handle toggle chat button click
-     * Toggles chat visibility and updates button text
-     */
-    handleToggleChat() {
-        const chatPanel = document.querySelector('.chat-panel');
-        if (!chatPanel) return;
-        
-        // Toggle the collapsed class directly
-        chatPanel.classList.toggle('collapsed');
-        
-        // Update button text
-        const isCollapsed = chatPanel.classList.contains('collapsed');
-        this.elements.toggleChatBtn.textContent = isCollapsed ? '+' : '−';
-        
-        // Update state
-        const chatVisible = !isCollapsed;
-        this.stateManager.updateUIState({ chatVisible });
-    }
+    // Removed handleToggleChat method as chat is always visible
 
     /**
      * Handle keyboard shortcuts

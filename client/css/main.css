@@ -225,8 +225,8 @@ a:hover {
 /* Glass panel optimization */
 .glass-panel {
   background: var(--glass-bg);
-  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   border-radius: var(--radius-2xl);
@@ -265,6 +265,7 @@ a:hover {
   transition: all var(--transition-normal);
   text-decoration: none;
   white-space: nowrap;
+  -webkit-user-select: none;
   user-select: none;
   outline: none;
   position: relative;
@@ -308,6 +309,7 @@ a:hover {
   background: var(--glass-bg);
   color: var(--text-primary);
   border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
 }
 
@@ -357,6 +359,7 @@ textarea {
   border-radius: var(--radius-lg);
   transition: all var(--transition-fast);
   outline: none;
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
 }
 
@@ -479,6 +482,7 @@ input.error {
   width: 100%;
   padding: clamp(1rem, 3vw, 1.5rem);
   background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
@@ -581,6 +585,7 @@ input.error {
 
 .game-header {
   background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border-block-end: 1px solid var(--glass-border);
   box-shadow: var(--shadow-sm);
@@ -650,6 +655,7 @@ input.error {
   border-radius: var(--radius-lg);
   min-width: 80px;
   text-align: center;
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   contain: layout style;
 }
@@ -659,6 +665,7 @@ input.error {
   position: fixed;
   inset: 0;
   background: var(--overlay-bg);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   display: grid;
   place-content: center;
@@ -753,7 +760,6 @@ input.error {
     padding: 0.25rem 0.75rem;
   }
 }
-
 /* Mobile Layout (480px - 768px) */
 @media (max-width: 768px) {
   :root {
@@ -798,7 +804,7 @@ input.error {
     border-radius: var(--radius-lg);
   }
   
-  /* Scrollable main content - FIXED */
+  /* Scrollable main content */
   .game-main {
     flex: 1;
     display: flex;
@@ -810,7 +816,7 @@ input.error {
     min-height: 0;
   }
   
-  /* FIXED: Collapsible panels with proper sizing */
+  /* Always visible panels with proper sizing */
   .game-sidebar-left {
     display: flex;
     flex-direction: column;
@@ -819,7 +825,7 @@ input.error {
     flex-shrink: 0;
   }
   
-  /* FIXED: Ensure panels have minimum heights and proper visibility */
+  /* Ensure panels have minimum heights and proper visibility */
   .player-list,
   .notification-panel {
     min-height: 200px;
@@ -830,7 +836,7 @@ input.error {
     flex-direction: column;
   }
   
-  /* FIXED: Make containers visible and properly sized */
+  /* Make containers visible and properly sized */
   .players-container {
     min-height: 100px;
     flex: 1;
@@ -849,6 +855,7 @@ input.error {
     visibility: visible !important;
   }
   
+  
   /* Spectrum takes priority */
   .game-center {
     order: 1;
@@ -860,17 +867,20 @@ input.error {
     flex-shrink: 0;
   }
   
-  /* Chat at bottom */
+  /* Chat at bottom - improved visibility */
   .game-sidebar-right {
     order: 3;
-    height: 25vh;
-    min-height: 150px;
-    max-height: 250px;
+    height: 30vh;
+    min-height: 200px;
+    max-height: 300px;
     position: sticky;
     bottom: 0;
     background: var(--secondary-bg);
     border-top: 2px solid var(--glass-border);
     flex-shrink: 0;
+    z-index: 20;
+    margin-top: auto;
+    display: flex !important;
   }
   
   /* Mobile-friendly buttons */
@@ -951,10 +961,13 @@ input.error {
     padding: 0.25rem;
   }
   
-  /* Minimal chat */
+  /* Improved chat visibility on small screens */
   .game-sidebar-right {
-    height: 20vh;
-    min-height: 120px;
+    height: 35vh;
+    min-height: 180px;
+    display: flex !important;
+    visibility: visible !important;
+    z-index: 30;
   }
   
   .chat-header {
@@ -994,14 +1007,18 @@ input.error {
     min-height: 60vh;
   }
   
+  /* Ensure panels are properly sized for landscape */
   .player-list,
   .notification-panel {
     max-height: 40vh;
+    min-height: 150px;
   }
   
   .game-sidebar-right {
-    height: 20vh;
-    max-height: 150px;
+    height: 25vh;
+    max-height: 180px;
+    min-height: 150px;
+    display: flex !important;
   }
 }
 

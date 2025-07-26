@@ -12,8 +12,8 @@ export class ChatManager {
             messagesContainer: null,
             inputElement: null,
             sendButton: null,
-            toggleButton: null,
-            isVisible: true,
+            // No longer need toggle button since chat is always visible
+            isVisible: true, // Always visible now
             isScrolledToBottom: true,
             unreadCount: 0,
             lastMessageTime: 0,
@@ -328,8 +328,8 @@ export class ChatManager {
             chatContainer: '.chat-panel',
             messagesContainer: '#chat-messages',
             inputElement: '#chat-input',
-            sendButton: '#send-chat',
-            toggleButton: '#toggle-chat'
+            sendButton: '#send-chat'
+            // No longer need toggle button reference
         };
         
         Object.entries(selectors).forEach(([key, selector]) => {
@@ -361,7 +361,7 @@ export class ChatManager {
         }
         
         this.sendButton?.addEventListener('click', this.handleSendMessage);
-        this.toggleButton?.addEventListener('click', this.handleToggleChat);
+        // Toggle button no longer needed as chat is always visible
         
         // Optimize resize observer
         if (window.ResizeObserver && this.messagesContainer) {
@@ -468,10 +468,7 @@ export class ChatManager {
 
     handleInputFocus = () => this.markAsRead();
     handleInputBlur = () => this.clearTypingIndicator();
-    handleToggleChat = () => {
-        this.isVisible = !this.isVisible;
-        this.stateManager.updateUIState({ chatVisible: this.isVisible });
-    }
+    // Removed handleToggleChat as chat is always visible now
 
     handleScroll = () => {
         const { scrollHeight, scrollTop, clientHeight } = this.messagesContainer;
@@ -721,27 +718,20 @@ export class ChatManager {
      */
 
     updateVisibility(visible) {
-        this.isVisible = visible;
-        // Don't manipulate the collapsed class here - let UIManager handle it
+        this.isVisible = true; // Always visible now
         
-        if (visible) {
-            // Use requestAnimationFrame for DOM updates
-            requestAnimationFrame(() => {
-                if (!this.virtualKeyboardOpen && this.inputElement) {
-                    this.inputElement.focus();
-                }
-                this.markAsRead();
-                this.scrollToBottom(false);
-            });
-        }
+        // Use requestAnimationFrame for DOM updates
+        requestAnimationFrame(() => {
+            if (!this.virtualKeyboardOpen && this.inputElement) {
+                this.inputElement.focus();
+            }
+            this.markAsRead();
+            this.scrollToBottom(false);
+        });
     }
     updateUnreadCount(count) {
         this.unreadCount = count;
-        
-        if (this.toggleButton) {
-            this.toggleButton.textContent = count > 0 && !this.isVisible ? `+ (${count})` : (this.isVisible ? '−' : '+');
-            this.toggleButton.classList.toggle('has-unread', count > 0 && !this.isVisible);
-        }
+        // No longer need to update toggle button as chat is always visible
     }
 
     markAsRead() {
@@ -840,7 +830,7 @@ export class ChatManager {
         }
         
         this.sendButton?.removeEventListener('click', this.handleSendMessage);
-        this.toggleButton?.removeEventListener('click', this.handleToggleChat);
+        // No longer need to remove toggle button event listener
         
         // Clean up notification close buttons
         const notifications = document.querySelectorAll('.notification-close');
@@ -864,7 +854,6 @@ export class ChatManager {
         this.messagesContainer = null;
         this.inputElement = null;
         this.sendButton = null;
-        this.toggleButton = null;
         
         console.log('🧹 ChatManager destroyed');
     }
