@@ -135,7 +135,7 @@ class SocketHandler {
     async handleStartGame(socket) {
         try {
             const { room, playerId } = this.getPlayerRoom(socket);
-            this.setupRoom(room, this);
+            this.setupRoom(room, this.io); // Change 'this' to 'this.io'
             
             const player = room.players.get(playerId);
             if (!player?.isHost) {
@@ -156,7 +156,27 @@ class SocketHandler {
             room.phase = 'active';
             const roundData = this.gameManager.startRound(room);
             
-            this.broadcastRoundStart(room, roundData);
+            // Send the EXACT same data to all players
+            const baseRoundData = {
+                roundNumber: roundData.roundNumber,
+                clueGiverId: roundData.clueGiverId,
+                spectrumX: roundData.spectrumX,
+                spectrumY: roundData.spectrumY,
+                duration: roundData.duration,
+                totalRounds: room.totalRounds || 10
+            };
+            
+            // Broadcast to all players with only the target coordinate different
+            room.players.forEach((player, pid) => {
+                const playerSocket = this.getPlayerSocket(pid);
+                if (playerSocket) {
+                    playerSocket.emit(GAME_EVENTS.ROUND_START, {
+                        ...baseRoundData,
+                        targetCoordinate: pid === room.clueGiverId ? room.targetCoordinate : null
+                    });
+                }
+            });
+            
             console.log(`✅ Game started in room ${room.code}`);
         } catch (error) {
             this.handleError(socket, 'GAME_START_FAILED', error);
@@ -305,12 +325,25 @@ class SocketHandler {
     }
 
     broadcastRoundStart(room, roundData) {
+        // Create a base round data object that's the same for everyone
+        const baseRoundData = {
+            roundNumber: roundData.roundNumber,
+            clueGiverId: roundData.clueGiverId,
+            spectrumX: room.spectrumX, // Use room's spectrum directly
+            spectrumY: room.spectrumY, // Use room's spectrum directly
+            duration: roundData.duration,
+            totalRounds: room.totalRounds || 10
+        };
+        
+        // Only vary the target coordinate based on who's the clue giver
         room.players.forEach((player, pid) => {
             const playerSocket = this.getPlayerSocket(pid);
-            playerSocket?.emit(GAME_EVENTS.ROUND_START, {
-                ...roundData,
-                targetCoordinate: pid === room.clueGiverId ? room.targetCoordinate : null
-            });
+            if (playerSocket) {
+                playerSocket.emit(GAME_EVENTS.ROUND_START, {
+                    ...baseRoundData,
+                    targetCoordinate: pid === room.clueGiverId ? room.targetCoordinate : null
+                });
+            }
         });
     }
 
