@@ -77,7 +77,7 @@ class SocketHandler {
             const playerId = this.generatePlayerId();
             const result = this.roomManager.createRoom(playerId, playerName, settings);
             const room = this.roomManager.getRoomByCode(result.code); // Get actual room object
-            this.setupRoom(room, this.io);
+            this.setupRoom(room, this);;
             
             socket.join(room.id);
             this.trackPlayer(socket, playerId, playerName, result.code, room.id);
@@ -105,7 +105,7 @@ class SocketHandler {
             const playerId = this.generatePlayerId();
             const roomInfo = this.roomManager.joinRoom(roomCode, playerId, playerName);
             const room = this.roomManager.getRoomByCode(roomCode);
-            this.setupRoom(room, this.io);
+            this.setupRoom(room, this);;
             
             socket.join(room.id);
             this.trackPlayer(socket, playerId, playerName, roomCode, room.id);
@@ -135,7 +135,7 @@ class SocketHandler {
     async handleStartGame(socket) {
         try {
             const { room, playerId } = this.getPlayerRoom(socket);
-            this.setupRoom(room, this.io); // Change 'this' to 'this.io'
+            this.setupRoom(room, this);; // Change 'this' to 'this.io'
             
             const player = room.players.get(playerId);
             if (!player?.isHost) {
@@ -319,9 +319,9 @@ class SocketHandler {
     }
 
     // Helper methods
-    setupRoom(room, handler) {
+    setupRoom(room, socketHandler) {
         room.io = this.io;
-        room.socketHandler = handler;
+        room.socketHandler = socketHandler;
     }
 
     broadcastRoundStart(room, roundData) {

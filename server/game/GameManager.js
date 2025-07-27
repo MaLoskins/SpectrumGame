@@ -328,14 +328,13 @@ class GameManager {
         
         this.gameTimers.set(`${room.id}_nextRound`, setTimeout(() => {
             const nextRoundData = this.startRound(room);
-            if (room.io && room.socketHandler) {
-                room.players.forEach((player, playerId) => {
-                    const socket = room.socketHandler.getPlayerSocket(playerId);
-                    socket?.emit('game:round-start', {
-                        ...nextRoundData,
-                        targetCoordinate: playerId === room.clueGiverId ? room.targetCoordinate : null
-                    });
-                });
+            
+            // Use the socketHandler's broadcastRoundStart method if available
+            if (room.socketHandler && typeof room.socketHandler.broadcastRoundStart === 'function') {
+                room.socketHandler.broadcastRoundStart(room, nextRoundData);
+            } else {
+                // Fallback to direct emit
+                room.io?.to(room.id).emit('game:round-start', nextRoundData);
             }
         }, this.BETWEEN_ROUNDS_DELAY));
     }
